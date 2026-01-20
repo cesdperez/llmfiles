@@ -13,7 +13,6 @@ llmfiles/
 │   └── <command-name>.md
 ├── shared/
 │   └── AGENTS.md
-├── install.sh
 ├── CLAUDE.md
 └── README.md
 ```
@@ -67,17 +66,17 @@ Universal instructions for AI assistants. Works across VS Code Copilot, Antigrav
 
 ```bash
 # Global instructions (AGENTS.md as your global CLAUDE.md)
-ln -sf ~/.llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
+ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
 
 # Skills (symlink individually to preserve existing skills)
 mkdir -p ~/.claude/skills
-for skill in ~/.llmfiles/skills/*/; do
+for skill in ~/llmfiles/skills/*/; do
   ln -sf "$skill" ~/.claude/skills/
 done
 
 # Commands (symlink individually to preserve existing commands)
 mkdir -p ~/.claude/commands
-for cmd in ~/.llmfiles/commands/*.md; do
+for cmd in ~/llmfiles/commands/*.md; do
   ln -sf "$cmd" ~/.claude/commands/
 done
 ```
@@ -86,7 +85,7 @@ done
 
 ```bash
 # Per-project
-ln -sf ~/.llmfiles/shared/AGENTS.md ./AGENTS.md
+ln -sf ~/llmfiles/shared/AGENTS.md ./AGENTS.md
 ```
 
 ### OpenCode
@@ -96,6 +95,6 @@ OpenCode reads `AGENTS.md` from project root.
 ### Antigravity
 
 ```bash
-ln -sf ~/.llmfiles/shared/AGENTS.md ./AGENTS.md
+ln -sf ~/llmfiles/shared/AGENTS.md ./AGENTS.md
 ```
 
