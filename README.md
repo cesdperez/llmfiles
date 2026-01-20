@@ -53,17 +53,34 @@ Universal instructions for AI assistants. Works across VS Code Copilot, Antigrav
 
 ### Claude Code
 
+**Option A: Symlink entire directories (recommended)**
+
+Easier to maintain—new files automatically appear, deletions propagate cleanly.
+
 ```bash
-# Global instructions (AGENTS.md as your global CLAUDE.md)
+# Global instructions
 ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
 
-# Skills (symlink individually to preserve existing skills)
+# Skills and commands (entire directories)
+ln -sf ~/llmfiles/skills ~/.claude/skills
+ln -sf ~/llmfiles/commands ~/.claude/commands
+```
+
+**Option B: Symlink individual files**
+
+Use this if you have existing skills/commands you want to preserve alongside llmfiles.
+
+```bash
+# Global instructions
+ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
+
+# Skills (symlink individually)
 mkdir -p ~/.claude/skills
 for skill in ~/llmfiles/skills/*/; do
   ln -sf "$skill" ~/.claude/skills/
 done
 
-# Commands (symlink individually to preserve existing commands)
+# Commands (symlink individually)
 mkdir -p ~/.claude/commands
 for cmd in ~/llmfiles/commands/*.md; do
   ln -sf "$cmd" ~/.claude/commands/
