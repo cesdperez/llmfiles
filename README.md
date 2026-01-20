@@ -49,17 +49,6 @@ Prompt content here. Use $ARGUMENTS for user input.
 
 Universal instructions for AI assistants. Works across VS Code Copilot, Antigravity, and others.
 
-```markdown
-# Agent Instructions
-
-## Code Style
-- Keep functions small and focused
-- Write self-documenting code
-
-## Patterns
-- Prefer composition over inheritance
-```
-
 ## Installation
 
 ### Claude Code
