@@ -1,124 +1,238 @@
 ---
 name: jira-cli
-description: Interact with Jira issues, epics, and sprints directly from the terminal. Use when managing Jira tickets, listing assigned work, creating bug reports, or transitioning issues without opening the browser.
+description: Manage Jira issues, sprints, and epics from the command line using jira-cli. Use when creating Jira tickets, listing issues, transitioning tasks, managing sprints, searching with JQL, or when the user mentions jira, jira-cli, or ticket management.
 ---
 
 # Jira CLI
 
 ## Overview
-This skill enables efficient interaction with Atlassian Jira from the terminal using the `jira-cli` (binary name `jira`). It supports creating, editing, and viewing issues, epics, and sprints, with both interactive and non-interactive modes.
 
-## Key Patterns
-- **Interactive by Default**: Most commands launch an interactive TUI unless flagged otherwise. Use `--no-input` for scripting or quick one-off commands.
-- **Filtering**: Extensive short-flags for common filters: `-s` (status), `-y` (priority), `-t` (type), `-a` (assignee), `-r` (reporter).
-- **JQL Integration**: Use `-q / --jql` to run raw JQL queries when standard flags aren't enough.
-- **Context Awareness**: The CLI relies on a configuration file (usually `~/.jira/.config.yml`) for the current project context. Use `-c` to switch configs.
-- **Templates**: Accepts Markdown templates for descriptions and comments via `--template`.
+jira-cli (`jira`) is an interactive command-line tool for Atlassian Jira. It enables issue creation, transitions, sprint management, and JQL queries without the web interface.
 
-## Commands
-### Core Setup
-- `jira init`: Initialize configuration (interactive).
-- `jira me`: Print the logged-in user's name/ID.
+## Authentication
 
-### Issue Management
-- `jira issue list`: List issues (interactive TUI).
-- `jira issue list --plain`: List issues in plain text (good for piping).
-- `jira issue create`: Create a new issue.
-- `jira issue view [ISSUE-KEY]`: View issue details.
-- `jira issue edit [ISSUE-KEY]`: Edit issue fields.
-- `jira issue move [ISSUE-KEY] [STATUS]`: Transition an issue.
-- `jira issue assign [ISSUE-KEY] [USER]`: Assign an issue.
-- `jira issue comment add [ISSUE-KEY]`: Add a comment.
+CLI is already authenticated and setup.
 
-### Epic & Sprint
-- `jira epic list`: List epics.
-- `jira epic add [EPIC-KEY] [ISSUE-KEYS...]`: Add issues to an epic.
-- `jira sprint list --current`: List issues in the active sprint.
+## Essential Commands
 
-## Workflow: Assisted Ticket Creation
-Follow this process when asking to create a ticket or when the user provides vague requirements:
+### List Issues
 
-1. **Gather Information**: Ensure you have these details:
-   - **Project Key**: Run `jira project list` if unknown (e.g., CPT, LXP).
-   - **Issue Type**: Task, Bug, Story.
-   - **Summary**: A clear, concise title.
-   - **Metadata**: Assignee (default to self if unsure), Labels, Priority.
-
-2. **Draft the Description**:
-   - Create a structured description in a temporary file (e.g., `/tmp/jira_desc.md`) to ensure quality.
-   - **Conciseness**: Keep summaries and descriptions focused. Avoid fluff and DRY.
-   - **Structure**:
-     - *Context*: What is happening now?
-     - *Expected Outcome*: What should happen?
-     - *Acceptance Criteria*: Checklist `[ ]` of verifiable steps.
-     - *Technical Notes*: Dependencies, specific files, or implementation details.
-
-3. **Execute Creation**:
-   - Use the template flag `-T` and `--no-input` for reliability.
-   - **Base Command**:
-     ```bash
-     jira issue create \
-       -p PROJECTS \
-       -t Task \
-       -s "Summary here" \
-       -T /tmp/jira_desc.md \
-       --no-input
-     ```
-   - **Full Command** (with metadata):
-     ```bash
-     jira issue create \
-       -p PROJECTS \
-       -t Bug \
-       -s "Summary here" \
-       -T /tmp/jira_desc.md \
-       -l backend -l bug \
-       -y High \
-       -a $(jira me) \
-       --no-input
-     ```
-
-## Common Tasks
-
-### 1. Daily Standup / Work Check
-List high-priority issues assigned to you in the current sprint or generally.
 ```bash
-# List all "In Progress" issues assigned to me
-jira issue list -s"In Progress" -a$(jira me)
-
-# List current sprint issues assigned to me
-jira sprint list --current -a$(jira me)
+jira issue list                           # Interactive list
+jira issue list -a$(jira me)              # My issues
+jira issue list -s"To Do"                 # By status
+jira issue list -yHigh                    # By priority
+jira issue list --created -7d             # Last 7 days
+jira issue list -q "summary ~ 'search'"   # JQL query
+jira issue list -ax                       # Unassigned
+jira issue list --plain                   # Plain text output
+jira issue list --raw                     # JSON output
 ```
 
-### 2. Creating a Bug Report (Quick)
-Quickly file a bug without the interactive prompt using inline flags.
+### Create Issue
+
 ```bash
+jira issue create                         # Interactive
+jira issue create -tBug -s"Summary" -yHigh -b"Description" --no-input
+jira issue create -tTask -s"Summary" -PEPIC-42 --no-input  # Link to epic
+echo "Description from stdin" | jira issue create -s"Summary" -tTask
+
+# With template file (for complex descriptions)
+jira issue create -p PROJECT -t Task -s "Summary" -T /tmp/description.md --no-input
+
+# Full example with all fields
 jira issue create \
-  -tBug \
-  -s"Login fails with 500 error" \
-  -yHigh \
-  -lbackend -lurgent \
-  -b"Step to reproduce: ..." \
+  -p PROJECT \
+  -t Bug \
+  -s "Summary" \
+  -T /tmp/description.md \
+  -l label1 -l label2 \
+  -y High \
+  -a "assignee" \
+  --component Frontend \
   --no-input
 ```
 
-### 3. Transitioning & Commenting
-Move a ticket to "Done" and add a closing comment.
+### Transition/Move Issue
+
 ```bash
-jira issue move ISSUE-123 "Done" \
-  --comment "Fixed the race condition in the auth handler."
+jira issue move ISSUE-1 "In Progress"
+jira issue move ISSUE-1 Done -RFixed      # With resolution
+jira issue move                           # Interactive
 ```
 
-## Pitfalls to Avoid
-1. **Ambiguous Assignees**: When assigning users, if the name matches multiple people, the CLI will prompt interactively. Use exact usernames or emails for scripts.
-2. **Missing Configuration**: Running commands outside of an initialized context will fail. Ensure `jira init` has been run or `JIRA_CONFIG_FILE` is set.
-3. **Markdown Rendering**: Jira uses a specific flavor of Markdown. Complex formatting might look different in the terminal vs the web UI.
-4. **Cloud vs On-Prem**: Auth mechanisms differ. Cloud uses `JIRA_API_TOKEN` (API Token), while On-Prem might use PATs or Basic Auth.
+### Assign Issue
 
-## Quick Reference
-| Task | Command |
+```bash
+jira issue assign ISSUE-1 $(jira me)      # Assign to self
+jira issue assign ISSUE-1 "John Doe"
+jira issue assign ISSUE-1 x               # Unassign
+```
+
+### Edit Issue
+
+```bash
+jira issue edit ISSUE-1 -s"New summary" --no-input
+jira issue edit ISSUE-1 --label -old --label new  # Modify labels
+```
+
+### View & Comment
+
+```bash
+jira issue view ISSUE-1
+jira issue view ISSUE-1 --comments 5
+jira issue comment add ISSUE-1 "Comment text"
+```
+
+### Link Issues
+
+```bash
+jira issue link ISSUE-1 ISSUE-2 "blocks"
+jira issue link ISSUE-1 ISSUE-2 "relates to"
+```
+
+## Sprint & Epic Management
+
+```bash
+# Sprints
+jira sprint list
+jira sprint list -p PROJECT
+jira sprint add SPRINT_ID ISSUE-1
+
+# Epics
+jira epic list
+jira epic create -s"Epic name" -b"Description"
+jira epic add EPIC-1 ISSUE-2              # Add issue to epic
+jira epic remove EPIC-1 ISSUE-2
+```
+
+## Common Workflows
+
+### Find and transition my blocked tickets
+
+```bash
+jira issue list -a$(jira me) -s"Blocked" --plain
+jira issue move ISSUE-1 "In Progress"
+```
+
+### Create bug with full details
+
+```bash
+jira issue create -tBug \
+  -s"Login fails on Safari" \
+  -yHigh \
+  -b"Steps to reproduce..." \
+  -lbug -lsafari \
+  --component Frontend \
+  --no-input
+```
+
+### Bulk search with JQL
+
+```bash
+jira issue list -q "project = PROJ AND status = 'To Do' AND priority = High ORDER BY created DESC"
+```
+
+## Ticket Creation Workflow
+
+When helping users create tickets, gather these details:
+- **Required**: Project key, issue type, summary
+- **Optional**: Description, labels, priority, assignee, components
+
+### Description Template
+
+For complex tickets, write to a temp file and use `-T` flag. Keep descriptions **concise and actionable** - avoid verbose explanations. DRY between sections. Only include sections that add value; skip empty or obvious ones.
+
+Structure:
+
+```markdown
+## Context
+What's happening now, why it's a problem
+
+## Desired State
+What should happen instead
+
+## Affected Systems
+- System/project 1
+- System/project 2
+
+## Implementation Details
+Technical approach, examples, code snippets in fenced blocks
+
+## Acceptance Criteria
+[] Criterion 1
+[] Criterion 2
+
+## Dependencies
+Any blockers or related work
+```
+
+### Ticket Creation Example
+
+```bash
+# 1. Write description to temp file
+cat > /tmp/jira-description.md << 'EOF'
+...
+EOF
+
+# 2. Create ticket
+jira issue create \
+  -p CPT \
+  -t Bug \
+  -s "Login fails on Safari 17" \
+  -T /tmp/jira-description.md \
+  -y High \
+  -l safari -l auth \
+  --no-input
+
+# 3. Get available projects if needed
+jira project list
+```
+
+## Output Formats
+
+| Flag | Format | Use Case |
+|------|--------|----------|
+| (default) | Interactive TUI | Browsing, navigation |
+| `--plain` | Plain text | Scripting, piping |
+| `--raw` | JSON | Parsing, automation |
+| `--csv` | CSV | Exports, spreadsheets |
+
+## Interactive Navigation
+
+| Key | Action |
+|-----|--------|
+| `j/k` or arrows | Navigate |
+| `v` | View issue |
+| `m` | Move/transition |
+| `Enter` | Open in browser |
+| `c` | Copy URL |
+| `Ctrl+k` | Copy issue key |
+| `q` | Quit |
+
+## Key Flags Reference
+
+| Flag | Purpose |
 |------|---------|
-| **List Issues** | `jira issue list` |
-| **View Issue** | `jira issue view KEY-1` |
-| **Myself** | `$(jira me)` |
-| **JQL Query** | `jira issue list -q "project = X AND fixVersion is EMPTY"` |
-| **Open in Browser** | `jira open KEY-1` |
+| `-p` | Project key |
+| `-t` | Issue type (Bug, Task, Story) |
+| `-s` | Summary or status filter |
+| `-b` | Body/description |
+| `-y` | Priority |
+| `-a` | Assignee |
+| `-l` | Label |
+| `-P` | Parent epic |
+| `-R` | Resolution |
+| `-T` | Template file for description |
+| `-q` | Raw JQL query |
+| `--no-input` | Non-interactive mode |
+| `-c` | Config file path |
+| `--component` | Component name |
+
+## Pitfalls to Avoid
+
+1. **Forgetting `--no-input` in scripts** - Without it, commands hang waiting for input
+2. **Status names must match exactly** - Use quotes: `-s"In Progress"` not `-sIn Progress`
+3. **JQL needs proper quoting** - Wrap the entire query: `-q "summary ~ 'text'"`
+4. **`jira me` returns username** - Use `$(jira me)` for dynamic assignment
+5. **Labels with `-` prefix remove** - `--label -old` removes, `--label new` adds
