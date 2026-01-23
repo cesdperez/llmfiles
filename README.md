@@ -53,14 +53,16 @@ Universal instructions for AI assistants. Works across VS Code Copilot, Antigrav
 
 ### Claude Code
 
+```bash
+# Global instructions
+ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
+```
+
 **Option A: Symlink entire directories (recommended)**
 
 Easier to maintain—new files automatically appear, deletions propagate cleanly.
 
 ```bash
-# Global instructions
-ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
-
 # Skills and commands (entire directories)
 ln -sf ~/llmfiles/skills ~/.claude/skills
 ln -sf ~/llmfiles/commands ~/.claude/commands
@@ -71,9 +73,6 @@ ln -sf ~/llmfiles/commands ~/.claude/commands
 Use this if you have existing skills/commands you want to preserve alongside llmfiles.
 
 ```bash
-# Global instructions
-ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
-
 # Skills (symlink individually)
 mkdir -p ~/.claude/skills
 for skill in ~/llmfiles/skills/*/; do
@@ -87,20 +86,38 @@ for cmd in ~/llmfiles/commands/*.md; do
 done
 ```
 
-### VS Code + GitHub Copilot
-
-```bash
-# Per-project
-ln -sf ~/llmfiles/shared/AGENTS.md ./AGENTS.md
-```
-
 ### OpenCode
 
-OpenCode reads `AGENTS.md` from project root.
-
-### Antigravity
+OpenCode stores configuration in `~/.config/opencode`.
 
 ```bash
-ln -sf ~/llmfiles/shared/AGENTS.md ./AGENTS.md
+# Global instructions
+ln -sf ~/llmfiles/shared/AGENTS.md ~/.config/opencode/AGENTS.md
+```
+
+**Option A: Symlink entire directories (recommended)**
+
+```bash
+# Skills and commands
+ln -sf ~/llmfiles/skills ~/.config/opencode/skills
+ln -sf ~/llmfiles/commands ~/.config/opencode/commands
+```
+
+**Option B: Symlink individual files**
+
+Use this if you have existing skills/commands you want to preserve alongside llmfiles.
+
+```bash
+# Skills (symlink individually)
+mkdir -p ~/.config/opencode/skills
+for skill in ~/llmfiles/skills/*/; do
+  ln -sf "$skill" ~/.config/opencode/skills/
+done
+
+# Commands (symlink individually)
+mkdir -p ~/.config/opencode/commands
+for cmd in ~/llmfiles/commands/*.md; do
+  ln -sf "$cmd" ~/.config/opencode/commands/
+done
 ```
 
