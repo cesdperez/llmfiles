@@ -1,6 +1,15 @@
-# Skill Builder Prompt
+---
+description: Build a Claude Code skill for a tech stack, library, or CLI tool
+allowed-tools: Read, Grep, Glob, WebFetch, WebSearch, Write
+---
+
+# Skill Builder
 
 Build a Claude Code skill for: **$ARGUMENTS**
+
+## What's a Skill?
+
+A skill is a `SKILL.md` file containing domain-specific instructions that Claude Code automatically loads when relevant. Each skill has a `description` in its frontmatter with trigger phrases—when users mention those phrases, Claude Code injects the skill's instructions into context.
 
 ## Phase 1: Identify Skill Type
 
@@ -56,7 +65,7 @@ Determine if $ARGUMENTS is:
 
 ## Phase 3: Create the Skill
 
-Create the skill at: `skills/{tech-or-cli-name}/SKILL.md`
+Create the skill at: `~/llmfiles/skills/{tech-or-cli-name}/SKILL.md`
 
 ### SKILL.md Structure
 
@@ -151,7 +160,7 @@ Report the score with a brief justification. If score is 0-2, ask the user if th
 ## Output
 
 Create the skill file and report:
-- Path created: `skills/{name}/SKILL.md`
+- Path created: `~/llmfiles/skills/{name}/SKILL.md`
 - Trigger phrases covered
 - Key patterns included
 - **Usefulness score: X/10** with justification
