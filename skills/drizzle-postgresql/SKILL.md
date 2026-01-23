@@ -9,6 +9,12 @@ description: TypeScript ORM patterns for PostgreSQL databases. Use when writing 
 
 Drizzle is a headless TypeScript ORM that maps closely to SQL. It generates exactly 1 SQL query per operation, making it ideal for serverless and edge environments.
 
+## Core Principles
+
+- **Favor Core API**: Use `db.select().from()` over Relational Query API (`db.query`) for better control and performance in complex joins/aggregations.
+- **Strict Typing**: Leverage `sql<type>` for raw fragments and subqueries to maintain type safety.
+- **Explicit Schema**: Define all constraints, defaults, and indexes in schema files.
+
 ## Project Structure
 
 ```
@@ -206,6 +212,17 @@ await db.transaction(async (tx) => {
 });
 ```
 
+### Parallel DB + External API Calls
+
+When needing DB data and external API data, use `Promise.all`:
+
+```typescript
+const [dbData, apiData] = await Promise.all([
+  db.select().from(users).where(eq(users.id, userId)),
+  fetchFromExternalApi(userId)
+]);
+```
+
 ### Prepared Statements (performance)
 
 ```typescript
@@ -322,6 +339,10 @@ const events = pgTable('events', {
 6. **Forgetting `returning()`** - Insert/update don't return data by default; add `.returning()` to get inserted/updated rows
 
 7. **Type mismatches with bigint** - Use `mode: 'number'` for JS numbers or `mode: 'bigint'` for BigInt
+
+8. **COUNT(*) returns BIGINT** - Postgres `COUNT(*)` returns BIGINT (string in JS); cast in SQL: `sql<number>\`COUNT(*)::int\``
+
+9. **Numeric vs Number** - Postgres `numeric` returns a string; cast in SQL or parse in JS
 
 ## Quick Reference
 

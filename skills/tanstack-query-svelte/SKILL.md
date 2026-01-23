@@ -250,6 +250,42 @@ $mutation.mutateAsync(variables) // Returns promise
 {/if}
 ```
 
+## Reactive Query Options (Intra-Route Navigation)
+
+When query options need to react to route params (e.g., `/profile/a` to `/profile/b` where the component is reused), use `derived` from `svelte/store`:
+
+```typescript
+import { derived } from 'svelte/store'
+import { page } from '$app/stores'
+import { browser } from '$app/environment'
+
+const options = derived(page, ($page) => {
+  const id = $page.params.id
+  return {
+    queryKey: ['item', id],
+    queryFn: () => fetchItem(id),
+    enabled: !!id && browser
+  }
+})
+
+const query = createQuery(options)
+```
+
+## Avoiding Refetch Loops
+
+Do NOT track `isFetching` inside an `$effect` to trigger a refetch—this creates an infinite loop. Instead, track state *transitions*:
+
+```typescript
+let wasOpen = $state(false)
+
+$effect(() => {
+  if (open && !wasOpen) {
+    $query.refetch()
+  }
+  wasOpen = open
+})
+```
+
 ## Custom Query Functions
 
 Colocate fetching logic with configuration:
