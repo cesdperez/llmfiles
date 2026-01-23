@@ -121,3 +121,38 @@ for cmd in ~/llmfiles/commands/*.md; do
 done
 ```
 
+### Antigravity
+
+Antigravity stores configuration in `~/.gemini` and uses `GEMINI.md` for instructions.
+
+```bash
+# Global instructions
+ln -sf ~/llmfiles/shared/AGENTS.md ~/.gemini/GEMINI.md
+```
+
+**Option A: Symlink entire directories (recommended)**
+
+```bash
+# Skills and commands
+ln -sf ~/llmfiles/skills ~/.gemini/antigravity/global_skills
+ln -sf ~/llmfiles/commands ~/.gemini/antigravity/workflows
+```
+
+**Option B: Symlink individual files**
+
+Use this if you have existing skills/commands you want to preserve alongside llmfiles.
+
+```bash
+# Skills (symlink individually)
+mkdir -p ~/.gemini/antigravity/global_skills
+for skill in ~/llmfiles/skills/*/; do
+  ln -sf "$skill" ~/.gemini/antigravity/global_skills/
+done
+
+# Commands (symlink individually)
+mkdir -p ~/.gemini/antigravity/workflows
+for cmd in ~/llmfiles/commands/*.md; do
+  ln -sf "$cmd" ~/.gemini/antigravity/workflows/
+done
+```
+
