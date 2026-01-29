@@ -3,7 +3,7 @@ Help the user create a Jira ticket using the `jira-cli` tool.
 ## Workflow
 
 1. **Gather Information**: Ask the user for the following details (if not already provided):
-   - Project key (e.g., CPT, LXP, SWAT)
+   - Project key (e.g., CPT, PET, LE, ACT, ALE)
    - Issue type (e.g., Task, Bug, Story)
    - Summary/title of the issue
    - Description (can be provided inline or ask to draft it)
@@ -57,4 +57,4 @@ Run `jira project list` to see available projects if needed.
 - Keep ticket descriptions concise, clear, and actionable
 - Use markdown formatting in descriptions
 - Include code examples in fenced code blocks when relevant
-- Add acceptance criteria as checklists using `- [ ]` syntax
+- Add acceptance criteria as checklists using `[ ]` syntax

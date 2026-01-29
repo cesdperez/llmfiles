@@ -19,6 +19,13 @@ glab auth status
 
 ## Merge Request Commands
 
+### MR Creation Defaults
+
+Always include these flags when creating MRs:
+- `--remove-source-branch` - Delete branch when merged
+- `--squash-before-merge` - Squash commits when merged
+- `--yes` - Skip confirmation prompts
+
 ### Create MR
 
 ```bash
@@ -31,10 +38,17 @@ glab mr create \
     --yes
 
 # Auto-fill from commits
-glab mr create --fill --yes
+glab mr create --fill \
+    --remove-source-branch \
+    --squash-before-merge \
+    --yes
 
 # Draft MR
-glab mr create --draft --title "WIP: feature" --yes
+glab mr create --draft \
+    --title "WIP: feature" \
+    --remove-source-branch \
+    --squash-before-merge \
+    --yes
 
 # With reviewers and labels
 glab mr create \
@@ -42,6 +56,8 @@ glab mr create \
     --description "Description" \
     --reviewer username1,username2 \
     --label feature,needs-review \
+    --remove-source-branch \
+    --squash-before-merge \
     --yes
 ```
 
@@ -192,6 +208,43 @@ glab mr view <mr_id> --output json | jq '.pipeline'
 | `GITLAB_HOST` | Self-hosted GitLab URL |
 | `BROWSER` | Browser for `--web` |
 
+## Working Outside a Git Repository
+
+Most `glab` commands require being inside a git repository. Use the API directly for cross-project operations.
+
+### List All Your Open MRs (Global)
+
+```bash
+# List all open MRs you created across all projects
+glab api "merge_requests?scope=created_by_me&state=opened" --paginate
+
+# Format nicely with jq
+glab api "merge_requests?scope=created_by_me&state=opened" --paginate | \
+    jq -r '.[] | "\(.iid)\t\(.title)\t\(.web_url)"'
+```
+
+### Close/Update MR via API
+
+Project paths must be URL-encoded (slashes → `%2F`):
+
+```bash
+# Close an MR
+glab api --method PUT "projects/goodhabitz%2Fbackend%2Fmy-project/merge_requests/123" \
+    -f state_event=close
+
+# Reopen an MR
+glab api --method PUT "projects/goodhabitz%2Fbackend%2Fmy-project/merge_requests/123" \
+    -f state_event=reopen
+```
+
+### Common API Scopes for MRs
+
+| Scope | Description |
+|-------|-------------|
+| `created_by_me` | MRs you authored |
+| `assigned_to_me` | MRs assigned to you |
+| `review_requests_for_me` | MRs awaiting your review |
+
 ## Pitfalls to Avoid
 
 1. **Forgetting `--yes` in scripts** - Without it, commands prompt for confirmation
@@ -199,3 +252,5 @@ glab mr view <mr_id> --output json | jq '.pipeline'
 3. **Squash flag timing** - `--squash-before-merge` is on create/update, `--squash` is on merge
 4. **Assignee modification** - Use `+` to add, `-` to remove, or plain to replace all
 5. **JSON parsing** - Use `--output json` not `--json`
+6. **GitHub CLI flag confusion** - Use `--description` for MR body, not `--body` (which is gh's syntax)
+7. **Not in a git repo** - Use `glab api` for cross-project operations when outside a repo
