@@ -74,6 +74,10 @@ jira issue assign ISSUE-1 x               # Unassign
 ```bash
 jira issue edit ISSUE-1 -s"New summary" --no-input
 jira issue edit ISSUE-1 --label -old --label new  # Modify labels
+
+# Update description via stdin (note: -T flag not supported for edit)
+cat /tmp/description.md | jira issue edit ISSUE-1 --no-input
+echo "New description" | jira issue edit ISSUE-1 --no-input
 ```
 
 ### View & Comment
@@ -236,3 +240,4 @@ jira project list
 3. **JQL needs proper quoting** - Wrap the entire query: `-q "summary ~ 'text'"`
 4. **`jira me` returns username** - Use `$(jira me)` for dynamic assignment
 5. **Labels with `-` prefix remove** - `--label -old` removes, `--label new` adds
+6. **`-T` flag only works on create** - Use stdin piping for edit: `cat file.md | jira issue edit ISSUE-1 --no-input`
