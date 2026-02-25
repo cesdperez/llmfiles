@@ -26,6 +26,8 @@ Always include these flags when creating MRs:
 - `--squash-before-merge` - Squash commits when merged
 - `--yes` - Skip confirmation prompts
 
+**MR Title Format**: If the user provides a Jira ticket code, prefix the title with it (e.g., `PROJ-123 Add user authentication`). If not provided, ask for it. If the user doesn't know or it's not applicable, omit it.
+
 ### Create MR
 
 ```bash
