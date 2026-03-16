@@ -1,6 +1,8 @@
 # llmfiles
 
-Dotfiles for LLM coding assistants. Centralize your skills, commands, and agent instructions in one place and symlink them to work with Claude Code, VS Code + Copilot, OpenCode, and Antigravity.
+This repo is to LLM coding assistants what [dotfiles](https://wiki.archlinux.org/title/Dotfiles) are to your shell, a single place to manage your configuration, symlinked wherever tools expect it. The name comes from there.
+
+Manages skills, commands, and agent instructions in one place to work with Claude Code, Copilot, OpenCode, and Antigravity.
 
 ## Structure
 
