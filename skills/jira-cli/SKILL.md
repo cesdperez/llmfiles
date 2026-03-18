@@ -74,6 +74,7 @@ jira issue assign ISSUE-1 x               # Unassign
 ```bash
 jira issue edit ISSUE-1 -s"New summary" --no-input
 jira issue edit ISSUE-1 --label -old --label new  # Modify labels
+jira issue edit ISSUE-1 --parent EPIC-42 --no-input  # Set/change parent
 
 # Update description via stdin (note: -T flag not supported for edit)
 cat /tmp/description.md | jira issue edit ISSUE-1 --no-input
@@ -91,9 +92,13 @@ jira issue comment add ISSUE-1 "Comment text"
 ### Link Issues
 
 ```bash
-jira issue link ISSUE-1 ISSUE-2 "blocks"
-jira issue link ISSUE-1 ISSUE-2 "relates to"
+jira issue link ISSUE-1 ISSUE-2 "Blocks"
+jira issue link ISSUE-1 ISSUE-2 "Relates"
 ```
+
+Available link types (GoodHabitz Jira): `Blocks`, `Cloners`, `Duplicate`, `Polaris work item link`, `Post-Incident Reviews`, `Problem/Incident`, `Relates`, `Work item split`
+
+> To set a parent-child relationship, use `jira issue edit ISSUE --parent PARENT-KEY --no-input` instead of a link.
 
 ## Sprint & Epic Management
 
