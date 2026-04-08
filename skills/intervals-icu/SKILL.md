@@ -139,6 +139,55 @@ DELETE /api/v1/athlete/{id}/events?oldest=YYYY-MM-DD&newest=YYYY-MM-DD
 # Or for a single event by id — use PUT with empty body or check specific delete endpoint
 ```
 
+### Workout Event Description Format
+
+Calendar event descriptions use a plain-text block format. Always use percentages — never watts or absolute paces.
+
+**Cycling** — intensity as % of FTP:
+```
+- 10m 65%
+
+4x
+- 7m 95-98%
+- 1m 65%
+
+- 10m 65%
+```
+
+**Running** — intensity as % of threshold pace, with `pace` suffix:
+```
+- 10m 71% pace
+
+8x
+- 3m 97-100% pace
+- 1m 71% pace
+
+- 10m 71% pace
+```
+
+Rules:
+- Each line starts with `- `
+- Duration in minutes: `{N}m`
+- Repetitions: `Nx` on its own line, no indentation
+- Blank line between warmup / intervals block / cooldown
+- Running uses `% pace` suffix; cycling omits it
+- Easy/recovery intensity is typically 65% (cycling) or 71% pace (running)
+
+Real examples from the calendar:
+
+| Session | Description |
+|---------|-------------|
+| R Q short | `- 10m 65%` / `8x - 3m 97-100% - 1m 65%` / `- 10m 65%` |
+| R Q med | `- 10m 65%` / `4x - 7m 95-98% - 1m 65%` / `- 10m 65%` |
+| R Q long | `- 10m 65%` / `3x - 10m 93-96% - 1m 65%` / `- 10m 65%` |
+| Q short (run) | `- 10m 71% pace` / `8x - 3m 97-100% pace - 1m 71% pace` / `- 10m 71% pace` |
+| 3x12 Sweet Spot | `- 15m 65%` / `3x - 12m 88-93% - 4m 65%` / `- 15m 65%` |
+| R E | `- 1h 65%` |
+| E (run) | `- 40m 71% pace` |
+| L (run) | `- 75m 71% pace` |
+
+Note: for durations ≥ 60 min, use `1h`, `1h30m`, etc. instead of `60m`.
+
 ### Workout Library
 
 ```bash
@@ -191,12 +240,23 @@ curl -s -u "API_KEY:$INTERVALS_API_KEY" \
 
 ```bash
 source ~/.zshrc
-curl -s -X POST \
+# IMPORTANT: use --http1.1 (HTTP/2 POST silently drops body → "JSON parse error")
+# IMPORTANT: upsertOnUid=false is a required query param
+curl -s --http1.1 -X POST \
   -u "API_KEY:$INTERVALS_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Race Name","start_date_local":"2026-06-15T00:00:00","category":"RACE","type":"Run"}' \
-  "https://intervals.icu/api/v1/athlete/$INTERVALS_ATHLETE_ID/events"
+  --data-binary @/tmp/event.json \
+  "https://intervals.icu/api/v1/athlete/$INTERVALS_ATHLETE_ID/events?upsertOnUid=false"
+
+# /tmp/event.json:
+# {"name":"Race Name","start_date_local":"2026-06-15T00:00:00","category":"RACE_A","type":"Ride","description":"..."}
 ```
+
+Notes:
+- Use a file (`--data-binary @file`) to avoid shell encoding issues with special characters
+- `Triathlon` is not a valid type — use `Ride` for tri races (it's the key leg anyway)
+- Race category variants: `RACE_A` (A-race), `RACE_B` (B-race), `RACE_C` (C-race)
+- Delete a single event: `DELETE /api/v1/athlete/{id}/events/{eventId}`
 
 ### Plan workouts for next week
 
@@ -228,7 +288,7 @@ curl -s -X POST \
 
 ## Event Categories
 
-`RACE`, `WORKOUT`, `NOTE`, `HOLIDAY`
+`RACE_A`, `RACE_B`, `RACE_C`, `WORKOUT`, `NOTE`, `HOLIDAY`
 
 ## Pitfalls
 
@@ -244,3 +304,7 @@ curl -s -X POST \
 - **Save batches to files before merging**: piping large JSON through shell variables causes control character parse errors in jq; use `curl ... > /tmp/batch.json` and pass files directly to jq
 - **Indoor vs outdoor**: use `type == "VirtualRide"` — not power presence — to identify indoor trainer rides; `icu_weighted_avg_watts` can be non-null on some `Ride` activities
 - **VirtualRide distance is unreliable**: the UI may show different values (pulls from Garmin Connect as a secondary source with different virtual distance calculation); don't use VirtualRide distance for precision calculations
+- **HTTP/2 POST bug (macOS curl)**: `curl` on macOS silently drops POST body over HTTP/2, returning `{"error":"JSON parse error"}`. Always use `--http1.1` for POST requests. GET/PUT are not affected.
+- **`upsertOnUid` required for POST /events**: the query param `?upsertOnUid=false` is required when creating events, otherwise you get a 400 JSON parse error
+- **Race category format**: use `RACE_A`/`RACE_B`/`RACE_C`, not `RACE` — the latter doesn't work; when querying for races, filter with `.category | startswith("RACE")`
+- **No Triathlon type**: `Triathlon` is not a valid event/activity type; use `Ride` for tri races

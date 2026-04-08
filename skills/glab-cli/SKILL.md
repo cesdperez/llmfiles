@@ -25,6 +25,7 @@ Always include these flags when creating MRs:
 - `--remove-source-branch` - Delete branch when merged
 - `--squash-before-merge` - Squash commits when merged
 - `--yes` - Skip confirmation prompts
+- `--assignee @me` - Assign to the current user
 
 **MR Title Format**: If the user provides a Jira ticket code, prefix the title with it (e.g., `PROJ-123 Add user authentication`). If not provided, ask for it. If the user doesn't know or it's not applicable, omit it.
 
@@ -35,12 +36,14 @@ Always include these flags when creating MRs:
 glab mr create \
     --title "<title>" \
     --description "<description>" \
+    --assignee @me \
     --remove-source-branch \
     --squash-before-merge \
     --yes
 
 # Auto-fill from commits
 glab mr create --fill \
+    --assignee @me \
     --remove-source-branch \
     --squash-before-merge \
     --yes
@@ -48,6 +51,7 @@ glab mr create --fill \
 # Draft MR
 glab mr create --draft \
     --title "WIP: feature" \
+    --assignee @me \
     --remove-source-branch \
     --squash-before-merge \
     --yes
@@ -56,6 +60,7 @@ glab mr create --draft \
 glab mr create \
     --title "Add feature" \
     --description "Description" \
+    --assignee @me \
     --reviewer username1,username2 \
     --label feature,needs-review \
     --remove-source-branch \
@@ -152,6 +157,7 @@ glab ci lint                              # Validate .gitlab-ci.yml
 # Push and create MR in one step
 glab mr create \
     --fill \
+    --assignee @me \
     --remove-source-branch \
     --squash-before-merge \
     --yes
