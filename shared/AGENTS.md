@@ -14,3 +14,5 @@ Skills are stored in `~/llmfiles/skills/<name>/SKILL.md`. When using a skill:
 - **Capture useful learnings**: If the session reveals patterns, gotchas, or techniques relevant to the skill
 
 Before updating a skill, prompt the user with what you want to change and why. Wait for approval.
+
+@RTK.md
