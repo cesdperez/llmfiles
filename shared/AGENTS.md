@@ -15,4 +15,7 @@ Skills are stored in `~/llmfiles/skills/<name>/SKILL.md`. When using a skill:
 
 Before updating a skill, prompt the user with what you want to change and why. Wait for approval.
 
+## Writing Style
+- Never use em dashes (`—`). Use a comma, colon, or rewrite the sentence instead.
+
 @RTK.md
