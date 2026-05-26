@@ -226,6 +226,27 @@ curl -s -u "API_KEY:$INTERVALS_API_KEY" \
   | jq '{ date: .id, ctl, atl, tsb: (.ctl - .atl), ramp_rate: .rampRate }'
 ```
 
+### "Summarize my recent activities"
+
+```bash
+source ~/.zshrc
+curl -s -u "API_KEY:$INTERVALS_API_KEY" \
+  "https://intervals.icu/api/v1/athlete/$INTERVALS_ATHLETE_ID/activities?oldest=2026-05-01&newest=2026-05-26&limit=50" \
+  > /tmp/activities.json
+
+jq '[.[] | {
+  name,
+  type,
+  date: .start_date_local[:10],
+  dist_km: (if .distance != null then (.distance / 1000 * 10 | round) / 10 else null end),
+  dur_min: (.moving_time / 60 | round),
+  tss: .icu_training_load,
+  avg_hr: .average_heartrate
+}]' /tmp/activities.json
+```
+
+Note: always save to a temp file first — activity responses are large and piping them directly through shell variables causes parse errors.
+
 ### "When is my next race?"
 
 ```bash
@@ -300,6 +321,7 @@ Notes:
 - **Athlete ID 0**: works as shortcut for your own data in most endpoints
 - **No server-side type filtering**: `?type=Ride` is silently ignored; always filter client-side with jq
 - **No `/stats` or `/totals` endpoints**: both return 404; all aggregation must be done client-side
+- **jq arithmetic after pipe**: `| * 10` is invalid jq — the dot is implicit in filters but NOT in math operators. Use `| . * 10` or restructure: `(.distance / 1000 * 10 | round) / 10`, never `(.distance / 1000 | * 10 | round / 10)`
 - **Pagination required for large date ranges**: API caps at ~500 results per request; if `length == 500`, the results are truncated — paginate by using the oldest `start_date_local` in the batch as `newest` for the next request, then `unique_by(.id)` when merging
 - **Save batches to files before merging**: piping large JSON through shell variables causes control character parse errors in jq; use `curl ... > /tmp/batch.json` and pass files directly to jq
 - **Indoor vs outdoor**: use `type == "VirtualRide"` — not power presence — to identify indoor trainer rides; `icu_weighted_avg_watts` can be non-null on some `Ride` activities
