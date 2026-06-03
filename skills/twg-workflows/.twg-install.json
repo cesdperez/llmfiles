@@ -1,7 +1,0 @@
-{
-  "skillName": "twg",
-  "target": "OpenCode",
-  "installPath": "$HOME/.config/opencode/skills/twg-workflows",
-  "binaryPath": "$HOME/.local/bin/twg-bin",
-  "installedAt": "2026-05-12T10:44:52.493Z"
-}
