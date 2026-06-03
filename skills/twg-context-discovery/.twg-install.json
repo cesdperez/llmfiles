@@ -1,7 +1,7 @@
 {
   "skillName": "twg",
   "target": "OpenCode",
-  "installPath": "/Users/cesardanielperez/.config/opencode/skills/twg",
+  "installPath": "/Users/cesardanielperez/.config/opencode/skills/twg-context-discovery",
   "binaryPath": "/Users/cesardanielperez/.local/bin/twg-bin",
   "installedAt": "2026-06-03T08:23:54.986Z",
   "installedVersion": "1.0.1",
