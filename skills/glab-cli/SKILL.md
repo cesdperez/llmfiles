@@ -133,8 +133,40 @@ glab mr close <mr_id>                     # Close without merging
 glab mr reopen <mr_id>                    # Reopen closed MR
 glab mr checkout <mr_id>                  # Checkout branch locally
 glab mr rebase <mr_id>                    # Rebase against target
-glab mr note <mr_id> -m "Comment"         # Add comment
+glab mr note create <mr_id> -m "Comment"  # Add comment (new discussion thread)
 ```
+
+### Comments & Discussion Threads
+
+As of glab 1.107.0 (`mr note` is currently EXPERIMENTAL) you can reply into an
+existing thread and comment directly on diff lines, not just post root-level
+notes. `mr note create` starts a new resolvable discussion by default.
+
+```bash
+# List discussions to get their IDs (needed for --reply)
+glab mr note list <mr_id>                  # human-readable (same as `mr view --comments`)
+glab mr note list <mr_id> -F json | jq '.[] | {id, body: .notes[0].body}'
+glab mr note list <mr_id> --state unresolved   # only unresolved threads
+glab mr note list <mr_id> --type diff          # only diff comments
+glab mr note list <mr_id> --file src/main.go   # threads on one file
+
+# Reply into an existing thread (discussion ID, or a prefix of >=8 chars)
+glab mr note create <mr_id> --reply abc12345 -m "I agree!"
+
+# Diff comments: anchor to a file/line in the latest diff version
+glab mr note create <mr_id> --file main.go --line 42 -m "Needs refactoring"
+glab mr note create <mr_id> --file main.go --line 10:15 -m "Extract this block"  # multiline range
+glab mr note create <mr_id> --file main.go --old-line 7 -m "Why removed?"        # removed (old) side
+glab mr note create <mr_id> --file main.go -m "File-level comment"               # no line
+
+# Non-resolvable note for bots/CI status (won't block "all threads resolved")
+glab mr note create <mr_id> -m "Build: green" --resolvable=false
+glab mr note create <mr_id> -m "LGTM" --unique   # skip if identical note exists
+```
+
+Flag rules: `--line`/`--old-line` require `--file` and can't combine; `--file`,
+`--reply`, and `--unique` are mutually exclusive; `--resolvable=false` can't
+combine with `--reply` or `--file`.
 
 ## CI/CD Commands
 
@@ -173,6 +205,8 @@ glab mr diff 624
 # Approve and merge
 glab mr approve 624
 glab mr merge 624 --squash
+# When a pipeline is running, auto-merge is enabled by default (merge-when-pipeline-succeeds).
+# Pass --auto-merge=false to merge immediately.
 ```
 
 ### Check Pipeline Before Merge
@@ -180,6 +214,8 @@ glab mr merge 624 --squash
 ```bash
 glab ci status
 glab mr view <mr_id> --output json | jq '.pipeline'
+# mr list/view also accept a built-in --jq to filter JSON without piping:
+glab mr view <mr_id> --output json --jq '.pipeline'
 ```
 
 ## Output Formats

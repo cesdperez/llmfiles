@@ -7,7 +7,7 @@ description: Load testing with Grafana k6. Use when writing k6 scripts, creating
 
 ## Overview
 
-k6 is a Go-based CLI tool that executes JavaScript ES modules for load testing. It is **not** Node.js — no `package.json`, no npm, no TypeScript, no bundler. All files are plain `.js` using ES module syntax.
+k6 is a Go-based CLI tool that executes JavaScript ES modules for load testing. It is **not** Node.js, no `package.json`, no npm, no bundler. Files are plain `.js` using ES module syntax; k6 also runs `.ts` files natively (built-in TypeScript support, no transpile step).
 
 ## Key Patterns
 
@@ -186,7 +186,12 @@ k6 run --out json=results.json load-test.js
 
 ```sh
 k6 run --out influxdb=http://localhost:8086/k6 load-test.js
-k6 run --out cloud load-test.js   # Grafana Cloud k6
+
+# Grafana Cloud (v2): authenticate once, then stream local results
+k6 cloud login
+k6 cloud run --local-execution load-test.js   # run locally, stream to cloud
+k6 cloud run load-test.js                      # run entirely in Grafana Cloud
+# Requires a Grafana Cloud stack (K6_CLOUD_STACK_ID). `k6 run --out cloud` still works but is legacy.
 ```
 
 ## Common Tasks
