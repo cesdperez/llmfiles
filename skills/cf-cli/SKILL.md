@@ -1,35 +1,40 @@
 ---
 name: cf-cli
-description: Cloudflare CLI (`cf`) — manage DNS, zones, accounts, registrar, and the full Cloudflare API surface from the terminal. Use when managing Cloudflare DNS records, zones, domains, account members, or any Cloudflare resource via the `cf` command. Currently v0.0.5 technical preview.
+description: Cloudflare CLI (`cf`), manage DNS, zones, accounts, registrar, and the full Cloudflare API surface from the terminal. Use when managing Cloudflare DNS records, zones, domains, account members, or any Cloudflare resource via the `cf` command. Currently v0.2.0.
 ---
 
 # Cloudflare `cf` CLI
 
-The `cf` CLI is Cloudflare's unified CLI (technical preview, v0.0.5), designed to eventually cover all ~3000 Cloudflare API operations across 100+ products. It is schema-driven and optimized for both humans and AI agents. The user is always already logged in.
+The `cf` CLI is Cloudflare's unified CLI (v0.2.0), designed to eventually cover all ~3000 Cloudflare API operations across 100+ products. It is schema-driven and optimized for both humans and AI agents. The user is always already logged in.
 
 ## Global Flags
 
 Available on every command:
 
 ```
--a, --account-id   Cloudflare account ID (or set CLOUDFLARE_ACCOUNT_ID)
--z, --zone         Zone ID or domain name (or set CLOUDFLARE_ZONE_ID)
--q, --quiet        Suppress non-essential output
---json             Structured JSON output (use for scripting/parsing)
---ndjson           Newline-delimited JSON (one object per line)
---fields           Comma-separated fields to include in output
---dryRun           Validate and show what would happen without executing
+-z, --zone           Zone ID or domain name (or set CLOUDFLARE_ZONE_ID)
+-q, --quiet          Suppress non-essential output
+--local              Route to a local `wrangler dev` / `cf dev` Miniflare session
+--local-endpoint     Local Miniflare endpoint URL (required with --local)
+-h, --help
+-v, --version
 ```
+
+Account is no longer a global flag. Supply it via `CLOUDFLARE_ACCOUNT_ID` or
+`cf context set account-id <id>`. `--dry-run` is now a per-command option (on
+both read and write commands) rather than a global flag.
 
 ## Context Management
 
-Avoid repeating `-a`/`-z` on every command by setting a default context:
+Avoid repeating `-z` (and supplying the account) on every command by setting a
+default context:
 
 ```bash
-cf context show                          # show current defaults
-cf context set account-id <id-or-name>  # set default account
-cf context set zone <domain-or-id>      # set default zone
-cf context clear account-id             # clear default
+cf context show                            # show current defaults
+cf context set account-id <id-or-name>    # set default account
+cf context set zone <domain-or-id>        # set default zone
+cf context set compliance-region <region> # set data-localization region
+cf context clear account-id               # clear default (key optional)
 
 # Save context to project .cfrc instead of user config
 cf context set zone example.com -p
@@ -39,12 +44,20 @@ cf context set zone example.com -p
 
 ```
 cf accounts    Account settings, members, roles, subscriptions, API tokens
-cf dns         DNS records, DNSSEC, analytics, zone transfers
-cf zones       Zone list, settings, hold, environments, cache
+cf dns         DNS records, DNSSEC, analytics, settings, zone transfers
+cf zones       Zone list/create/delete, settings, hold, environments, cache
 cf registrar   Domain registration, contacts, auto-renewal, WHOIS privacy
 cf context     Manage default account/zone (see above)
 cf schema      Inspect API schema for any command
 cf agent-context  Output agent context + tool definitions for a product
+
+# Wrangler-style project/worker toolset (v0.2.0)
+cf build       Build a project for Cloudflare
+cf deploy      Deploy a project to Cloudflare
+cf dev         Run the project's Cloudflare dev server
+cf versions    Manage Worker Versions (e.g. versions upload)
+cf auth        Authentication (login, logout, whoami) — user is pre-authenticated
+cf complete    Generate shell completions
 ```
 
 ## DNS Records
@@ -55,17 +68,17 @@ cf dns records list -z example.com
 cf dns records list -z example.com --type A
 cf dns records list -z example.com --name-contains api
 
-# Get a specific record
-cf dns records get -z example.com --id <record-id>
+# Get a specific record (record ID is a positional argument)
+cf dns records get <record-id> -z example.com
 
-# Create a record (use --dryRun to preview)
+# Create a record (use --dry-run to preview)
 cf dns records create -z example.com --body '{"type":"A","name":"api","content":"1.2.3.4","ttl":300,"proxied":false}'
 
-# Update a record
-cf dns records update -z example.com --id <record-id> --body '{"content":"5.6.7.8"}'
+# Partial update = edit (PATCH); update = overwrite the whole record (PUT)
+cf dns records edit <record-id> -z example.com --body '{"content":"5.6.7.8"}'
 
 # Delete a record
-cf dns records delete -z example.com --id <record-id>
+cf dns records delete <record-id> -z example.com
 
 # Export zone as BIND file
 cf dns records export -z example.com
@@ -77,20 +90,23 @@ cf dns records import -z example.com --body @zone.txt
 ## Zones
 
 ```bash
-cf zones list                          # list all zones
-cf zones get-zones -z example.com      # get zone details
-cf zones get-zone-settings -z example.com
-cf zones edit-single-setting -z example.com --setting-id ssl --body '{"value":"full"}'
+cf zones list                                   # list all zones
+cf zones get -z example.com                     # get zone details
+cf zones settings get ssl -z example.com        # get one setting (no bulk "get all")
+cf zones settings edit ssl -z example.com --body '{"value":"full"}'
 ```
 
 ## Accounts
 
+Account comes from `CLOUDFLARE_ACCOUNT_ID` or `cf context set account-id <id>`
+(the `-a` flag was removed).
+
 ```bash
 cf accounts list                       # list accounts
-cf accounts get -a <account-id>        # get account details
-cf accounts members list -a <id>       # list members
-cf accounts tokens list -a <id>        # list API tokens
-cf accounts logs list -a <id>          # audit log entries
+cf accounts get                        # get account details
+cf accounts members list               # list members
+cf accounts tokens list                # list API tokens
+cf accounts logs audit                 # audit log entries
 ```
 
 ## Schema Discovery
@@ -110,9 +126,9 @@ Products with agent context (subset): `d1`, `dns`, `kv`, `r2`, `workers`, `pages
 
 - Use `get` not `info` (`cf accounts get`, not `cf accounts info`)
 - Use `--force` not `--skip-confirmations` for destructive operations
-- Use `--json` for scripting, plain output for human review
-- Prefer `cf context set` over repeating `-z`/`-a` in every command
-- Use `--dryRun` before destructive or complex write operations
+- Prefer `cf context set zone` over repeating `-z`; set the account via
+  `cf context set account-id` or `CLOUDFLARE_ACCOUNT_ID`
+- Use `--dry-run` before destructive or complex write operations
 - Use `cf schema <command path>` to discover flags when unsure
 
 ## Common Workflows
@@ -121,16 +137,16 @@ Products with agent context (subset): `d1`, `dns`, `kv`, `r2`, `workers`, `pages
 
 ```bash
 # Find the record ID
-cf dns records list -z example.com --name api.example.com --json
+cf dns records list -z example.com --name api.example.com
 
-# Update it
-cf dns records update -z example.com --id <id> --body '{"content":"1.2.3.4","proxied":true}'
+# Update it (edit = partial/PATCH; id is positional)
+cf dns records edit <id> -z example.com --body '{"content":"1.2.3.4","proxied":true}'
 ```
 
 ### Inspect zone settings
 
 ```bash
-cf zones get-zone-settings -z example.com --json | jq '.result[] | select(.id == "ssl")'
+cf zones settings get ssl -z example.com
 ```
 
 ### Set up project-scoped context
@@ -141,9 +157,9 @@ cf context set account-id abc123 -p
 cf context show
 ```
 
-## Limitations (v0.0.5)
+## Limitations (v0.2.0)
 
-- Technical preview — not all Cloudflare products have dedicated subcommands yet
+- Not all Cloudflare products have dedicated subcommands yet
 - Use `cf agent-context <product>` to get tool definitions for products not yet in the top-level CLI
 - Listing zones across more than 500 accounts is not allowed
 - Products like Workers, KV, R2, D1 are accessible via `cf agent-context` but may not have standalone subcommands yet — check `cf --help` for current state

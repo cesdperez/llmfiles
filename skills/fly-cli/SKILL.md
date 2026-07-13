@@ -99,7 +99,7 @@ fly secrets set DATABASE_URL="postgres://..." ENCRYPTION_KEY="abc123"
 
 # Set without redeploying
 fly secrets set KEY=value --stage
-fly deploy  # Deploy when ready
+fly secrets deploy  # Apply staged secrets (or `fly deploy` on next release)
 
 # Import from file
 cat .env.production | fly secrets import
@@ -202,19 +202,21 @@ fly console
 
 ## Postgres Database
 
+Fly now recommends **Managed Postgres** (`fly mpg`). The older `fly postgres`
+cluster is "Unmanaged": you own ops, backups, and disaster recovery.
+
 ```bash
-# Create Postgres cluster
+# Managed Postgres (recommended)
+fly mpg create
+fly mpg attach <cluster> -a my-app   # sets DATABASE_URL secret
+fly mpg connect                      # psql session
+fly mpg proxy                        # local access
+
+# Unmanaged (legacy) — still available via `fly postgres` / `fly pg`
 fly postgres create
-
-# Attach to your app (sets DATABASE_URL secret)
 fly postgres attach my-postgres-db -a my-app
-
-# Connect directly
 fly postgres connect -a my-postgres-db
-
-# Proxy for local access
-fly proxy 5432 -a my-postgres-db
-# Then connect: psql postgres://postgres:PASSWORD@localhost:5432
+fly proxy 5432 -a my-postgres-db     # then: psql postgres://postgres:PASSWORD@localhost:5432
 ```
 
 ## GitHub Actions CI/CD
@@ -313,5 +315,5 @@ fly certs check custom.domain.com
 | Scale horizontally | `fly scale count N` |
 | Scale vertically | `fly scale vm SIZE` |
 | Restart | `fly apps restart` |
-| Open in browser | `fly open` |
+| Open in browser | `fly apps open` |
 | Proxy local port | `fly proxy LOCAL:REMOTE` |
