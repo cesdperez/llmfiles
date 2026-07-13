@@ -1,0 +1,11 @@
+{
+  "skillName": "twg",
+  "target": "OpenCode",
+  "installPath": "$HOME/.config/opencode/skills/twg-jira",
+  "binaryPath": "$HOME/.local/bin/twg",
+  "installedAt": "2026-07-13T07:20:58.400Z",
+  "installedVersion": "1.0.23",
+  "buildProfile": "external",
+  "buildCommit": "02a40be3aada",
+  "builtAt": "2026-07-10T15:44:46.935Z"
+}
