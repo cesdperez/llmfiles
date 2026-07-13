@@ -1,7 +1,7 @@
 {
   "skillName": "twg",
   "target": "OpenCode",
-  "installPath": "/Users/cesardanielperez/.config/opencode/skills/twg-operational-health",
+  "installPath": "/Users/cesardanielperez/.config/opencode/skills/twg-jira-resolve-merged-work",
   "binaryPath": "/Users/cesardanielperez/.local/bin/twg",
   "installedAt": "2026-07-13T07:20:58.400Z",
   "installedVersion": "1.0.23",
