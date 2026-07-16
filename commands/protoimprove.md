@@ -19,6 +19,7 @@ Parse `$ARGUMENTS` (all optional, any order):
 - **`--skip a,b,...`**: run all default lenses except the listed ones.
 - **`--verify`**: add the behavioral-verify lens (heavier: runs the code, not read-only).
 - **`--fix`**: after synthesis, sequentially apply the safe findings (see Fix mode).
+- **`--fix-all`**: after synthesis, sequentially apply **every** surviving finding (including correctness, security, and test-health) and then commit. Off by default. Overrides `--fix`.
 
 If neither `--only` nor `--skip` is given, run all six static lenses.
 
@@ -59,7 +60,9 @@ Each lens is one specialist agent. **Boundaries are strict: a lens must NOT repo
 
 4. **Report.** Group surviving findings by lens, most-impactful first. It is fine to report zero findings for a lens.
 
-5. **Fix mode** *(only with `--fix`)*: after the report, apply findings **sequentially** (never in parallel — avoid edit conflicts) and only for the safe lenses: `code-standards`, `reuse`, and `performance` findings that are behavior-preserving. Never auto-apply `correctness`, `security`, or `test-health` findings — list those as recommended manual follow-ups.
+5. **Fix mode** — apply findings **sequentially** (never in parallel — avoid edit conflicts):
+   - `--fix`: apply only the safe lenses — `code-standards`, `reuse`, and behavior-preserving `performance`. Never auto-apply `correctness`, `security`, or `test-health`; list those as recommended manual follow-ups. Do not commit.
+   - `--fix-all`: apply **every** surviving finding across all lenses, then commit. If on the default branch (`main`), create a branch first. Use a descriptive commit message summarizing what was fixed by lens. After committing, still print the full report so the user sees what changed.
 
 ## Output format
 
