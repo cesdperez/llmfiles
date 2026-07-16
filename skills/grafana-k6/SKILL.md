@@ -1,6 +1,6 @@
 ---
 name: grafana-k6
-description: Load testing with Grafana k6. Use when writing k6 scripts, creating load tests, configuring scenarios, working with virtual users, thresholds, checks, executors, or when the user mentions k6, load testing, performance testing, stress testing, or k6 scenarios.
+description: Load testing with Grafana k6. Use when writing k6 scripts, configuring scenarios or executors, working with virtual users, thresholds, or checks, or when the user mentions k6, load testing, or performance/stress testing.
 ---
 
 # Grafana k6

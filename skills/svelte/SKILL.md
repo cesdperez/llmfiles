@@ -1,5 +1,5 @@
 ---
-name: svelte5-sveltekit
+name: svelte
 description: Best practices for Svelte 5 and SvelteKit 2.9+ development. Use when writing Svelte components, using runes ($state, $derived, $effect, $props), creating SvelteKit routes, working with load functions, form actions, or when the user mentions Svelte, SvelteKit, .svelte files, or runes.
 ---
 
