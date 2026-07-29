@@ -1,6 +1,7 @@
 ---
 description: Fast multi-lens review of a GitLab MR. One batched setup call, parallel read-only lens agents that gather their own context and self-refute, then a scored findings table with concise descriptions. Posts nothing until you explicitly ask to apply actions.
-allowed-tools: Task, Read, Grep, Glob, Bash
+argument-hint: <mr-url|iid> [--threshold N] [--only a,b] [--skip a,b] [--no-cross-repo] [--fast]
+allowed-tools: Agent, Task, Read, Grep, Glob, Bash, Edit, Write
 ---
 
 **Role:** Orchestrator of a multi-lens merge request review. Resolve the MR, fan out
@@ -116,11 +117,12 @@ exclusivity matrix, suggestion-block offsets, thread resolve and reopen, the del
 update argument ambiguity, the non-idempotency guard, and placement verification. Do not
 re-derive any of that here.
 
+Write every body per the **Writing MR Text** standard in the `glab-cli` skill. Concise,
+lead with the point, no filler, no emoji.
+
 Action shapes:
 
-- **Comment**: a diff-anchored resolvable thread. Body is `**<lens>, impact <N>/10**`,
-  then one or two sentences on what is wrong and why, then the recommended change in
-  prose. Never paste the code being commented on, the anchor already shows it.
+- **Comment**: a diff-anchored resolvable thread, headed `**<lens>, impact <N>/10**`.
 - **Suggestion**: preferred whenever the fix is a concrete, self-contained edit to the
   anchored lines, since the author can apply it in one click.
 - **Reply and resolve**: on an incremental pass, reply with what changed before resolving,
