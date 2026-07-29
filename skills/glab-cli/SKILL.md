@@ -168,6 +168,83 @@ Flag rules: `--line`/`--old-line` require `--file` and can't combine; `--file`,
 `--reply`, and `--unique` are mutually exclusive; `--resolvable=false` can't
 combine with `--reply` or `--file`.
 
+Consequence worth internalizing: since `--resolvable=false` can't combine with
+`--file`, **every diff comment is a resolvable thread**, so it can gate merge in
+projects requiring "all threads resolved". Only root-level notes can be made
+non-resolvable.
+
+### Thread Management (glab >= 1.109)
+
+```bash
+glab mr note resolve <discussion_id> <mr_id>       # resolve a thread
+glab mr note reopen  <discussion_id> <mr_id>       # un-resolve
+glab mr note update  <mr_id> <note_id> -m "..."    # edit a note body
+```
+
+`resolve`/`reopen` disambiguate by shape (discussion IDs are 8+ hex chars, MR iids
+are short numbers), so either argument order works.
+
+`update` and `delete` do **not** disambiguate safely. `glab mr note delete` USAGE
+says `<note-id> [<id>|<branch>]` while its own examples say the opposite, and both
+arguments are numeric. Use the raw API for deletion, and verify with `note list`
+after any update:
+
+```bash
+glab api --method DELETE "projects/<url_encoded_path>/merge_requests/<mr_id>/notes/<note_id>"
+glab api --method PUT    "projects/<url_encoded_path>/merge_requests/<mr_id>/notes/<note_id>" -f body="..."
+```
+
+### Suggestions (one-click fixes)
+
+A diff comment containing a `suggestion` block renders an Apply button, letting the
+author commit the fix without leaving the MR. New-side anchors only, not
+`--old-line`.
+
+````bash
+glab mr note create <mr_id> --file src/db.cs --line 45 -m "Parameterize this query.
+
+\`\`\`suggestion:-0+0
+        cmd.CommandText = \"SELECT * FROM Users WHERE Email = @email\";
+\`\`\`"
+````
+
+`suggestion:-0+0` replaces only the anchored line. The offsets extend the replaced
+range above and below, so `-1+2` replaces the preceding line, the anchor, and the
+two following. **The block must contain the complete replacement for every line in
+that range at the file's real indentation**: a block that omits a covered line
+silently deletes it on apply. Read the actual lines before writing the block.
+
+### Posting Diff Comments Reliably
+
+**Derive line numbers mechanically, never by counting hunk lines by eye.** This
+emits `path:new_line<TAB>content` for every added line, which is the anchor set:
+
+```bash
+git diff --unified=0 <base>..<head> | awk '
+  /^\+\+\+ /{p=substr($0,7); next}
+  /^@@ /{match($0,/\+[0-9]+/); n=substr($0,RSTART+1,RLENGTH-1)+0; next}
+  /^\+/{ if (p != "dev/null") print p":"n"\t"substr($0,2); n++ }
+'
+```
+
+**Diff comments are not idempotent**, because `--file` excludes `--unique`. Before
+posting a batch, list what already exists and skip anchors already covered:
+
+```bash
+glab mr note list <mr_id> --type diff -F json \
+  | jq -r '.[].notes[] | select(.author.username=="<me>")
+           | "\(.position.new_path):\(.position.new_line)\t\(.body[0:80])"'
+```
+
+**`ok noted !create` is cosmetic** and does not confirm the anchor resolved. An
+anchor that fails to match the latest diff version silently degrades to a
+file-level or root-level note. Verify placement:
+
+```bash
+glab mr note list <mr_id> --type diff -F json \
+  | jq -r '.[].notes[] | "\(.position.new_path):\(.position.new_line // "-")"'
+```
+
 ## CI/CD Commands
 
 ```bash

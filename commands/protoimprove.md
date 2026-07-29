@@ -1,84 +1,90 @@
 ---
-description: Multi-angle code audit. Fans out parallel read-only agents (correctness, tests, standards, reuse, security, performance), then synthesizes one scored report.
+description: Multi-angle code audit of local changes. Fans out parallel read-only lens agents (correctness, tests, standards, reuse, security, performance), then synthesizes one scored report.
 allowed-tools: Task, Read, Grep, Glob, Bash
 ---
 
-**Role:** Orchestrator of a multi-angle code audit. You spawn one specialist agent per selected lens, run them in parallel, then synthesize and adversarially verify their findings into a single scored report.
+**Role:** Orchestrator of a multi-angle code audit over local changes, with no GitLab
+involvement. You spawn one specialist agent per selected lens, run them in parallel, then
+synthesize their findings into a single scored report.
+
+**Load the shared protocol first:** `Read ~/llmfiles/shared/review-lenses.md`. It defines the
+fan-out contract, the lens catalog, the synthesis rules, and the finding format. This command
+supplies only the target, the lens selection, the output shape, and the fix policy. Where the
+two conflict, this file wins.
 
 ## Arguments
 
 Parse `$ARGUMENTS` (all optional, any order):
 
 - **scope**: `branch` (default) or `codebase`.
-  - `branch` → analyze only changes in the current branch vs `main`.
-  - `codebase` → analyze all files.
+  - `branch`: analyze only changes in the current branch vs `main`.
+  - `codebase`: analyze all files.
 - **depth**: `low` | `medium` (default) | `high` | `max`.
-  - `low`/`medium` → fewer, high-confidence findings only.
-  - `high`/`max` → broader coverage, may include lower-confidence findings.
+  - `low` / `medium`: fewer, high-confidence findings only, threshold 5.
+  - `high` / `max`: broader coverage, may include lower-confidence findings, threshold 4.
 - **`--only a,b,...`**: run only the listed lenses.
 - **`--skip a,b,...`**: run all default lenses except the listed ones.
-- **`--verify`**: add the behavioral-verify lens (heavier: runs the code, not read-only).
-- **`--autofix`**: after synthesis, sequentially apply **every** surviving finding and then commit. Off by default (see Fix mode).
+- **`--verify`**: add the `verify` lens from the catalog. Heavier, and it runs the code
+  rather than reading it.
+- **`--autofix`**: after synthesis, apply every surviving finding and commit. Off by default.
 
-If neither `--only` nor `--skip` is given, run all six static lenses.
-
-## Lenses
-
-Each lens is one specialist agent. **Boundaries are strict: a lens must NOT report findings that belong to another lens** (no duplicate findings across agents).
-
-1. **correctness** — Does it work? Logic errors, wrong conditions/operators, off-by-one, null/undefined access, missing defaults, broken control flow, API contract violations, state/race issues, integration breaks (changed interfaces without updating callers), unhandled edge cases (empty/null/boundary), missing validations.
-   - NOT: style, tests, performance, refactors.
-
-2. **test-health** — Senior SDET, Testing Trophy lens (confidence vs. maintenance ROI). E2E/unit redundancy, over-mocked unit tests that should be integration, unit tests not focused on real logic/boundaries, brittleness (coupled to implementation not behavior), AAA clarity, slow/flaky patterns (hardcoded waits), coverage gaps this change introduces.
-   - NOT: production-code bugs (that's correctness).
-
-3. **code-standards** — Readability and hygiene. Single Level of Abstraction violations, comments that state the obvious (flag; keep only non-obvious "why"), dead code, unused imports, needless complexity, unclear naming, inconsistency with surrounding code.
-   - NOT: duplication (that's reuse), bugs, tests.
-
-4. **reuse** — DRY. Duplicated logic, reinvented helpers/utilities that already exist in the codebase, copy-paste that should be extracted.
-   - NOT: general readability (that's code-standards).
-
-5. **security** — Injection, unsafe data handling, secrets in code, missing authz/authn checks, unsafe deserialization, path/SSRF issues, sensitive data exposure.
-   - NOT: general correctness bugs without a security impact.
-
-6. **performance** — N+1 queries, poor algorithmic complexity, redundant work in hot paths, unnecessary allocations, blocking I/O where it matters.
-   - NOT: micro-optimizations with no measurable impact.
-
-7. **verify** *(only with `--verify`)* — Actually drive the affected flow end-to-end and observe behavior (not just static reasoning, not just typecheck/tests). Report what breaks when exercised.
+Default lens set: `correctness`, `test-health`, `code-standards`, `reuse`, `security`,
+`performance`. The two MR-specific lenses (`cross-repo-impact`, `ticket-alignment`) are not
+part of this command's default, but `--only cross-repo-impact` works when you want a
+blast-radius check on uncommitted work.
 
 ## Workflow
 
-1. **Resolve the target.** Compute the changed files (`git diff --name-only main...` for branch scope) or the relevant tree (codebase scope). If branch scope has no diff, say so and stop.
+1. **Resolve the target.** `git diff --name-only main...` for branch scope, or the relevant
+   tree for codebase scope. If branch scope has no diff, say so and stop.
 
-2. **Fan out.** Spawn the selected lenses as parallel `Task` agents in a single message. Each agent is **read-only** (Read, Grep, Glob, Bash for inspection only; no edits) except `verify`. Give each agent: its lens mandate above, its NOT-boundaries, the scope, the depth, the target file list, and the output contract below.
+2. **Build the anchor map** so findings cite real line numbers rather than counted ones:
+   ```bash
+   git diff --unified=0 main... | awk '
+     /^\+\+\+ /{p=substr($0,7); next}
+     /^@@ /{match($0,/\+[0-9]+/); n=substr($0,RSTART+1,RLENGTH-1)+0; next}
+     /^\+/{ if (p != "dev/null") print p":"n"\t"substr($0,2); n++ }
+   '
+   ```
+   Skip this for codebase scope, where lenses read files directly.
 
-3. **Synthesize + adversarially verify.** Collect all findings. Then:
-   - Deduplicate: if two lenses report the same underlying issue, keep the one whose lens owns it.
-   - Adversarial pass: for each finding, briefly challenge it. Drop findings you cannot substantiate against the actual code. At `low`/`medium` depth, drop anything below high confidence.
-   - Keep only findings with **Impact Score ≥ 5/10**.
+3. **Fan out** per the shared contract: single message, read-only (except `verify`), strict
+   boundaries, self-refute, model tiering, sharding caps. Give each agent its mandate and NOT
+   list, the scope, the depth, the target file list, and the finding format.
 
-4. **Report.** Group surviving findings by lens, most-impactful first. It is fine to report zero findings for a lens.
+4. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
+   above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything
+   below high confidence.
 
-5. **Fix mode** *(only with `--autofix`)*: apply **every** surviving finding across all lenses **sequentially** (never in parallel — avoid edit conflicts), then commit. If on the default branch (`main`), create a branch first. Use a descriptive commit message summarizing what was fixed by lens. After committing, still print the full report so the user sees what changed.
+5. **Report.** Group survivors by lens, most impactful first. Zero findings for a lens is a
+   valid result.
+
+6. **Fix mode** (only with `--autofix`): apply every surviving finding across all lenses
+   **sequentially**, never in parallel, to avoid edit conflicts. If on `main`, create a branch
+   first. Commit with a message summarizing what was fixed by lens. Print the full report
+   afterwards regardless, so the user sees what changed.
 
 ## Output format
 
 ```
-## protoimprove — <scope>, depth <depth>
+## protoimprove - <scope>, depth <depth>
 
-### correctness
-[8/10] file.ts:42 — Off-by-one in loop bound skips the last element.
-...
+| # | Score | Lens | Location | Issue |
+|---|-------|------|----------|-------|
+| 1 | 8/10  | correctness | src/loop.ts:42 | Off-by-one skips the last element |
+| 2 | 6/10  | test-health | user.test.ts | Mocks the DB it exists to exercise |
 
-### test-health
-[6/10] Integration | user.test.ts — Over-mocked; mocks the DB it should exercise.
-...
+### 1. Off-by-one skips the last element (correctness, 8/10)
+`src/loop.ts:42`
+The bound is `< len - 1`, so the final item never runs. Use `< len`.
 
-### <other lenses>
-...
+### 2. Mocks the DB it exists to exercise (test-health, 6/10)
+`user.test.ts`
+Every query is stubbed, so the test passes even when the SQL is wrong. Convert it to an integration test against a real DB.
 
 ### summary
-<one line: total findings by lens; note anything applied via --fix>
+<total findings by lens; what the self-refutation dropped; note anything applied via --autofix>
 ```
 
-Each line: `[Score/10] <location> — <one clear sentence: what's wrong, not how to fix>`. State the problem concisely.
+Descriptions are two sentences maximum: what is wrong, then what to do instead. No pasted
+code, no emoji.

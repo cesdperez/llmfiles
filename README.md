@@ -14,7 +14,9 @@ llmfiles/
 ├── commands/
 │   └── <command-name>.md
 ├── shared/
-│   └── AGENTS.md
+│   ├── AGENTS.md
+│   ├── glab-mr-context.md
+│   └── review-lenses.md
 ├── CLAUDE.md
 └── README.md
 ```
@@ -50,6 +52,16 @@ Prompt content here. Use $ARGUMENTS for user input.
 ### AGENTS.md (`shared/AGENTS.md`)
 
 Universal instructions for AI assistants. Works across VS Code Copilot, Antigravity, and others.
+
+### Shared protocols (`shared/<name>.md`)
+
+Content reused by several commands, extracted so it lives in one place. Commands load it with an explicit read, for example `Read ~/llmfiles/shared/review-lenses.md`.
+
+Deliberately not skills: a skill is auto-listed with its description and can activate in unrelated sessions, whereas a shared protocol should load only when a command asks for it. Use a skill when the knowledge should surface on its own (`glab-cli`), a shared protocol when it should not (`review-lenses`).
+
+Current protocols:
+- `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glabreview`, `/glabcesaraireview`, `/protoimprove`.
+- `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the goodhabitz lens bindings, used by `/glabreview` and `/glabcesaraireview`.
 
 ## Installation
 
