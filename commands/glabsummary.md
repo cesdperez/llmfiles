@@ -96,6 +96,8 @@ When `stale` is non-empty, add **one line** naming those MRs with their idle day
 
 Ask whether I want to approve any of them, or to see a deeper review of a specific one. Do not approve, comment, or merge anything unless I ask.
 
+When I do ask you to apply actions, write every comment and thread reply per the **Writing MR Text** standard in the `glab-cli` skill: 1 to 3 sentences, 4 lines max, one finding each, severity as a leading tag, no softeners. The findings from step 2 are agent output sized for me, not for the author. Rewrite them, do not paste them.
+
 ## Gotchas
 
 These are all things that produced wrong output before. Keep them.
