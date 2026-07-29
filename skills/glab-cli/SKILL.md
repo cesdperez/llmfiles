@@ -28,8 +28,16 @@ direct, human.
 - Lead with the point. First sentence says what is wrong or what changed, not how you
   found it.
 - No preamble, no restating the question, no closing summary of what you just said.
-- Comments: 1 to 3 sentences. What is wrong, why it matters if not obvious, what to do
-  instead. Never paste the code the comment is anchored to, the anchor already shows it.
+- Comments: 1 to 3 sentences, one finding each. Hard ceiling of 4 lines. Past that, split
+  it or move it to the summary comment. Never paste the code the comment is anchored to.
+- Severity once, up front, as a tag: `Blocking:`, `Nit:`, or nothing. Do not re-argue it
+  in the body.
+- No softeners bolted onto a finding: "Happy to be wrong", "happy either way", "just a
+  thought", "not a blocker but". If a claim has a condition, write the condition:
+  "Unless something outside the repo reads these keys, this path is dead."
+- Name mechanics plainly. Not "the config knob that used to drive them is now inert" but
+  "`WebSessionRefreshRate` no longer does anything." Avoid inert, knob, lever, rides
+  along, cuts against.
 - Descriptions: what changed, then why. Bullets over paragraphs. Link the ticket, do not
   retell it. No Testing section unless there is something non-obvious to run.
 - No filler adjectives (comprehensive, robust, seamless), no hedge stacks (might
@@ -42,6 +50,22 @@ Bad:  "I was reviewing and noticed that it looks like there might potentially be
       issue where the email parameter could possibly be concatenated directly..."
 Good: "`email` goes straight into the command text, so a quote breaks the query.
       Parameterize it."
+```
+
+Length is where this goes wrong most often. A comment that verifies a claim does not have
+to show the verification:
+
+```
+Bad:  "Expiry semantics change here, and the config knob that used to drive them is now
+      inert. Old behaviour was a sliding expiration of RefreshRate (WebSessionRefreshRate
+      / MobileSessionRefreshRate = 60s in appsettings) with GetOrCreate. New behaviour is
+      an absolute ShortDuration (5 min, Startup.cs:520-521) with SetAsync, i.e. always
+      overwrite. Those two settings no longer influence cache retention at all. Impact is
+      near-zero because these caches are write-only [...] Happy to be wrong if there's an
+      out-of-repo consumer reading these keys."
+Good: "Sliding 60s (`WebSessionRefreshRate`) becomes absolute 5 min, and that setting now
+      does nothing. Nothing reads these keys, so unless something outside the repo does,
+      delete these writers instead of porting them."
 ```
 
 ### MR Creation Defaults
@@ -391,6 +415,37 @@ glab api --method PUT "projects/goodhabitz%2Fbackend%2Fmy-project/merge_requests
 | `assigned_to_me` | MRs assigned to you |
 | `review_requests_for_me` | MRs awaiting your review |
 
+### Enumerating a Group's Projects
+
+`glab repo list -g <group>` only lists projects directly in the group; nested subgroups are
+skipped unless you pass `-G`. For anything that must be complete, go through the API:
+
+```bash
+# Every active project in a group, subgroups included, one JSON object per line
+glab api "groups/<group>/projects?per_page=100&include_subgroups=true&active=true" \
+    --paginate --output ndjson
+
+# Just the clone URLs, keyed by path
+glab api "groups/<group>/projects?per_page=100&include_subgroups=true&active=true" \
+    --paginate --output ndjson | jq -r '"\(.path_with_namespace)\t\(.ssh_url_to_repo)"'
+```
+
+Key parameters:
+
+| Parameter | Effect |
+|-----------|--------|
+| `include_subgroups=true` | Recurse into nested subgroups (otherwise top level only) |
+| `active=true` | Exclude archived **and** pending-deletion projects in one query |
+| `archived=false` | Excludes archived but still returns pending-deletion projects |
+| `per_page=100` | Max page size; pair with `--paginate` |
+
+Prefer `active=true` over `archived=false`. Projects marked for deletion keep a
+`-deletion_scheduled-<id>` suffix on their path and are not archived, so `archived=false`
+still returns them and they end up in clone lists as stale duplicates.
+
+`--output ndjson` emits one object per line across all pages, which is what you want for
+streaming into `jq` or a script. Plain `--paginate` concatenates separate JSON arrays.
+
 ## Pitfalls to Avoid
 
 1. **Forgetting `--yes` in scripts** - Without it, commands prompt for confirmation
@@ -400,3 +455,5 @@ glab api --method PUT "projects/goodhabitz%2Fbackend%2Fmy-project/merge_requests
 5. **JSON parsing** - Use `--output json` not `--json`
 6. **GitHub CLI flag confusion** - Use `--description` for MR body, not `--body` (which is gh's syntax)
 7. **Not in a git repo** - Use `glab api` for cross-project operations when outside a repo
+8. **Missing subgroup projects** - `glab repo list -g` needs `-G` to recurse; use `glab api groups/<g>/projects?include_subgroups=true` when completeness matters
+9. **Stale pending-deletion repos** - Filter with `active=true`, not `archived=false`
