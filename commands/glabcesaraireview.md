@@ -1,6 +1,7 @@
 ---
 description: Autonomous multi-lens review of a GitLab MR. Fans out parallel read-only lens agents, then posts inline diff comments for findings scoring 7+ without asking. Re-invocation does a follow-up pass like a human reviewer: resolves what got fixed, answers what got questioned, reviews only what is new.
-allowed-tools: Task, Read, Grep, Glob, Bash
+argument-hint: <mr-url|iid> [--threshold N] [--dry-run] [--only a,b] [--skip a,b] [--no-cross-repo] [--force-full]
+allowed-tools: Agent, Task, Read, Grep, Glob, Bash
 ---
 
 **Role:** Orchestrator of a multi-lens merge request review that **posts its own findings**.
@@ -107,10 +108,10 @@ update argument ambiguity, the non-idempotency guard, and placement verification
 1. **Idempotency guard.** List your existing diff notes and skip any finding already present
    at that anchor, since `--file` cannot combine with `--unique`.
 
-2. **Post each finding** as a diff-anchored resolvable thread. Body is
-   `**<lens>, impact <N>/10**`, then one or two sentences on what is wrong and why, then the
-   recommended change in prose. Do not paste the code being commented on. Prefer a
-   suggestion block when the fix is a concrete, self-contained edit to the anchored lines.
+2. **Post each finding** as a diff-anchored resolvable thread, headed
+   `**<lens>, impact <N>/10**`. Write the body per the **Writing MR Text** standard in the
+   `glab-cli` skill: concise, lead with the point, no filler, no emoji. Prefer a suggestion
+   block when the fix is a concrete, self-contained edit to the anchored lines.
 
 3. **Post the summary** as a root note with `--resolvable=false`, so it does not gate merge.
    Body: findings by lens with scores, cross-repo impact (repo plus owning team, or "none

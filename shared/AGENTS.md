@@ -17,3 +17,5 @@ Before updating a skill, prompt the user with what you want to change and why. W
 
 ## Writing Style
 - Never use em dashes (`—`). Use a comma, colon, or rewrite the sentence instead.
+- Never use emojis.
+- Anything others will read (MR comments and descriptions, Jira tickets, docs): lead with the point, cut preamble and filler, say it once.

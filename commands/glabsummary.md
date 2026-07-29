@@ -1,3 +1,7 @@
+---
+description: Report every MR waiting on my review, with difficulty and quality ratings, a suggested action, findings, and open comment threads.
+---
+
 # /glabsummary
 
 Report every MR waiting on my review, with a difficulty and quality rating, a suggested action, findings, and open comment threads.

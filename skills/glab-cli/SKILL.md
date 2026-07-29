@@ -19,6 +19,31 @@ glab auth status
 
 ## Merge Request Commands
 
+### Writing MR Text
+
+Applies to every comment, thread reply, and description, whether written by a command or
+ad-hoc. Comments and descriptions get read by busy people, often on a phone. Concise,
+direct, human.
+
+- Lead with the point. First sentence says what is wrong or what changed, not how you
+  found it.
+- No preamble, no restating the question, no closing summary of what you just said.
+- Comments: 1 to 3 sentences. What is wrong, why it matters if not obvious, what to do
+  instead. Never paste the code the comment is anchored to, the anchor already shows it.
+- Descriptions: what changed, then why. Bullets over paragraphs. Link the ticket, do not
+  retell it. No Testing section unless there is something non-obvious to run.
+- No filler adjectives (comprehensive, robust, seamless), no hedge stacks (might
+  possibly), no emoji, no em dashes.
+- Plain words: "use" not "utilize", "so" not "in order to".
+- Say it once. If the diff shows it, do not narrate it.
+
+```
+Bad:  "I was reviewing and noticed that it looks like there might potentially be an
+      issue where the email parameter could possibly be concatenated directly..."
+Good: "`email` goes straight into the command text, so a quote breaks the query.
+      Parameterize it."
+```
+
 ### MR Creation Defaults
 
 Always include these flags when creating MRs:

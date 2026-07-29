@@ -1,3 +1,8 @@
+---
+description: Create a Jira ticket with jira-cli, gathering project, type, summary and description first.
+argument-hint: [summary or ticket details]
+---
+
 Help the user create a Jira ticket using the `jira-cli` tool.
 
 ## Workflow

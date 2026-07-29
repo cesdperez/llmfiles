@@ -1,6 +1,6 @@
 ---
 description: Generate an OpenCode skill for a CLI tool with local detection, man pages, docs, and user context
-allowed-tools: Read, Grep, Glob, WebFetch, WebSearch, Bash, Write, question
+allowed-tools: Read, Grep, Glob, WebFetch, WebSearch, Bash, Write, AskUserQuestion
 ---
 
 # CLI Skill Builder

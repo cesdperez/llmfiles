@@ -1,3 +1,8 @@
+---
+description: Kubernetes cluster health scan via the Grafana MCP tools (pods, restarts, OOMKills, errors). Takes dev, staging, or prod.
+argument-hint: dev|staging|prod
+---
+
 Perform a Kubernetes cluster health scan using the Grafana MCP tools. Do not connect to Kubernetes directly — all data comes from Grafana (Prometheus metrics + Loki logs).
 
 ## Setup
@@ -140,4 +145,4 @@ Time window: last 7 days
 Rules:
 - Only include sections with actual findings; omit empty sections
 - Be specific: include namespace, container name, real numbers (e.g. "peaked at 498Mi vs 512Mi limit")
-- If all checks pass, output: "✓ Cluster healthy — no issues detected" with a brief confirmation of what was checked
+- If all checks pass, output: "Cluster healthy, no issues detected" with a brief confirmation of what was checked
