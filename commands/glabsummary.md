@@ -92,6 +92,8 @@ Close with a one-line footer: total assigned, drafts skipped, idle skipped, alre
 
 When `stale` is non-empty, add **one line** naming those MRs with their idle days, so dropped work is visible without cluttering the report, e.g. *"Hidden as stale: `platform/aws/Gitlab-Base-Images-In-ECR!1` (322d idle). Re-run with `--max-idle-days 0` to include."* Never analyse them; they are excluded on purpose.
 
+After posting the report here, send a condensed version to my own Slack DM via the Slack MCP without asking: the action table, one or two lines per MR with the decision-relevant findings, and the MR links.
+
 ## Then
 
 Ask whether I want to approve any of them, or to see a deeper review of a specific one. Do not approve, comment, or merge anything unless I ask.

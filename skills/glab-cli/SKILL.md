@@ -44,6 +44,12 @@ direct, human.
   possibly), no emoji, no em dashes.
 - Plain words: "use" not "utilize", "so" not "in order to".
 - Say it once. If the diff shows it, do not narrate it.
+- End every comment and thread reply with this signature after a blank line:
+  `_🤖 Comment made by Claude <model> (<thinking level>)_`. Infer both at runtime: the
+  model name from the session's environment context, the thinking level from session
+  context if stated, else `effortLevel` in `~/.claude/settings.json` (the saved default;
+  a per-session override wins when known). Drop the parenthetical if undeterminable.
+  This signature is the one place an emoji is allowed.
 
 ```
 Bad:  "I was reviewing and noticed that it looks like there might potentially be an
@@ -76,7 +82,15 @@ Always include these flags when creating MRs:
 - `--yes` - Skip confirmation prompts
 - `--assignee @me` - Assign to the current user
 
-**MR Title Format**: If the user provides a Jira ticket code, prefix the title with it (e.g., `PROJ-123 Add user authentication`). If not provided, ask for it. If the user doesn't know or it's not applicable, omit it.
+**MR Title Format**: Conventional Commits, with the Jira code as the scope:
+`type(PROJ-123): description`, e.g. `fix(PE-209): correct OTLP receiver hostname`.
+Applies to commit titles too.
+
+Not `PROJ-123 fix: description` and not a bare `PROJ-123` prefix. Confirmed by
+Sajad Hashemian on 2026-06-30.
+
+If the user does not give a Jira code, ask. If there is none, omit the scope:
+`fix: correct OTLP receiver hostname`.
 
 ### Create MR
 
@@ -99,7 +113,7 @@ glab mr create --fill \
 
 # Draft MR
 glab mr create --draft \
-    --title "WIP: feature" \
+    --title "feat(PROJ-123): add user authentication" \
     --assignee @me \
     --remove-source-branch \
     --squash-before-merge \
@@ -107,7 +121,7 @@ glab mr create --draft \
 
 # With reviewers and labels
 glab mr create \
-    --title "Add feature" \
+    --title "feat(PROJ-123): add user authentication" \
     --description "Description" \
     --assignee @me \
     --reviewer username1,username2 \
