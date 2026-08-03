@@ -13,6 +13,8 @@ llmfiles/
 │       └── SKILL.md
 ├── commands/
 │   └── <command-name>.md
+├── scripts/
+│   └── <script-name>.py
 ├── shared/
 │   ├── AGENTS.md
 │   ├── glab-mr-context.md
@@ -48,6 +50,17 @@ allowed-tools: Read, Grep, Glob
 
 Prompt content here. Use $ARGUMENTS for user input.
 ```
+
+### Scripts (`scripts/<name>.py`)
+
+Deterministic data gathering a command would otherwise re-derive from scratch every run.
+Emit JSON on stdout so the command can reason over the result instead of over shell quoting.
+
+Commands call them by absolute path (`python3 ~/llmfiles/scripts/<name>.py`), so no symlink
+is needed.
+
+- `daily-work-recap.py`, one day of git commits, merge requests, GitLab review activity and
+  matching Claude Code transcripts, used by `/dailyworkrecap`.
 
 ### AGENTS.md (`shared/AGENTS.md`)
 
