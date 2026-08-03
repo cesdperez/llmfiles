@@ -213,6 +213,13 @@ glab mr note list <mr_id> --state unresolved   # only unresolved threads
 glab mr note list <mr_id> --type diff          # only diff comments
 glab mr note list <mr_id> --file src/main.go   # threads on one file
 
+# `note list` includes activity events as discussions ("assigned to @x", "requested
+# review from @y", "changed the description"). They have no `position` and are not
+# review feedback. Filter them out before acting on "the comments on this MR":
+glab mr note list <mr_id> -F json \
+  | jq -r '.[] | select(.notes[0].system != true)
+           | "\(.id) \(.notes[0].position.new_path // "-"):\(.notes[0].position.new_line // "-")\n\(.notes[0].body)"'
+
 # Reply into an existing thread (discussion ID, or a prefix of >=8 chars)
 glab mr note create <mr_id> --reply abc12345 -m "I agree!"
 
@@ -239,15 +246,22 @@ non-resolvable.
 ### Thread Management (glab >= 1.109)
 
 ```bash
-glab mr note resolve <discussion_id> <mr_id>       # resolve a thread
-glab mr note reopen  <discussion_id> <mr_id>       # un-resolve
+glab mr note resolve <mr_id> <discussion_id>       # resolve a thread
+glab mr note reopen  <mr_id> <discussion_id>       # un-resolve
 glab mr note update  <mr_id> <note_id> -m "..."    # edit a note body
 ```
 
-`resolve`/`reopen` disambiguate by shape (discussion IDs are 8+ hex chars, MR iids
-are short numbers), so either argument order works.
+**`resolve`/`reopen` take the MR id FIRST.** Their `--help` USAGE line claims
+`<discussion-id> [<id>|<branch>]`, but that order fails with
+`No open merge request available for "<discussion_id>"`. Their own EXAMPLES show
+the working order, MR id first. Verified on glab 1.109.0. Do not trust the USAGE
+line, and do not assume shape-based disambiguation.
 
-`update` and `delete` do **not** disambiguate safely. `glab mr note delete` USAGE
+`resolve`/`reopen` also accept an integer **note** id in the discussion slot and
+resolve its parent discussion, so a note id returned by `note create` is enough to
+resolve the thread it started. Discussion ids accept an 8+ character prefix.
+
+`update` and `delete` do **not** disambiguate safely either. `glab mr note delete` USAGE
 says `<note-id> [<id>|<branch>]` while its own examples say the opposite, and both
 arguments are numeric. Use the raw API for deletion, and verify with `note list`
 after any update:
@@ -320,6 +334,37 @@ glab ci retry <job_id>                    # Retry failed job
 glab ci cancel                            # Cancel running pipeline
 glab ci lint                              # Validate .gitlab-ci.yml
 ```
+
+`glab ci status` streams and waits by default. Pass `--live=false` for a single
+snapshot, which is what you want when polling from a script. Its last line is
+`Pipeline state: <running|success|failed|canceled>`:
+
+```bash
+for i in $(seq 1 60); do
+  case "$(glab ci status --live=false 2>/dev/null | awk '/Pipeline state:/{print $3}')" in
+    success|failed|canceled) break;;
+  esac
+  sleep 20
+done
+glab ci status --live=false | tail -25
+```
+
+Bound the loop. `glab ci status` fails outside a git repo (and on any auth or network
+error), which prints nothing, matches no state, and turns an `until` into an infinite
+spin. The failure mode is a hung command, not an error.
+
+**A "failed" pipeline is not always a blocking failure.** Jobs with
+`allow_failure: true` show as failed without gating the merge, so read the job list
+before reporting a break. `allow_failure` is not in `ci status` output, so get it
+from the API:
+
+```bash
+glab api "projects/<url_encoded_path>/pipelines/<pipeline_id>/jobs?per_page=100" \
+  --paginate --output ndjson | jq -r 'select(.status=="failed") | "\(.name)\tallow_failure=\(.allow_failure)\t\(.id)"'
+```
+
+Note the pipeline SHA in `ci status` will not match your pushed commit when merged
+results pipelines are enabled: it is the simulated merge commit, not your HEAD.
 
 ## Common Workflows
 

@@ -18,4 +18,5 @@ Before updating a skill, prompt the user with what you want to change and why. W
 ## Writing Style
 - Never use em dashes (`—`). Use a comma, colon, or rewrite the sentence instead.
 - Never use emojis.
+- Plain language. Short sentences. One idea per sentence. Do not pack several clauses into one line. Do not compress a paragraph into a single dense sentence. Several simple sentences beat one clever one.
 - Anything others will read (MR comments and descriptions, Jira tickets, docs): lead with the point, cut preamble and filler, say it once. No softeners bolted on ("happy to be wrong", "just a thought"), write the condition instead ("unless X"). No metaphor for mechanics ("the knob is inert"), name the thing that stopped working.
