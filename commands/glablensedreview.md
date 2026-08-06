@@ -1,5 +1,5 @@
 ---
-description: Autonomous multi-lens review of a GitLab MR. Fans out parallel read-only lens agents, then posts inline diff comments for findings scoring 7+ without asking. Re-invocation does a follow-up pass like a human reviewer: resolves what got fixed, answers what got questioned, reviews only what is new.
+description: Autonomous multi-lens review of a GitLab MR. Fans out parallel read-only lens agents, then posts inline diff comments for findings scoring 7+ without asking. Re-invocation does a follow-up pass like a human reviewer: resolves what got fixed, answers what got questioned, reviews only what is new. Also the deep path /glabsummary dispatches high-risk MRs to.
 argument-hint: <mr-url|iid> [--threshold N] [--dry-run] [--only a,b] [--skip a,b] [--no-cross-repo] [--force-full]
 allowed-tools: Agent, Task, Read, Grep, Glob, Bash, PushNotification
 ---
@@ -15,7 +15,7 @@ this command posts inline threads on its own and maintains them across passes. U
 
 - `Read ~/llmfiles/shared/glab-mr-context.md`: target resolution, the batched fetch, the
   MR-head worktree, the anchor map, the prior-pass marker check. Your `MARKER` is
-  `glabcesaraireview`.
+  `glablensedreview`.
 - `Read ~/llmfiles/shared/review-lenses.md`: the fan-out contract, the lens catalog, the
   synthesis rules, the finding format.
 
@@ -35,6 +35,18 @@ a finding, they resolve the thread.
 
 Requires **glab >= 1.109**.
 
+## Dispatched mode (called from /glabsummary)
+
+`/glabsummary` dispatches this command for each queue MR it triages as high risk. Review,
+posting, markers, follow-up behavior: all identical to a standalone run, defaults
+throughout. Only the reporting changes:
+
+- **No push notification.** The summary sends one aggregate notification for the whole queue.
+- **Compact output.** Skip the full report format; hand back one line for the summary table:
+  `posted <n> inline (<top lenses>), would (not) approve` plus, when present, threads waiting
+  on a response. On a follow-up pass: `resolved <n>, <n> still open, <n> new`.
+- Cleanup and guardrails are unchanged.
+
 ## Arguments
 
 - **target** (required): an MR URL (`https://gitlab.com/goodhabitz/<path>/-/merge_requests/<iid>`)
@@ -49,7 +61,7 @@ Requires **glab >= 1.109**.
 ## Phase 0: Resolve the target and pick a path
 
 Run `glab-mr-context.md` end to end: resolve the target, the batched fetch, the worktree,
-`$BASE`, `$OUT/anchors.tsv`, and the marker check with `MARKER=glabcesaraireview` — with one
+`$BASE`, `$OUT/anchors.tsv`, and the marker check with `MARKER=glablensedreview`, with one
 override of the shared file: **this command never posts a summary note.** The marker lives at
 the end of each inline finding you post (Phase 2.2). The prior-pass sha is the newest marker
 across your own diff notes. Then pick a path:
@@ -100,7 +112,7 @@ update argument ambiguity, the non-idempotency guard, and placement verification
    block when the fix is a concrete, self-contained edit to the anchored lines. Every finding
    body must end with the marker, an HTML comment that is invisible when rendered:
    ```
-   <!-- glabcesaraireview: sha=<HEAD_SHA> threshold=<N> -->
+   <!-- glablensedreview: sha=<HEAD_SHA> threshold=<N> -->
    ```
    The marker is load-bearing: Phase 0 and Phase 4 read the newest one to know what was
    already reviewed. Never omit it.
@@ -118,8 +130,8 @@ update argument ambiguity, the non-idempotency guard, and placement verification
 Run the cleanup from `glab-mr-context.md`, then print the report. Do both even if the
 review failed.
 
-Then send a push notification via the `PushNotification` tool: one line, under 200
-characters, stating the MR, what was posted, and the verdict:
+Then send a push notification via the `PushNotification` tool (skip in dispatched mode):
+one line, under 200 characters, stating the MR, what was posted, and the verdict:
 
 - Full pass: `Reviewed <project>!<iid>: left <n> comments, would approve.` or `... needs changes.`
 - Follow-up pass: `Follow-up <project>!<iid>: resolved <n>, <n> still open, <n> new.`
@@ -170,8 +182,10 @@ before looking for anything new.
 
 ## Output format
 
+Standalone runs only; dispatched mode returns the compact line instead.
+
 ```
-## glabcesaraireview - <PROJECT>!<IID>
+## glablensedreview - <PROJECT>!<IID>
 
 <title> by <author> | <source_branch> -> <target_branch> | <changes_count> files
 Ticket: <KEY> <summary> [<status>]  (or: none referenced)

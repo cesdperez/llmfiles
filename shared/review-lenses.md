@@ -1,7 +1,7 @@
 # Review lenses
 
 Shared protocol for multi-angle code review by parallel agents. Loaded on demand by
-review commands (`/glabreview`, `/glabcesaraireview`, `/protoimprove`). Not a skill on
+review commands (`/glabreview`, `/glablensedreview`, `/locallensedimprove`). Not a skill on
 purpose: it must never auto-activate outside a command that asks for it.
 
 ## Caller contract

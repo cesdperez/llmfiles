@@ -68,7 +68,7 @@ blast-radius check on uncommitted work.
 ## Output format
 
 ```
-## protoimprove - <scope>, depth <depth>
+## locallensedimprove - <scope>, depth <depth>
 
 | # | Score | Lens | Location | Issue |
 |---|-------|------|----------|-------|

@@ -1,9 +1,9 @@
 # GitLab MR review context
 
 Shared setup for commands that review a GitLab merge request against the local goodhabitz
-mirror. Loaded on demand by `/glabreview` and `/glabcesaraireview`. Covers target
-resolution, the batched fetch, the read-only MR-head worktree, the deterministic anchor
-map, and the prior-pass marker check.
+mirror. Loaded on demand by `/glabreview`, `/glablensedreview`, and the per-MR agents of
+`/glabsummary`. Covers target resolution, the batched fetch, the read-only MR-head
+worktree, the deterministic anchor map, and the prior-pass marker check.
 
 Pairs with `~/llmfiles/shared/review-lenses.md`, which owns the lens catalog and fan-out
 contract. This file owns getting the bytes on disk; that one owns what to do with them.

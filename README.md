@@ -73,8 +73,8 @@ Content reused by several commands, extracted so it lives in one place. Commands
 Deliberately not skills: a skill is auto-listed with its description and can activate in unrelated sessions, whereas a shared protocol should load only when a command asks for it. Use a skill when the knowledge should surface on its own (`glab-cli`), a shared protocol when it should not (`review-lenses`).
 
 Current protocols:
-- `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glabreview`, `/glabcesaraireview`, `/protoimprove`.
-- `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the goodhabitz lens bindings, used by `/glabreview` and `/glabcesaraireview`.
+- `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glabreview`, `/glablensedreview`, `/locallensedimprove`.
+- `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the goodhabitz lens bindings, used by `/glabreview`, `/glablensedreview`, and the per-MR agents of `/glabsummary`.
 
 ## Installation
 
