@@ -92,6 +92,10 @@ Sajad Hashemian on 2026-06-30.
 If the user does not give a Jira code, ask. If there is none, omit the scope:
 `fix: correct OTLP receiver hostname`.
 
+**Branch naming**: include the Jira code, `type/PROJ-123-description`, e.g.
+`feat/PE-209-otlp-receiver-hostname`. Never commit MR work directly on main: branch
+first, then commit, push, and create the MR.
+
 ### Create MR
 
 ```bash

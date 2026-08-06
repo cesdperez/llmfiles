@@ -1,7 +1,7 @@
 # GitLab MR review context
 
 Shared setup for commands that review a GitLab merge request against the local goodhabitz
-mirror. Loaded on demand by `/glabreview`, `/glablensedreview`, and the per-MR agents of
+mirror. Loaded on demand by `/glablensedreview` and the per-MR agents of
 `/glabsummary`. Covers target resolution, the batched fetch, the read-only MR-head
 worktree, the deterministic anchor map, and the prior-pass marker check.
 
@@ -13,7 +13,7 @@ contract. This file owns getting the bytes on disk; that one owns what to do wit
 The calling command supplies:
 
 - **target**: an MR URL or a bare iid.
-- **MARKER**: the command's own marker name, used to find its prior summary note. Each
+- **MARKER**: the command's own marker name, used to find its prior-pass state. Each
   command must use its own, so two commands reviewing the same MR do not read each
   other's state.
 - **write policy**: whether anything may be posted, and when.
@@ -90,8 +90,9 @@ Read `notes.json`. Each element is a discussion: `.id` (discussion id), `.indivi
 and `.notes[]` with `.id` (note id), `.type`, `.resolvable`, `.resolved`, `.body`,
 `.author.username`, `.position.new_path`, `.position.new_line`.
 
-Find the calling command's own summary note by its marker line, an HTML comment that is
-invisible when rendered:
+Find the calling command's own notes by their marker line, an HTML comment that is
+invisible when rendered. The calling command says where its marker lives; both current
+callers put it at the end of each inline finding they post:
 
 ```
 <!-- <MARKER>: sha=<SHA> threshold=<N> -->

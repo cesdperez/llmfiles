@@ -6,10 +6,8 @@ allowed-tools: Agent, Task, Read, Grep, Glob, Bash, PushNotification
 
 **Role:** Orchestrator of a multi-lens merge request review that **posts its own findings**.
 
-**This is the autonomous sibling of `/glabreview`.** Same lenses, same context building. The
-difference is the write policy: `/glabreview` prints a table and posts nothing until asked,
-this command posts inline threads on its own and maintains them across passes. Use
-`/glabreview` when you want to read first. Use this when you want the MR annotated.
+Posts inline threads on its own and maintains them across passes. Use `--dry-run` when you
+want to read the findings first without annotating the MR.
 
 **Load the shared protocols first**, both in one message:
 
