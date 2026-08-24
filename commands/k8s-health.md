@@ -3,11 +3,11 @@ description: Kubernetes cluster health scan via the Grafana MCP tools (pods, res
 argument-hint: dev|staging|prod
 ---
 
-Perform a Kubernetes cluster health scan using the Grafana MCP tools. Do not connect to Kubernetes directly — all data comes from Grafana (Prometheus metrics + Loki logs).
+Perform a Kubernetes cluster health scan using the Grafana MCP tools. Do not connect to Kubernetes directly. All data comes from Grafana (Prometheus metrics + Loki logs).
 
 ## Setup
 
-**Argument:** `$ARGUMENTS` — must be `dev`, `staging`, or `prod`.
+**Argument:** `$ARGUMENTS` must be `dev`, `staging`, or `prod`.
 
 Map to cluster label:
 - `dev` → `aws-dev`
@@ -28,7 +28,7 @@ If no argument is provided, ask which environment to scan.
 
 ## Checks
 
-Run each check in order. For each, note findings to include in the final report — do not print intermediate results.
+Run each check in order. For each, note findings to include in the final report, and do not print intermediate results.
 
 ### 1. Non-Running Pods
 
@@ -124,7 +124,7 @@ Any result → CRITICAL.
 After all checks are complete, print a single consolidated report:
 
 ```
-## K8s Health Report — <CLUSTER> — <DATE>
+## K8s Health Report: <CLUSTER>, <DATE>
 Time window: last 7 days
 
 ### CRITICAL

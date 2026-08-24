@@ -20,7 +20,7 @@ moved, what is stuck, and what needs them. They do not want the mechanics.
 
 That drives every formatting rule below. When in doubt, cut.
 
-## Step 1 — gather the hard data
+## Step 1: gather the hard data
 
 ```bash
 python3 ~/llmfiles/scripts/daily-work-recap.py $ARGUMENTS
@@ -28,22 +28,22 @@ python3 ~/llmfiles/scripts/daily-work-recap.py $ARGUMENTS
 
 Runs in under 10 seconds. Emits JSON:
 
-- `day`, `weekday` — the resolved day. Always report against this, never re-derive it.
-- `commits[]` — `repo`, `sha`, `subject`, `on_default_branch`. Deduped by subject across
+- `day`, `weekday`: the resolved day. Always report against this, never re-derive it.
+- `commits[]`: `repo`, `sha`, `subject`, `on_default_branch`. Deduped by subject across
   branches, so one entry means one piece of work regardless of how many rebases it took.
-- `mrs_authored[]` — `ref`, `title`, `state`, `draft`, `url`. Any MR of mine touched that day.
-- `review_activity` — `approved`, `commented`, `opened`, `merged`, `closed`, each a list of
+- `mrs_authored[]`: `ref`, `title`, `state`, `draft`, `url`. Any MR of mine touched that day.
+- `review_activity`: `approved`, `commented`, `opened`, `merged`, `closed`, each a list of
   MR refs and titles.
-- `mrs_reviewed[]` — distinct MRs I reviewed, my own already filtered out. **This is the
+- `mrs_reviewed[]`: distinct MRs I reviewed, my own already filtered out. **This is the
   count to report.** Do not recount from `review_activity`, comments inflate it.
-- `jira_keys[]` — every key seen in commit subjects and MR titles.
-- `sessions[]` — Claude Code transcripts overlapping the day, for step 2.
+- `jira_keys[]`: every key seen in commit subjects and MR titles.
+- `sessions[]`: Claude Code transcripts overlapping the day, for step 2.
 
 If `commits`, `mrs_authored` and `review_activity` are all empty, say the day looks like it
 had no code or review activity and carry on with step 2. Do not stop; meetings, analysis
 and unblocking still count as work.
 
-## Step 2 — spawn agents in parallel
+## Step 2: spawn agents in parallel
 
 All agents in **one message** so they run concurrently. Never do this work yourself
 sequentially.
@@ -97,9 +97,9 @@ sequentially.
 > `ToolSearch("select:mcp__claude_ai_Slack__slack_search_public_and_private,mcp__claude_ai_Slack__slack_read_thread,mcp__claude_ai_Slack__slack_read_channel")`
 >
 > Run these searches, `sort="timestamp"`, `channel_types="public_channel,private_channel,mpim,im"`:
-> - `from:<@U037FVCT98F> after:<day-1> before:<day+1>` — everything he said
-> - `to:<@U037FVCT98F> after:<day-1> before:<day+1>` — what was asked of him
-> - `<@U037FVCT98F> after:<day-1> before:<day+1>` — where he was mentioned or pinged
+> - `from:<@U037FVCT98F> after:<day-1> before:<day+1>` returns everything I said
+> - `to:<@U037FVCT98F> after:<day-1> before:<day+1>` returns what was asked of me
+> - `<@U037FVCT98F> after:<day-1> before:<day+1>` returns where I was mentioned or pinged
 > - the same window plus each Jira key in this list: `<jira_keys>`
 >
 > Slack's `after`/`before` are exclusive, hence the day either side. Drop anything outside
@@ -127,12 +127,12 @@ sequentially.
 > There is no calendar bot in this workspace, so meetings only exist here if a human
 > mentioned one. Do not infer meetings that were not mentioned.
 
-## Step 3 — write the recap
+## Step 3: write the recap
 
 One line per item. Every section optional, drop the ones with nothing in them.
 
 ```markdown
-## Daily recap — <Weekday> <D Month>
+## Daily recap: <Weekday> <D Month>
 
 **Shipped**
 - <what is now live or merged, and what it means for users or the team> [PE-123]
@@ -179,7 +179,7 @@ One line per item. Every section optional, drop the ones with nothing in them.
 Close with a one-line source footer, so gaps are visible:
 `Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack.`
 
-## Step 4 — loose ends, for me only
+## Step 4: loose ends, for me only
 
 Below the footer, separated by a rule, list what the day left open. This is not part of the
 post. It is my own follow-up list, so it can name my own sloppiness.
