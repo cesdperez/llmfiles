@@ -20,8 +20,11 @@ llmfiles/
 │   ├── glab-mr-context.md
 │   └── review-lenses.md
 ├── CLAUDE.md
-└── README.md
+├── README.md
+└── TODO.md
 ```
+
+`TODO.md` holds work that is scoped but not built yet, so a decision made once does not have to be re-derived later.
 
 ## File Formats
 
@@ -87,7 +90,7 @@ ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
 
 **Option A: Symlink entire directories (recommended)**
 
-Easier to maintain—new files automatically appear, deletions propagate cleanly.
+Easier to maintain: new files automatically appear, deletions propagate cleanly.
 
 ```bash
 # Skills and commands (entire directories)
