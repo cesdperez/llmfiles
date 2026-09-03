@@ -43,10 +43,13 @@ so the shape of the fan-out is what determines speed.
    cross-repo grep, lint config) gathers it inside its own agent, concurrently with the
    others. Do not gather context for the lenses first unless every lens needs the same
    expensive artifact.
-6. **Model tier by difficulty.** Findings that hinge on reasoning about execution get the
-   session model: `correctness`, `security`, `cross-repo-impact`, `verify`. Findings that
-   hinge on pattern recognition against stated rules can run a tier down: `test-health`,
-   `code-standards`, `reuse`, `ticket-alignment`, `performance`.
+6. **Executor tier by difficulty.** Spawn every lens as a named agent from
+   `~/llmfiles/agents/`, so its model and effort stay pinned whatever the session runs
+   at. Findings that hinge on reasoning about execution run as `reviewer`:
+   `correctness`, `security`, `cross-repo-impact`, `verify`. Findings that hinge on
+   pattern recognition against stated rules run as `reviewer-fast`: `test-health`,
+   `code-standards`, `reuse`, `ticket-alignment`, `performance`. A fork inherits the
+   session model and effort, so a lens is never a fork.
 7. **Shard wide diffs.** Past roughly 12 changed files or 1500 added lines, split the file
    list into 2 or 3 comparable shards and run `correctness` and `security` once per shard,
    each told to ignore files outside its shard. Cap total agents at 14.
