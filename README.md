@@ -2,12 +2,14 @@
 
 This repo is to LLM coding assistants what [dotfiles](https://wiki.archlinux.org/title/Dotfiles) are to your shell, a single place to manage your configuration, symlinked wherever tools expect it. The name comes from there.
 
-Manages skills, commands, and agent instructions in one place to work with Claude Code, Copilot, OpenCode, and Antigravity.
+Manages skills, commands, agents, and agent instructions in one place to work with Claude Code, Copilot, OpenCode, and Antigravity.
 
 ## Structure
 
 ```
 llmfiles/
+├── agents/
+│   └── <agent-name>.md
 ├── skills/
 │   └── <skill-name>/
 │       └── SKILL.md
@@ -54,6 +56,28 @@ allowed-tools: Read, Grep, Glob
 Prompt content here. Use $ARGUMENTS for user input.
 ```
 
+### Agents (`agents/<name>.md`)
+
+Named subagents the orchestrator delegates to. Each pins a model alias and an effort so the
+session's own model and effort never leak into delegated work. Two tiers: the session runs the
+most capable model, every agent here runs `opus`. Effort is the dial within that tier.
+
+```markdown
+---
+name: agent-name
+description: When the orchestrator should pick this agent
+model: opus
+effort: high
+disallowedTools: Edit, Write, NotebookEdit
+---
+
+Standing instructions for the agent.
+```
+
+Model aliases (`opus`, `fable`, `sonnet`) resolve to the newest model of that family, so the
+files need no edit when a new version ships. Files named after a built-in agent (`Explore`,
+`general-purpose`) replace it.
+
 ### Scripts (`scripts/<name>.py`)
 
 Deterministic data gathering a command would otherwise re-derive from scratch every run.
@@ -93,9 +117,17 @@ ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
 Easier to maintain: new files automatically appear, deletions propagate cleanly.
 
 ```bash
-# Skills and commands (entire directories)
+# Skills, commands, and agents (entire directories)
 ln -sf ~/llmfiles/skills ~/.claude/skills
 ln -sf ~/llmfiles/commands ~/.claude/commands
+ln -sf ~/llmfiles/agents ~/.claude/agents
+```
+
+Anything spawned without a named agent follows `CLAUDE_CODE_SUBAGENT_MODEL`. Set it in the
+`env` block of `~/.claude/settings.json` so the two-tier split also covers ad hoc delegation:
+
+```json
+"env": { "CLAUDE_CODE_SUBAGENT_MODEL": "opus" }
 ```
 
 **Option B: Symlink individual files**

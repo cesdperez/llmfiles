@@ -28,6 +28,9 @@ Before updating a skill, prompt the user with what you want to change and why. W
 - Every line must change behaviour versus the model default. A line the model already obeys pays context on every turn to say nothing. When a line fails that test, delete the whole sentence rather than trim words from it. Settle a disagreement about what the default is by running the document, not by arguing about it.
 - Prompt the positive. Steering by prohibition makes the forbidden behaviour more available, not less, so name the target behaviour and the banned one never gets spoken. A prohibition earns its place only as a hard guardrail no positive phrasing covers, and even then it carries the target beside it.
 
+## Delegation
+Executors are the named agents in `~/llmfiles/agents/`, each pinned to a model and effort so the session's own effort never leaks into delegated work. Pick by how much reasoning the task needs: `worker` for changes and investigations, `worker-fast` for chores with known steps, `reviewer` and `reviewer-fast` for read-only audits, `Explore` for locating code. A fork runs on the session model and effort, so fork only when the executor needs this conversation itself.
+
 ## Writing Style
 - Never use em dashes (`—`). Rewrite the sentence with the punctuation it actually wants: a comma, colon, period, parentheses, or a conjunction. Never swap the character for another one in place.
 - Never use emojis.

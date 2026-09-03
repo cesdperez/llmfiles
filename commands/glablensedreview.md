@@ -80,7 +80,7 @@ something, disputes the finding, or the author resolved it.
 ## Phase 1: Fan out
 
 Spawn the selected lenses per the shared fan-out contract: single message, read-only,
-strict boundaries, self-refute, model tiering, sharding caps.
+strict boundaries, self-refute, executor tiering, sharding caps.
 
 Give each agent its mandate and NOT list from the catalog, the finding format, and the
 repo-specific lens bindings from `glab-mr-context.md`. Each lens gathers its own remaining

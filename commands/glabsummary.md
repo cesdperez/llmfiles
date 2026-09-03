@@ -42,7 +42,7 @@ If an entry has a non-null `degraded`, an API call failed and that MR is in the 
 
 ## Step 2: Triage and fast-review, one agent per MR
 
-Spawn **one `general-purpose` agent per queue entry, all in a single message** so they run
+Spawn **one `worker` agent per queue entry, all in a single message** so they run
 concurrently. Cap at 8 per batch; if the queue is larger, run further batches. Never
 analyse them yourself sequentially.
 

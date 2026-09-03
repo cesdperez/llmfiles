@@ -50,7 +50,7 @@ blast-radius check on uncommitted work.
    Skip this for codebase scope, where lenses read files directly.
 
 3. **Fan out** per the shared contract: single message, read-only (except `verify`), strict
-   boundaries, self-refute, model tiering, sharding caps. Give each agent its mandate and NOT
+   boundaries, self-refute, executor tiering, sharding caps. Give each agent its mandate and NOT
    list, the scope, the depth, the target file list, and the finding format.
 
 4. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
