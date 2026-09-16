@@ -27,7 +27,7 @@ Deliberately out of scope:
 ## Step 1: Build the queue
 
 ```bash
-python3 ~/.claude/scripts/glab-review-queue.py
+python3 ~/llmfiles/scripts/glab-review-queue.py
 ```
 
 Pass `--max-idle-days N` to widen or tighten the staleness window (`0` disables it) when I ask for a full sweep or a tighter one.

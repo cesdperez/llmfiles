@@ -2,7 +2,7 @@
 
 This repo is to LLM coding assistants what [dotfiles](https://wiki.archlinux.org/title/Dotfiles) are to your shell, a single place to manage your configuration, symlinked wherever tools expect it. The name comes from there.
 
-Manages skills, commands, agents, and agent instructions in one place to work with Claude Code, Copilot, OpenCode, and Antigravity.
+Manages skills, commands, agents, and agent instructions in one place to work with Claude Code, Copilot, and OpenCode.
 
 ## Structure
 
@@ -88,10 +88,12 @@ is needed.
 
 - `daily-work-recap.py`, one day of git commits, merge requests, GitLab review activity and
   matching Claude Code transcripts, used by `/dailyworkrecap`.
+- `glab-review-queue.py`, assigned GitLab merge requests with approval state, diffs,
+  pipelines, and unresolved threads, used by `/glabsummary`.
 
 ### AGENTS.md (`shared/AGENTS.md`)
 
-Universal instructions for AI assistants. Works across VS Code Copilot, Antigravity, and others.
+Shared instructions for AI assistants, linked into each tool's instruction location.
 
 ### Shared protocols (`shared/<name>.md`)
 
@@ -182,39 +184,3 @@ for cmd in ~/llmfiles/commands/*.md; do
   ln -sf "$cmd" ~/.config/opencode/commands/
 done
 ```
-
-### Antigravity
-
-Antigravity stores configuration in `~/.gemini` and uses `GEMINI.md` for instructions.
-
-```bash
-# Global instructions
-ln -sf ~/llmfiles/shared/AGENTS.md ~/.gemini/GEMINI.md
-```
-
-**Option A: Symlink entire directories (recommended)**
-
-```bash
-# Skills and commands
-ln -sf ~/llmfiles/skills ~/.gemini/antigravity/global_skills
-ln -sf ~/llmfiles/commands ~/.gemini/antigravity/workflows
-```
-
-**Option B: Symlink individual files**
-
-Use this if you have existing skills/commands you want to preserve alongside llmfiles.
-
-```bash
-# Skills (symlink individually)
-mkdir -p ~/.gemini/antigravity/global_skills
-for skill in ~/llmfiles/skills/*/; do
-  ln -sf "$skill" ~/.gemini/antigravity/global_skills/
-done
-
-# Commands (symlink individually)
-mkdir -p ~/.gemini/antigravity/workflows
-for cmd in ~/llmfiles/commands/*.md; do
-  ln -sf "$cmd" ~/.gemini/antigravity/workflows/
-done
-```
-

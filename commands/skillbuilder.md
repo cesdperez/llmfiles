@@ -22,13 +22,13 @@ Determine if $ARGUMENTS is:
 ### For tech stacks/libraries/languages
 
 1. **Official documentation**: docs, migration guides, best practices. Extract coding conventions, recommended patterns, performance tips, common pitfalls, version-specific changes.
-2. **GitHub search**: `SKILL.md {tech}`, `CLAUDE.md {tech}`, `AGENTS.md {tech}`, `copilot-instructions.md {tech}`, `.cursorrules {tech}`, `{tech} best practices` in popular repos.
+2. **GitHub search**: `SKILL.md {tech}`, `CLAUDE.md {tech}`, `AGENTS.md {tech}`, `copilot-instructions.md {tech}`, `{tech} best practices` in popular repos.
 3. **Key information to extract**: project structure, naming conventions, testing patterns, common commands (build/test/lint), dependency management, error handling, security, performance.
 
 ### For CLI tools
 
 1. **Official documentation**: docs, man pages, tutorials. Extract command reference, common workflows, auth setup.
-2. **GitHub search**: `SKILL.md {cli}`, `CLAUDE.md {cli}`, `.cursorrules {cli}`, `{cli} workflow`, `{cli} automation`, and CI/CD configs (`.github/workflows`, `.gitlab-ci.yml`).
+2. **GitHub search**: `SKILL.md {cli}`, `CLAUDE.md {cli}`, `{cli} workflow`, `{cli} automation`, and CI/CD configs (`.github/workflows`, `.gitlab-ci.yml`).
 3. **Key information to extract**: core commands and options, auth/config, common workflows (create/list/update/delete), output formats, error and retry patterns, integration with other tools.
 
 ## Phase 3: Decide invocation mode
