@@ -9,7 +9,6 @@ disable-model-invocation: true
 Write in ASD-STE100 Simplified Technical English.
 
 - Make the writing sound human and easy to read.
-- Use the project's existing vocabulary: `CLAUDE.md`, the README, ADRs, and code.
-- Do not coin a term where the project already has one.
+- Use the vocabulary the project already uses. Do not coin a term where the project has one.
 - Lead with the point.
 - Use one idea per sentence.

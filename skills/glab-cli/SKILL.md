@@ -25,6 +25,11 @@ Applies to every comment, thread reply, and description, whether written by a co
 ad-hoc. Comments and descriptions get read by busy people, often on a phone. Concise,
 direct, human.
 
+Write in Simplified Technical English per the `plainenglish` skill. Read
+`~/llmfiles/skills/plainenglish/SKILL.md` before writing any MR text; it is not
+model-invocable, so the Skill tool cannot load it. The rules below are the GitLab-specific
+additions on top of it.
+
 - Lead with the point. First sentence says what is wrong or what changed, not how you
   found it.
 - No preamble, no restating the question, no closing summary of what you just said.
@@ -42,7 +47,6 @@ direct, human.
   retell it. No Testing section unless there is something non-obvious to run.
 - No filler adjectives (comprehensive, robust, seamless), no hedge stacks (might
   possibly), no emoji, no em dashes.
-- Plain words: "use" not "utilize", "so" not "in order to".
 - Say it once. If the diff shows it, do not narrate it.
 - End every comment and thread reply with this signature after a blank line:
   `_🤖 Comment made by Claude <model> (<thinking level>)_`. Infer both at runtime: the
