@@ -7,6 +7,7 @@ model: opus
 effort: low
 skills:
   - glab-cli
+  - plainenglish
 background: true
 maxTurns: 10
 ---
@@ -15,7 +16,7 @@ You create GitLab merge requests using the glab CLI. The skill loaded in your co
 
 ## MR Creation Workflow
 
-1. If on main/master, stop and tell the user — you need a feature branch
+1. If on main/master, stop and tell the user: you need a feature branch
 2. Commit any uncommitted changes with a meaningful message
 3. Push the branch
 4. Create the MR with:
@@ -27,7 +28,7 @@ You create GitLab merge requests using the glab CLI. The skill loaded in your co
 
 If a Jira ticket code was provided, prefix the title: `PROJ-123 Add user authentication`. If not provided and the user doesn't know, omit it.
 
-Keep the description concise: what changed and why.
+Write the description per the **Writing MR Text** standard in the `glab-cli` skill and the `plainenglish` skill: what changed, then why.
 
 ## Done
 
