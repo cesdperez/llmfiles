@@ -114,40 +114,27 @@ Current protocols:
 ln -sf ~/llmfiles/shared/AGENTS.md ~/.claude/CLAUDE.md
 ```
 
-**Option A: Symlink entire directories (recommended)**
-
-Easier to maintain: new files automatically appear, deletions propagate cleanly.
+Commands and agents are whole-directory symlinks. Skills are linked one by one, because
+Claude Code writes its own synced Anthropic skills into `~/.claude/skills/synced/`, and a
+directory symlink would land those inside this repo.
 
 ```bash
-# Skills, commands, and agents (entire directories)
-ln -sf ~/llmfiles/skills ~/.claude/skills
 ln -sf ~/llmfiles/commands ~/.claude/commands
 ln -sf ~/llmfiles/agents ~/.claude/agents
+
+mkdir -p ~/.claude/skills
+for skill in ~/llmfiles/skills/*/; do
+  ln -sf "${skill%/}" ~/.claude/skills/
+done
 ```
+
+Re-run the skills loop after adding a skill here.
 
 Anything spawned without a named agent follows `CLAUDE_CODE_SUBAGENT_MODEL`. Set it in the
 `env` block of `~/.claude/settings.json` so the two-tier split also covers ad hoc delegation:
 
 ```json
 "env": { "CLAUDE_CODE_SUBAGENT_MODEL": "opus" }
-```
-
-**Option B: Symlink individual files**
-
-Use this if you have existing skills/commands you want to preserve alongside llmfiles.
-
-```bash
-# Skills (symlink individually)
-mkdir -p ~/.claude/skills
-for skill in ~/llmfiles/skills/*/; do
-  ln -sf "$skill" ~/.claude/skills/
-done
-
-# Commands (symlink individually)
-mkdir -p ~/.claude/commands
-for cmd in ~/llmfiles/commands/*.md; do
-  ln -sf "$cmd" ~/.claude/commands/
-done
 ```
 
 ### OpenCode
