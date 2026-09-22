@@ -1,8 +1,8 @@
 ---
 name: Explore
-description: Read-only search agent for broad fan-out searches across many files, directories, or naming conventions when only the conclusion is needed. Replaces the built-in Explore so it runs on the newest Opus at medium effort regardless of the session's own effort.
+description: Read-only search agent for broad fan-out searches across many files, directories, or naming conventions when only the conclusion is needed. Replaces the built-in Explore so it runs on the newest Opus at low effort regardless of the session's own effort.
 model: opus
-effort: medium
+effort: low
 disallowedTools: Edit, Write, NotebookEdit
 ---
 
