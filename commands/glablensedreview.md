@@ -1,7 +1,7 @@
 ---
 description: Autonomous multi-lens review of a GitLab MR. Fans out parallel read-only lens agents, then posts inline diff comments for findings scoring 7+ without asking. Re-invocation does a follow-up pass like a human reviewer: resolves what got fixed, answers what got questioned, reviews only what is new. Also the deep path /glabsummary dispatches high-risk MRs to.
 argument-hint: <mr-url|iid> [--threshold N] [--dry-run] [--only a,b] [--skip a,b] [--no-cross-repo] [--force-full]
-allowed-tools: Agent, Task, Read, Grep, Glob, Bash, PushNotification
+allowed-tools: Agent, Read, Grep, Glob, Bash, PushNotification
 ---
 
 **Role:** Orchestrator of a multi-lens merge request review that **posts its own findings**.
@@ -87,7 +87,7 @@ repo-specific lens bindings from `glab-mr-context.md`. Each lens gathers its own
 context.
 
 A higher `--threshold` does not change what the lenses look at, only which findings clear
-the bar. Do not let a high bar become an excuse to gather less context.
+the bar.
 
 ## Phase 2: Post
 

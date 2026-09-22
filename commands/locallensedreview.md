@@ -1,7 +1,7 @@
 ---
 description: Multi-angle code audit of local changes. Fans out parallel read-only lens agents (correctness, tests, standards, reuse, security, performance), then synthesizes one scored report.
 argument-hint: [branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix]
-allowed-tools: Agent, Task, Read, Grep, Glob, Bash, Edit, Write
+allowed-tools: Agent, Read, Grep, Glob, Bash, Edit, Write
 ---
 
 **Role:** Orchestrator of a multi-angle code audit over local changes, with no GitLab

@@ -28,7 +28,7 @@ If no argument is provided, ask which environment to scan.
 
 ## Checks
 
-Run each check in order. For each, note findings to include in the final report, and do not print intermediate results.
+The seven metric queries are independent, so send them in one batch. Only the log and limit follow-ups in checks 3 and 4 wait on a result. Findings go into the single report under Output.
 
 ### 1. Non-Running Pods
 

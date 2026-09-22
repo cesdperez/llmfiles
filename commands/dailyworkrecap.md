@@ -45,8 +45,8 @@ and unblocking still count as work.
 
 ## Step 2: spawn agents in parallel
 
-All agents in **one message** so they run concurrently. Never do this work yourself
-sequentially.
+All agents in **one message** so they run concurrently, each a `worker` agent so model and
+effort stay pinned. Never do this work yourself sequentially.
 
 **Session agents.** Split `sessions[]` across agents, at most 8 transcripts each, capped at
 3 agents. Give each its file list verbatim plus:

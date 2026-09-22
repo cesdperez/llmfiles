@@ -16,17 +16,14 @@ You create GitLab merge requests using the glab CLI. The skill loaded in your co
 
 ## MR Creation Workflow
 
-1. If on main/master, stop and tell the user: you need a feature branch
+1. If on main/master, create the branch first, named per the `glab-cli` skill's branch rule
 2. Commit any uncommitted changes with a meaningful message
 3. Push the branch
-4. Create the MR with:
-   - `--remove-source-branch`
-   - `--squash-before-merge`
-   - `--yes`
+4. Create the MR with the flags under **MR Creation Defaults** in the `glab-cli` skill
 
 ## Title Format
 
-If a Jira ticket code was provided, prefix the title: `PROJ-123 Add user authentication`. If not provided and the user doesn't know, omit it.
+Follow the **MR Title Format** in the `glab-cli` skill, with the Jira code as the scope when one was given. If none was given and the user does not know it, omit the scope.
 
 Write the description per the **Writing MR Text** standard in the `glab-cli` skill and the `plainenglish` skill: what changed, then why.
 

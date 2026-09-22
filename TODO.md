@@ -2,7 +2,9 @@
 
 ## Finish the em dash sweep
 
-103 occurrences left, all in `skills/`. `README.md`, `commands/`, and `shared/` are clean.
+172 occurrences left, all in `skills/`. `README.md`, `commands/`, `shared/`, and `agents/`
+are clean. The `twg-*` and `graphify` skills are vendored, so sweeping them means redoing it on
+every upstream refresh; the self-authored skills are the ones worth doing.
 
 | File | Count |
 | --- | --- |
@@ -13,9 +15,9 @@
 | `skills/supabase/SKILL.md` | 6 |
 | `skills/tailwind-svelte/SKILL.md` | 5 |
 | `skills/playwright-cli/references/video-recording.md` | 4 |
-| `skills/twg-operational-health/SKILL.md` | 3 |
 | `skills/svelte/SKILL.md`, `skills/playwright-cli/SKILL.md`, `skills/cf-cli/SKILL.md` | 2 each |
-| `skills/zitadel-api/SKILL.md`, `skills/twg/references/OUTPUT.md`, `skills/twg-confluence/references/body-formats.md`, `skills/playwright-cli/references/session-management.md` | 1 each |
+| `skills/zitadel-api/SKILL.md`, `skills/playwright-cli/references/session-management.md` | 1 each |
+| `skills/twg*` (vendored, 14 files) | 71 |
 
 Rewrite each sentence by hand, per the rule in `shared/AGENTS.md`. A blind character swap is
 what breaks things: `skills/zitadel-api/SKILL.md:3` is inside the YAML `description:` field, so

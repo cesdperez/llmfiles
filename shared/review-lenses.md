@@ -22,8 +22,8 @@ command's instructions conflict with this file, the command wins.
 
 ## Fan-out contract
 
-These are rules, not suggestions. Wall clock is the slowest single agent, not the sum,
-so the shape of the fan-out is what determines speed.
+Wall clock is the slowest single agent, not the sum, so the shape of the fan-out is what
+determines speed.
 
 1. **One message.** Spawn every lens as a parallel agent in a single message. Serial
    spawning throws away the entire benefit.

@@ -60,7 +60,9 @@ Prompt content here. Use $ARGUMENTS for user input.
 
 Named subagents the orchestrator delegates to. Each pins a model alias and an effort so the
 session's own model and effort never leak into delegated work. Two tiers: the session runs the
-most capable model, every agent here runs `opus`. Effort is the dial within that tier.
+most capable model, every agent here runs `opus`. Effort is the dial within that tier, and
+it is re-tuned on every Opus release: a level name does not mean the same amount of thinking
+across models (Opus 5.5 at `medium` matches Opus 5 at `high`).
 
 ```markdown
 ---

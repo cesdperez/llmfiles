@@ -40,9 +40,9 @@ additions on top of it.
 - No softeners bolted onto a finding: "Happy to be wrong", "happy either way", "just a
   thought", "not a blocker but". If a claim has a condition, write the condition:
   "Unless something outside the repo reads these keys, this path is dead."
-- Name mechanics plainly. Not "the config knob that used to drive them is now inert" but
-  "`WebSessionRefreshRate` no longer does anything." Avoid inert, knob, lever, rides
-  along, cuts against.
+- Name mechanics with the literal phrase. Not "the config knob that used to drive them is
+  now inert" but "`WebSessionRefreshRate` no longer does anything." Metaphor drags in
+  connotations you did not choose, and the reader has to translate it back.
 - Descriptions: what changed, then why. Bullets over paragraphs. Link the ticket, do not
   retell it. No Testing section unless there is something non-obvious to run.
 - No filler adjectives (comprehensive, robust, seamless), no hedge stacks (might
@@ -90,8 +90,7 @@ Always include these flags when creating MRs:
 `type(PROJ-123): description`, e.g. `fix(PROJ-209): correct OTLP receiver hostname`.
 Applies to commit titles too.
 
-Not `PROJ-123 fix: description` and not a bare `PROJ-123` prefix. Confirmed by
-Sajad Hashemian on 2026-06-30.
+Not `PROJ-123 fix: description` and not a bare `PROJ-123` prefix.
 
 If the user does not give a Jira code, ask. If there is none, omit the scope:
 `fix: correct OTLP receiver hostname`.
