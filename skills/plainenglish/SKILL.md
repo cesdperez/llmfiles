@@ -1,7 +1,6 @@
 ---
 name: plainenglish
 description: Write and rewrite content in ASD-STE100 Simplified Technical English. Use when the user says /plainenglish or asks for simplified technical English.
-disable-model-invocation: true
 ---
 
 # Plain English
