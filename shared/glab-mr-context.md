@@ -62,13 +62,15 @@ Keep from `mr.json`: `title`, `description`, `author.username`, `source_branch`,
 `origin/<source_branch>` does not.
 
 If `worktree add` fails (locked index, stale worktree, disk), fall back to
-`git -C "$CLONE" show FETCH_HEAD:<path>` per file and tell the lenses to use that.
+`git -C "$CLONE" show "$HEAD_SHA":<path>` per file and tell the lenses to use that.
 
 ## Merge base and anchor map
 
 ```bash
+HEAD_SHA=$(jq -r .sha "$OUT/mr.json")
 git -C "$CLONE" fetch origin <target_branch> --no-tags -q
-BASE=$(git -C "$WT" merge-base HEAD FETCH_HEAD)
+# FETCH_HEAD is per worktree, so the clone's fetch is invisible from $WT.
+BASE=$(git -C "$CLONE" merge-base "$HEAD_SHA" origin/<target_branch>)
 git -C "$WT" diff --unified=0 "$BASE"..HEAD | awk '
   /^\+\+\+ /{p=substr($0,7); next}
   /^@@ /{match($0,/\+[0-9]+/); n=substr($0,RSTART+1,RLENGTH-1)+0; next}
