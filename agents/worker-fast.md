@@ -1,7 +1,7 @@
 ---
 name: worker-fast
-description: Executor for mechanical chores where the steps are known up front (renames, formatting, boilerplate, small config edits, running a documented command). Runs on the newest Opus at medium effort regardless of the session's own effort.
-model: opus
+description: Executor for mechanical chores where the steps are known up front (renames, formatting, boilerplate, small config edits, running a documented command). Runs on the newest Sonnet at medium effort regardless of the session's own effort.
+model: sonnet
 effort: medium
 ---
 

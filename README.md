@@ -59,10 +59,12 @@ Prompt content here. Use $ARGUMENTS for user input.
 ### Agents (`agents/<name>.md`)
 
 Named subagents the orchestrator delegates to. Each pins a model alias and an effort so the
-session's own model and effort never leak into delegated work. Two tiers: the session runs the
-most capable model, every agent here runs `opus`. Effort is the dial within that tier, and
-it is re-tuned on every Opus release: a level name does not mean the same amount of thinking
-across models (Opus 5.5 at `medium` matches Opus 5 at `high`).
+session's own model and effort never leak into delegated work. The session and every agent
+whose output needs judgment run `opus`. Agents whose tasks have known steps (`Explore`,
+`gitlab`, `worker-fast`) run `sonnet`, where speed matters more than the quality gap on hard
+reasoning. Effort is the dial within each model, and it is re-tuned on every release: a level
+name does not mean the same amount of thinking across models (Opus 5.5 at `medium` matches
+Opus 5 at `high`, and Sonnet `medium` is not Opus `medium`).
 
 ```markdown
 ---
@@ -133,7 +135,7 @@ done
 Re-run the skills loop after adding a skill here.
 
 Anything spawned without a named agent follows `CLAUDE_CODE_SUBAGENT_MODEL`. Set it in the
-`env` block of `~/.claude/settings.json` so the two-tier split also covers ad hoc delegation:
+`env` block of `~/.claude/settings.json` so ad hoc delegation, whose task shape is unknown, also runs on Opus:
 
 ```json
 "env": { "CLAUDE_CODE_SUBAGENT_MODEL": "opus" }

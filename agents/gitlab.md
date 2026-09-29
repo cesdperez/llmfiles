@@ -3,7 +3,7 @@ name: gitlab
 description: Creates GitLab merge requests using glab CLI. Use when the user wants to create an MR, especially in the background after implementing a feature or fix.
 tools:
   - Bash
-model: opus
+model: sonnet
 effort: low
 skills:
   - glab-cli
