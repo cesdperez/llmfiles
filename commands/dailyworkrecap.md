@@ -1,10 +1,10 @@
 ---
-description: One day of my Acme work written up as a short async standup update for my team. Defaults to yesterday.
+description: One day of my Acme work as a short Slack-ready standup post, split into my team and other teams, plus private notes. Defaults to yesterday.
 ---
 
 # /dailyworkrecap
 
-Write up what I did on a given day as an async daily sync post for my team.
+Write up what I did on a given day as a Slack post for my team's async daily sync, plus private notes for me.
 
 ## Usage
 
@@ -127,82 +127,91 @@ effort stay pinned. Never do this work yourself sequentially.
 > There is no calendar bot in this workspace, so meetings only exist here if a human
 > mentioned one. Do not infer meetings that were not mentioned.
 
-## Step 3: write the recap
+## Step 3: write the Slack post
 
-One line per item. Every section optional, drop the ones with nothing in them.
+My team owns the `PROJ` Jira project. Split the work on that:
 
-```markdown
-## Daily recap: <Weekday> <D Month>
+- **My team:** anything tied to a `PE-` key, or with no key but clearly the same work as a
+  `PE-` item that day.
+- **Other teams:** anything tied to another key (`OPS-`, `IS-`, ...), and keyless work for
+  another team's product or request. Name the team or person it was for.
+- No key and no clear owner goes under **My team**.
 
-**Shipped**
-- <what is now live or merged, and what it means for users or the team> [PROJ-123]
+Print the post inside a ` ```text ` fence, so the terminal does not render the markup and I
+copy the raw characters. Use only the syntax the Slack composer converts on paste:
 
-**In progress**
-- <what is underway and what is left>
+| Want | Write |
+| --- | --- |
+| Bold | `*text*` |
+| Link | `[text](url)` |
+| List | `- item` |
 
-**Reviews**
-- Reviewed N MRs across <repo>, <repo> and <repo>.
+Everything else stays literal in Slack, so no `#` headings, no `**`, no tables, no nested
+lists. Write people as plain names: a pasted `@name` does not become a mention.
 
-**Flagged**
-- <bug filed, risk called out, or something the team should know> [PROJ-124]
+```text
+*Daily recap: <Weekday> <D Month>*
 
-**Blocked / needs someone**
-- <what is stuck and who or what unblocks it>
+*My team*
+- Shipped: <what is now live or merged, and what it means> [PROJ-123](https://acme.atlassian.net/browse/PROJ-123)
+- In progress: <what is underway and what is left>
+- Blocked: <what is stuck>, waiting on <name>
+- Flagged: <risk or bug the team should know about>
 
-**Meetings and discussions**
-- <meeting or thread, and the outcome>
+*Other teams*
+- Helped <team or name> with <what>, <outcome> [OPS-45](https://acme.atlassian.net/browse/OPS-45)
+
+*Reviews:* N MRs across <repo>, <repo> and <repo>.
 ```
 
 ### Rules
 
-- **One line each, roughly 15 words.** If it needs two lines it needs to be two items, or
-  it does not belong in a standup.
+- **The whole post fits on one phone screen.** Aim for 8 bullets or fewer. Cut the least
+  useful item before squeezing two into one.
+- **One line each, roughly 15 words**, starting with its status word: Shipped, In progress,
+  Blocked, Flagged, Discussed. Drop a section or the Reviews line when it is empty.
 - **Say the effect, not the mechanism.** "Admin panel changes now reach the identity
   system", not "added a nullable unique column and a set endpoint".
 - **No file paths, line numbers, SHAs, branch names, config keys or library versions.**
   The one exception is when the mechanism *is* the news, for example a dependency floating
   across five apps with no test coverage.
 - **Reviews are a count, not a list.** Number of MRs plus the repos. Never enumerate them,
-  never say which I approved or did not approve, never repeat review findings. Findings only
-  graduate to **Flagged** if the team needs to act on them.
+  never say which I approved, never repeat findings. A finding becomes a Flagged line only
+  if the team needs to act on it.
 - **One line per Jira ticket.** The same ticket shows up in commits, MRs, Slack and
   sessions; that is one item, and its state is the furthest it got that day.
-- **Link every Jira key** as `[PROJ-289](https://acme.atlassian.net/browse/PROJ-289)`.
-  Link an MR only when it is the deliverable and has no Jira key.
-- **Name people when something is waiting on them.** That is the point of the blocked
-  section.
+- **Link every Jira key** as `[PROJ-289](https://acme.atlassian.net/browse/PROJ-289)` at
+  the end of the line. Link an MR only when it is the deliverable and has no Jira key.
+- **Name the person when something waits on them.** That is the point of Blocked.
 - **Plain simple language.** Short sentences, no jargon a PM would have to look up, no
   emoji, no em dashes, no softeners.
-- Skip personal work, prompt and tooling tinkering, and anything not worth another
-  engineer's attention.
+- Personal work, prompt and tooling tinkering go to the notes in step 4, not the post.
 
-Close with a one-line source footer, so gaps are visible:
-`Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack.`
+## Step 4: notes for me
 
-## Step 4: loose ends, for me only
-
-Below the footer, separated by a rule, list what the day left open. This is not part of the
-post. It is my own follow-up list, so it can name my own sloppiness.
+Below the fence, in normal terminal markdown, a block that is never part of the post. It can
+name my own sloppiness.
 
 ```markdown
----
-
-**Loose ends (not part of the post)**
-- Unanswered: <who> asked <what> in <#channel>, no reply from me. <permalink>
+**Notes for me**
+- Unanswered: <who> asked <what> in <#channel>, no reply in the thread, 2 days. <permalink>
 - Left open: <what is unfinished and where> [PROJ-289]
 - Said I would, no trace: <what I committed to and to whom>
 - Left behind: <hardcoded value, disabled test, debug logging, failing check>
+- Also did: <tooling, prompt or personal work cut from the post>
+
+Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack.
 ```
 
 ### Rules
 
-- Sources are the session agents' `loose_ends` and the Slack agent's `unattended`. Nothing
-  else. Do not go looking for extra work to flag.
+- Loose ends come only from the session agents' `loose_ends` and the Slack agent's
+  `unattended`. Do not go looking for extra work to flag.
 - **Evidence or nothing.** Every line traces to a transcript quote or a Slack message. No
-  "you probably should also". A day with no loose ends prints nothing here, and that is a
-  good outcome, not a sign the search failed.
-- **Do not repeat the post.** Something already in **In progress** or **Blocked** is not a
-  loose end. Loose ends are what I would forget, not what I am tracking.
+  "you probably should also". A day with no loose ends prints only the sources line, and that
+  is a good outcome, not a sign the search failed.
+- **Do not repeat the post.** Something already in In progress or Blocked is not a loose
+  end. Loose ends are what I would forget, not what I am tracking.
 - **Unanswered Slack goes stale, unfinished code does not.** Put the oldest unanswered
   message first, and say how long it has been waiting. Order the rest by how easy they are
   to lose.
@@ -211,7 +220,7 @@ post. It is my own follow-up list, so it can name my own sloppiness.
 - One line each, same 15-word budget. Link Jira keys and permalinks.
 
 Then ask if I want the recap adjusted or posted anywhere. Do not post it anywhere unless I
-ask, and never post the loose ends block.
+ask, and never post the notes block.
 
 ## Gotchas
 
@@ -240,5 +249,8 @@ These produced wrong output before. Keep them.
   the next morning still looks abandoned. Anything whose only evidence is the day ending
   mid-task gets "may already be closed".
 - **A loose end that is really a blocker belongs in the post.** If someone else is waiting on
-  it, it goes in **Blocked / needs someone**, not in my private list where the team never
+  it, it goes in the post as Blocked, not in my notes where the team never
   sees it.
+- **Pasted markup only converts in Slack's default editor.** With "Format messages with
+  markup" turned on in Slack preferences, a paste arrives as plain text and the `*` and
+  `[text](url)` show literally.
