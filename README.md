@@ -63,8 +63,8 @@ session's own model and effort never leak into delegated work. The session and e
 whose output needs judgment run `opus`. Agents whose tasks have known steps (`Explore`,
 `gitlab`, `worker-fast`) run `sonnet`, where speed matters more than the quality gap on hard
 reasoning. Effort is the dial within each model, and it is re-tuned on every release: a level
-name does not mean the same amount of thinking across models (Opus 5.5 at `medium` matches
-Opus 5 at `high`, and Sonnet `medium` is not Opus `medium`).
+name does not mean the same amount of thinking across models (Sonnet `medium` is not Opus
+`medium`), so pick a level from an effort sweep on your own tasks, not from its name.
 
 ```markdown
 ---
