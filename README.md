@@ -15,6 +15,8 @@ llmfiles/
 │       └── SKILL.md
 ├── commands/
 │   └── <command-name>.md
+├── hooks/
+│   └── pre-commit
 ├── scripts/
 │   └── <script-name>.py
 ├── shared/
@@ -97,6 +99,12 @@ is needed.
 - `glab-review-queue.py`, assigned GitLab merge requests with approval state, diffs,
   pipelines, and unresolved threads, used by `/glabsummary`.
 
+### Git hooks (`hooks/`)
+
+`pre-commit` rejects em dashes in staged lines, so the writing rule in `shared/CLAUDE.md` holds
+without a model remembering it. `skills/playwright-cli` is exempt because it is synced from the
+`@playwright/cli` package.
+
 ### Status line (`statusline/statusline-command.sh`)
 
 Claude Code status line: path, git branch, model and effort, context window usage. It reads
@@ -138,6 +146,12 @@ done
 ```
 
 Re-run the skills loop after adding a skill here.
+
+Git hooks, once per clone:
+
+```bash
+git -C ~/llmfiles config core.hooksPath hooks
+```
 
 The status line is a file symlink, referenced from `~/.claude/settings.json`:
 

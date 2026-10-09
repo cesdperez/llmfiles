@@ -2,29 +2,21 @@
 
 ## Finish the em dash sweep
 
-172 occurrences left, all in `skills/`. `README.md`, `commands/`, `shared/`, and `agents/`
-are clean. The `twg-*` and `graphify` skills are vendored, so sweeping them means redoing it on
-every upstream refresh; the self-authored skills are the ones worth doing.
+39 occurrences left in self-authored skills. `hooks/pre-commit` stops new ones, so this list
+only shrinks. `skills/playwright-cli` (23 more) is synced from the `@playwright/cli` package and
+stays as shipped.
 
 | File | Count |
 | --- | --- |
 | `skills/intervals-icu/SKILL.md` | 29 |
-| `skills/grafana-k6/SKILL.md` | 18 |
-| `skills/playwright-cli/references/test-generation.md` | 15 |
-| `skills/graphify/SKILL.md` | 12 |
 | `skills/supabase/SKILL.md` | 6 |
-| `skills/tailwind-svelte/SKILL.md` | 5 |
-| `skills/playwright-cli/references/video-recording.md` | 4 |
-| `skills/svelte/SKILL.md`, `skills/playwright-cli/SKILL.md`, `skills/cf-cli/SKILL.md` | 2 each |
-| `skills/zitadel-api/SKILL.md`, `skills/playwright-cli/references/session-management.md` | 1 each |
-| `skills/twg*` (vendored, 14 files) | 71 |
+| `skills/svelte/SKILL.md`, `skills/cf-cli/SKILL.md` | 2 each |
 
 Rewrite each sentence by hand, per the rule in `shared/CLAUDE.md`. A blind character swap is
-what breaks things: `skills/zitadel-api/SKILL.md:3` is inside the YAML `description:` field, so
-a colon there needs the value quoted or the frontmatter stops parsing and the skill silently
-disappears from discovery.
+what breaks things: inside a YAML `description:` field a colon needs the value quoted, or the
+frontmatter stops parsing and the skill silently disappears from discovery.
 
-Verify with `grep -rn "—" . | grep -v shared/CLAUDE.md`, which should return nothing.
+Verify with `grep -rn $'\u2014' skills --exclude-dir=playwright-cli`, which should return nothing.
 
 ## A `/writeup` command for decision records and design docs
 
