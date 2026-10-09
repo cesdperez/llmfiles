@@ -21,6 +21,8 @@ llmfiles/
 │   ├── AGENTS.md
 │   ├── glab-mr-context.md
 │   └── review-lenses.md
+├── statusline/
+│   └── statusline-command.sh
 ├── CLAUDE.md
 ├── README.md
 └── TODO.md
@@ -95,6 +97,11 @@ is needed.
 - `glab-review-queue.py`, assigned GitLab merge requests with approval state, diffs,
   pipelines, and unresolved threads, used by `/glabsummary`.
 
+### Status line (`statusline/statusline-command.sh`)
+
+Claude Code status line: path, git branch, model and effort, context window usage. It reads
+the session JSON on stdin and needs `jq`.
+
 ### AGENTS.md (`shared/AGENTS.md`)
 
 Shared instructions for AI assistants, linked into each tool's instruction location.
@@ -133,6 +140,16 @@ done
 ```
 
 Re-run the skills loop after adding a skill here.
+
+The status line is a file symlink, referenced from `~/.claude/settings.json`:
+
+```bash
+ln -sf ~/llmfiles/statusline/statusline-command.sh ~/.claude/statusline-command.sh
+```
+
+```json
+"statusLine": { "type": "command", "command": "bash ~/.claude/statusline-command.sh" }
+```
 
 Anything spawned without a named agent follows `CLAUDE_CODE_SUBAGENT_MODEL`. Set it in the
 `env` block of `~/.claude/settings.json` so ad hoc delegation, whose task shape is unknown, also runs on Opus:
