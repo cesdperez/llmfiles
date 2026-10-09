@@ -19,12 +19,12 @@ every upstream refresh; the self-authored skills are the ones worth doing.
 | `skills/zitadel-api/SKILL.md`, `skills/playwright-cli/references/session-management.md` | 1 each |
 | `skills/twg*` (vendored, 14 files) | 71 |
 
-Rewrite each sentence by hand, per the rule in `shared/AGENTS.md`. A blind character swap is
+Rewrite each sentence by hand, per the rule in `shared/CLAUDE.md`. A blind character swap is
 what breaks things: `skills/zitadel-api/SKILL.md:3` is inside the YAML `description:` field, so
 a colon there needs the value quoted or the frontmatter stops parsing and the skill silently
 disappears from discovery.
 
-Verify with `grep -rn "—" . | grep -v shared/AGENTS.md`, which should return nothing.
+Verify with `grep -rn "—" . | grep -v shared/CLAUDE.md`, which should return nothing.
 
 ## A `/writeup` command for decision records and design docs
 
