@@ -1,6 +1,6 @@
 ---
 name: likec4
-description: Architecture-as-code DSL for C4 diagrams. Use when writing LikeC4 files, creating architecture diagrams, defining element specifications, view predicates, dynamic views, or when the user mentions likec4, .likec4 files, or architecture diagrams.
+description: LikeC4 architecture-as-code DSL for C4 models and views. Use whenever reading or editing a .likec4 or .c4 file, running the likec4 CLI, or drawing architecture, element, or dynamic views.
 ---
 
 # LikeC4 DSL

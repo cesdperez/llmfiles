@@ -1,5 +1,6 @@
 ---
 description: One day of my Acme work as a short Slack-ready standup post, split into my team and other teams, plus private notes. Defaults to yesterday.
+disable-model-invocation: true
 ---
 
 # /dailyworkrecap

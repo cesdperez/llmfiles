@@ -1,6 +1,6 @@
 ---
 name: zitadel-api
-description: Manage Zitadel IAM via API — orgs, projects, users, and instance configuration. Use when managing Zitadel organizations, projects, users, roles, service accounts, or instance-level settings.
+description: Zitadel IAM API for orgs, projects, users, roles, service accounts, and instance settings. Use whenever a request, script, or config calls the Zitadel API or changes Zitadel state.
 ---
 
 # Zitadel API

@@ -1,6 +1,7 @@
 ---
 description: Research the latest Anthropic models (docs, benchmarks, user reports), then propose which model and effort each agent and the session in this repo should run. Adversarially reviewed. Outputs a today-vs-proposed table.
 argument-hint: [optional focus, e.g. a model name or "only the agents"]
+disable-model-invocation: true
 ---
 
 # /whichmodels
