@@ -17,14 +17,14 @@ client libs), prefer the official skills instead (see Related resources).
 
 ## Your Context
 - Account is already authenticated (`supabase login` done).
-- Known project: **Sleepscore app** — ref `rsthwlwnsudfgpjjpuxv`, Postgres 17.6,
+- Known project: **Sleepscore app**: ref `rsthwlwnsudfgpjjpuxv`, Postgres 17.6,
   region `eu-central-1`, org `kzaiqmmlpzlyghkrfhyj`.
 - List current projects anytime: `supabase projects list`
 
 ## Core Workflow: connect + query (CLI only)
 
 The recommended path uses a **linked project** so queries run through the
-Management API — no DB password or connection string needed.
+Management API. No DB password or connection string needed.
 
 ```bash
 # 1. One-time auth (browser OAuth). Skip if already logged in.
@@ -102,20 +102,20 @@ supabase db dump --linked --role-only -f roles.sql # roles/grants
 - `--yes` skips interactive confirmation prompts (useful in scripts/agents).
 
 ## Gotchas
-- **"Cannot find project ref. Have you run supabase link?"** — you ran a `--linked`
+- **"Cannot find project ref. Have you run supabase link?"**: you ran a `--linked`
   command in a directory with no linked project. Run `supabase link --project-ref <ref>`
   first, or use `--db-url` / `--local` instead.
 - `--linked` state is **per-directory** (stored in `supabase/.temp/project-ref`),
   but the auth token is **global**. Different repos → link each once.
 - `db query --linked` executes through the **Management API**, so it does NOT need
-  the DB password — only login + link. `--db-url` DOES need credentials in the URL.
+  the DB password, only login + link. `--db-url` DOES need credentials in the URL.
 - `--db-url` connection strings must be **percent-encoded** (escape special chars
   in the password).
 - Many `inspect db` subcommands are marked **deprecated** (e.g. `table-sizes`,
   `unused-indexes`); prefer the non-deprecated equivalents (`table-stats`,
   `index-stats`) shown above.
-- Writes (INSERT/UPDATE/DELETE/DDL) via `db query` run for real against the target —
-  double-check you're pointed at the intended env before mutating. Prefer migrations
+- Writes (INSERT/UPDATE/DELETE/DDL) via `db query` run for real against the target.
+  Double-check you're pointed at the intended env before mutating. Prefer migrations
   (`supabase migration`) for schema changes you want tracked.
 
 ## Quick Reference
@@ -134,7 +134,7 @@ supabase db dump --linked -f schema.sql            # dump schema
 
 ## Related resources (for app-building, not covered here)
 - Official agent skills: `github.com/supabase/agent-skills`
-  (`npx skills add supabase/agent-skills`) — covers Auth, Edge Functions, Realtime,
+  (`npx skills add supabase/agent-skills`) covers Auth, Edge Functions, Realtime,
   Storage, client libs, and Postgres best practices.
 - Official MCP server + Claude Code plugin: `supabase.com/docs/guides/ai-tools/mcp`
   (`claude plugin install supabase@claude-plugins-official`).

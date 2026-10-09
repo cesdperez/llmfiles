@@ -56,7 +56,7 @@ cf build       Build a project for Cloudflare
 cf deploy      Deploy a project to Cloudflare
 cf dev         Run the project's Cloudflare dev server
 cf versions    Manage Worker Versions (e.g. versions upload)
-cf auth        Authentication (login, logout, whoami) — user is pre-authenticated
+cf auth        Authentication (login, logout, whoami). User is pre-authenticated
 cf complete    Generate shell completions
 ```
 
@@ -162,4 +162,4 @@ cf context show
 - Not all Cloudflare products have dedicated subcommands yet
 - Use `cf agent-context <product>` to get tool definitions for products not yet in the top-level CLI
 - Listing zones across more than 500 accounts is not allowed
-- Products like Workers, KV, R2, D1 are accessible via `cf agent-context` but may not have standalone subcommands yet — check `cf --help` for current state
+- Products like Workers, KV, R2, D1 are accessible via `cf agent-context` but may not have standalone subcommands. Check `cf --help` for current state

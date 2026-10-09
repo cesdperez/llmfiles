@@ -7,7 +7,7 @@ description: Best practices for Svelte 5 and SvelteKit 2.9+ development. Use whe
 
 ## Overview
 
-Svelte 5 introduces runes—a new reactivity system using `$state`, `$derived`, `$effect`, and `$props`. SvelteKit provides file-based routing, SSR, and full-stack capabilities.
+Svelte 5 introduces runes, a reactivity system using `$state`, `$derived`, `$effect`, and `$props`. SvelteKit provides file-based routing, SSR, and full-stack capabilities.
 
 ## Runes (Svelte 5 Reactivity)
 
@@ -25,7 +25,7 @@ Svelte 5 introduces runes—a new reactivity system using `$state`, `$derived`, 
 - Arrays/objects become deeply reactive proxies
 - Use `$state.raw()` for non-proxied state (requires reassignment)
 - Use `$state.snapshot()` to get plain objects for external APIs
-- Destructuring breaks reactivity—access properties directly
+- Destructuring breaks reactivity. Access properties directly
 
 ### $derived - Computed Values
 ```svelte

@@ -26,11 +26,8 @@ llmfiles/
 ├── statusline/
 │   └── statusline-command.sh
 ├── CLAUDE.md
-├── README.md
-└── TODO.md
+└── README.md
 ```
-
-`TODO.md` holds work that is scoped but not built yet, so a decision made once does not have to be re-derived later.
 
 ## File Formats
 

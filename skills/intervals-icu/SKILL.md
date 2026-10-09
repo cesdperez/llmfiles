@@ -13,7 +13,7 @@ REST API for the intervals.icu training platform. Manage activities, workouts, c
 
 ```
 Base URL: https://intervals.icu
-Auth: HTTP Basic — username: API_KEY, password: $INTERVALS_API_KEY
+Auth: HTTP Basic with username: API_KEY, password: $INTERVALS_API_KEY
 Athlete ID shortcut: use 0 or $INTERVALS_ATHLETE_ID
 ```
 
@@ -66,14 +66,14 @@ GET /api/v1/athlete/{id}
 # Get sport settings (FTP, LTHR, zones, threshold pace)
 GET /api/v1/athlete/{id}/sport-settings
 # Returns array, one entry per sport group:
-#   types[]        — e.g. ["Ride","VirtualRide","GravelRide"]
-#   ftp            — cycling FTP in watts
-#   indoor_ftp     — indoor FTP
-#   lthr           — lactate threshold HR
+#   types[]        e.g. ["Ride","VirtualRide","GravelRide"]
+#   ftp            cycling FTP in watts
+#   indoor_ftp     indoor FTP
+#   lthr           lactate threshold HR
 #   max_hr
-#   threshold_pace — m/s (divide into 1000 for pace in sec/km)
-#   power_zones[]  — % of FTP breakpoints (e.g. [55,75,90,105,120,150,999])
-#   hr_zones[]     — absolute HR values
+#   threshold_pace m/s (divide into 1000 for pace in sec/km)
+#   power_zones[]  % of FTP breakpoints (e.g. [55,75,90,105,120,150,999])
+#   hr_zones[]     absolute HR values
 
 # Create/update sport settings
 POST /api/v1/athlete/{id}/sport-settings
@@ -86,12 +86,12 @@ PUT  /api/v1/athlete/{id}/sport-settings/{settingsId}
 # Get wellness data (includes CTL, ATL, TSB)
 GET /api/v1/athlete/{id}/wellness?oldest=YYYY-MM-DD&newest=YYYY-MM-DD
 # Key fields:
-#   id        — date (YYYY-MM-DD)
-#   ctl       — chronic training load (fitness), e.g. 39.3
-#   ctlLoad   — TSS contribution to CTL that day
-#   atl       — acute training load (fatigue), e.g. 50.4
-#   atlLoad   — TSS contribution to ATL that day
-#   rampRate  — weekly CTL change rate
+#   id        date (YYYY-MM-DD)
+#   ctl       chronic training load (fitness), e.g. 39.3
+#   ctlLoad   TSS contribution to CTL that day
+#   atl       acute training load (fatigue), e.g. 50.4
+#   atlLoad   TSS contribution to ATL that day
+#   rampRate  weekly CTL change rate
 #   restingHR, weight, sleepSecs, sleepScore, mood, hrv
 # TSB (form) = ctl - atl (calculate client-side, no dedicated field)
 
@@ -106,7 +106,7 @@ Body: { "weight": 70.5, "restingHR": 48 }
 ### Historic Totals
 
 ```bash
-# Activities list with date range — aggregate client-side by sport type
+# Activities list with date range, aggregated client-side by sport type
 GET /api/v1/athlete/{id}/activities?oldest=YYYY-MM-DD&newest=YYYY-MM-DD
 # Sum distance (÷1000 for km), moving_time, icu_training_load by type
 
@@ -136,14 +136,14 @@ PUT /api/v1/athlete/{id}/events/{eventId}
 
 # Delete event
 DELETE /api/v1/athlete/{id}/events?oldest=YYYY-MM-DD&newest=YYYY-MM-DD
-# Or for a single event by id — use PUT with empty body or check specific delete endpoint
+# Or for a single event by id, use PUT with empty body or check specific delete endpoint
 ```
 
 ### Workout Event Description Format
 
-Calendar event descriptions use a plain-text block format. Always use percentages — never watts or absolute paces.
+Calendar event descriptions use a plain-text block format. Always use percentages. Never use watts or absolute paces.
 
-**Cycling** — intensity as % of FTP:
+**Cycling**: intensity as % of FTP.
 ```
 - 10m 65%
 
@@ -154,7 +154,7 @@ Calendar event descriptions use a plain-text block format. Always use percentage
 - 10m 65%
 ```
 
-**Running** — intensity as % of threshold pace, with `pace` suffix:
+**Running**: intensity as % of threshold pace, with `pace` suffix.
 ```
 - 10m 71% pace
 
@@ -245,7 +245,7 @@ jq '[.[] | {
 }]' /tmp/activities.json
 ```
 
-Note: always save to a temp file first — activity responses are large and piping them directly through shell variables causes parse errors.
+Note: always save to a temp file first. Activity responses are large and piping them directly through shell variables causes parse errors.
 
 ### "When is my next race?"
 
@@ -275,7 +275,7 @@ curl -s --http1.1 -X POST \
 
 Notes:
 - Use a file (`--data-binary @file`) to avoid shell encoding issues with special characters
-- `Triathlon` is not a valid type — use `Ride` for tri races (it's the key leg anyway)
+- `Triathlon` is not a valid type. Use `Ride` for tri races (it's the key leg anyway)
 - Race category variants: `RACE_A` (A-race), `RACE_B` (B-race), `RACE_C` (C-race)
 - Delete a single event: `DELETE /api/v1/athlete/{id}/events/{eventId}`
 
@@ -294,8 +294,8 @@ Notes:
 | `moving_time` | seconds (÷3600 for hours) |
 | `icu_training_load` | TSS (Training Stress Score) |
 | `icu_weighted_avg_watts` | watts (normalized power) |
-| `ctl` | CTL — chronic training load (fitness) |
-| `atl` | ATL — acute training load (fatigue) |
+| `ctl` | CTL (chronic training load, fitness) |
+| `atl` | ATL (acute training load, fatigue) |
 | `ctlLoad` / `atlLoad` | TSS added to CTL/ATL that day |
 | TSB | Calculate as `ctl - atl` (positive = fresh, negative = fatigued) |
 
@@ -303,8 +303,8 @@ Notes:
 
 `Ride`, `VirtualRide`, `EMountainBikeRide`, `Run`, `Walk`, `Swim`, `WeightTraining`, `Hike`, `Yoga`, `Workout`, `Rowing`, `Transition`
 
-- `EMountainBikeRide` — e-MTB rides; different bike, exclude from road cycling totals
-- `Transition` — triathlon T1/T2; negligible distance, not a cycling type
+- `EMountainBikeRide`: e-MTB rides, different bike, exclude from road cycling totals
+- `Transition`: triathlon T1/T2, negligible distance, not a cycling type
 - Triathlon bike legs are recorded as `Ride` and already included in cycling totals
 
 ## Event Categories
@@ -321,12 +321,12 @@ Notes:
 - **Athlete ID 0**: works as shortcut for your own data in most endpoints
 - **No server-side type filtering**: `?type=Ride` is silently ignored; always filter client-side with jq
 - **No `/stats` or `/totals` endpoints**: both return 404; all aggregation must be done client-side
-- **jq arithmetic after pipe**: `| * 10` is invalid jq — the dot is implicit in filters but NOT in math operators. Use `| . * 10` or restructure: `(.distance / 1000 * 10 | round) / 10`, never `(.distance / 1000 | * 10 | round / 10)`
-- **Pagination required for large date ranges**: API caps at ~500 results per request; if `length == 500`, the results are truncated — paginate by using the oldest `start_date_local` in the batch as `newest` for the next request, then `unique_by(.id)` when merging
+- **jq arithmetic after pipe**: `| * 10` is invalid jq. The dot is implicit in filters but NOT in math operators. Use `| . * 10` or restructure: `(.distance / 1000 * 10 | round) / 10`, never `(.distance / 1000 | * 10 | round / 10)`
+- **Pagination required for large date ranges**: API caps at ~500 results per request; if `length == 500`, the results are truncated. Paginate by using the oldest `start_date_local` in the batch as `newest` for the next request, then `unique_by(.id)` when merging
 - **Save batches to files before merging**: piping large JSON through shell variables causes control character parse errors in jq; use `curl ... > /tmp/batch.json` and pass files directly to jq
-- **Indoor vs outdoor**: use `type == "VirtualRide"` — not power presence — to identify indoor trainer rides; `icu_weighted_avg_watts` can be non-null on some `Ride` activities
+- **Indoor vs outdoor**: use `type == "VirtualRide"`, not power presence, to identify indoor trainer rides; `icu_weighted_avg_watts` can be non-null on some `Ride` activities
 - **VirtualRide distance is unreliable**: the UI may show different values (pulls from Garmin Connect as a secondary source with different virtual distance calculation); don't use VirtualRide distance for precision calculations
 - **HTTP/2 POST bug (macOS curl)**: `curl` on macOS silently drops POST body over HTTP/2, returning `{"error":"JSON parse error"}`. Always use `--http1.1` for POST requests. GET/PUT are not affected.
 - **`upsertOnUid` required for POST /events**: the query param `?upsertOnUid=false` is required when creating events, otherwise you get a 400 JSON parse error
-- **Race category format**: use `RACE_A`/`RACE_B`/`RACE_C`, not `RACE` — the latter doesn't work; when querying for races, filter with `.category | startswith("RACE")`
+- **Race category format**: use `RACE_A`/`RACE_B`/`RACE_C`, not `RACE`, because the latter doesn't work; when querying for races, filter with `.category | startswith("RACE")`
 - **No Triathlon type**: `Triathlon` is not a valid event/activity type; use `Ride` for tri races
