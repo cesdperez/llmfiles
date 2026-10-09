@@ -1,6 +1,7 @@
 ---
 description: Build a Claude Code skill for a tech stack, library, or CLI tool
 allowed-tools: Read, Grep, Glob, WebFetch, WebSearch, Write
+disable-model-invocation: true
 ---
 
 # Skill Builder
@@ -33,7 +34,7 @@ Determine if $ARGUMENTS is:
 
 ## Phase 3: Decide invocation mode
 
-This is the first authoring decision and the current skill set has none like it, so make it explicitly. Two modes, each spending a different cost:
+Make this decision explicitly. Two modes, each spending a different cost:
 
 - **Model-invoked** (default for tech/CLI reference skills): keeps its `description` in context every turn, so the agent fires it on its own and other skills can reach it. It costs **context load**. Mechanics: omit `disable-model-invocation`; write a rich, trigger-heavy `description`.
 - **User-invoked**: only the user typing its name invokes it, and no other skill can reach it. Zero context load, but it spends **cognitive load** (the user is now the index that must remember it exists). Mechanics: `disable-model-invocation: true`; the `description` becomes a plain one-line human summary, triggers stripped.
@@ -94,11 +95,18 @@ description: {see Phase 4}
 
 **Progressive disclosure**: when `SKILL.md` grows past what stays legible (target under ~500 lines, but shorter is better), move reference material out to `references/*.md` and point at it. The cleanest split test is by **branch**: inline what every use needs, push behind a pointer what only some uses reach. A pointer's *wording*, not its target, decides how reliably the agent follows it, so name what the file holds ("full flag reference in [references/flags.md]").
 
+**Co-location**: keep a concept's definition, rules, and caveats under one heading. Scattered across sections, the agent reads one part and misses its neighbours.
+
+**Completion criteria**: every step ends on a condition that tells the agent it is done. Make it checkable ("every command run against the installed version") and exhaustive ("every subcommand group covered"), because a vague bound ("understand the tool") invites ending early. Demand in the criterion drives the legwork; nothing else will.
+
+**Skill dependencies**: when a step needs another skill, write `Call the Skill tool with "{name}"`, one call per skill. A bare `/name` or a `../other-skill/FILE.md` link fires less reliably. Only model-invoked skills are reachable this way.
+
 **Leading words**: a leading word is a compact concept already in the model's pretraining that the agent thinks with while running the skill (*tight* loop, *red* test, *tracer bullet*). One well-chosen word can retire a phrase restated across the skill. Hunt for restatements a single word collapses.
 
 ## Phase 6: Prune
 
 - **Single source of truth**: each fact lives in exactly one place, so a change is a one-place edit.
+- **The environment is a source of truth**: `--help` output, config files, `package.json` scripts. Restating them makes the skill a cache that goes stale on the next release. Keep what a lookup cannot give: the unwritten convention, the reason behind a choice, the flag combination that works, the gotcha no help text confesses. For a CLI skill, point at `{cli} <cmd> --help` for full flag lists.
 - **Relevance**: every line still bears on what the skill does.
 - **No-op test**, sentence by sentence: does this sentence change behaviour versus the model's default? "Be thorough" when the agent is already thorough-ish is a no-op; delete it or replace it with a stronger leading word. Delete whole failing sentences rather than trimming words.
 - **Prompt the positive**: steer by stating the target behaviour, not by banning the wrong one (naming the elephant makes it more available). Keep a prohibition only as a hard guardrail, and pair it with what to do instead.
@@ -134,7 +142,7 @@ When a specific version is requested and you are unsure it is within your traini
 
 ## Note on granularity
 
-If building this skill would push the user's set of user-invoked skills past what they can remember, that piled-up cognitive load is cured by a **router skill**: one user-invoked skill that names the others and when to reach for each (the `twg` family in this repo is an example). Flag this to the user rather than silently adding to the pile.
+If building this skill would push the user's set of user-invoked skills past what they can remember, that piled-up cognitive load is cured by a **router skill**: one skill that names the others and when to reach for each, so the rest can go user-invoked (the `twg` root skill is an example). Flag this to the user rather than silently adding to the pile.
 
 ## Output
 
