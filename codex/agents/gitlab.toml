@@ -1,0 +1,8 @@
+name = "gitlab"
+description = "Create GitLab merge requests with glab when the parent requests MR creation."
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+developer_instructions = """
+Read ~/llmfiles/agents/gitlab.md and execute its Markdown body after the YAML frontmatter. Read ~/llmfiles/codex/compatibility.md and apply its Codex adaptations in preference to Claude-specific instructions. Follow the delegated task's scope and write policy.
+Load ~/llmfiles/skills/glab-cli/SKILL.md and ~/llmfiles/skills/plainenglish/SKILL.md before MR creation. Apply the Codex attribution rule from compatibility.md when writing GitLab text.
+"""

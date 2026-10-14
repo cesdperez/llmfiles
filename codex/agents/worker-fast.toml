@@ -1,0 +1,7 @@
+name = "worker-fast"
+description = "Execute mechanical chores whose steps and expected result are already specified."
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+developer_instructions = """
+Read ~/llmfiles/agents/worker-fast.md and execute its Markdown body after the YAML frontmatter. Read ~/llmfiles/codex/compatibility.md and apply its Codex adaptations in preference to Claude-specific instructions. Follow the delegated task's scope and write policy.
+"""

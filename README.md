@@ -3,6 +3,8 @@
 This repo is to LLM coding assistants what [dotfiles](https://wiki.archlinux.org/title/Dotfiles) are to your shell, a single place to manage your configuration, symlinked wherever tools expect it. The name comes from there.
 
 Manages Claude Code skills, commands, agents, and global instructions in one place.
+Claude Code is the primary setup. Codex adaptations live under `codex/` and reuse the
+existing command bodies, agent instructions, skills, and shared protocols.
 
 ## Structure
 
@@ -25,6 +27,15 @@ llmfiles/
 │   └── review-lenses.md
 ├── statusline/
 │   └── statusline-command.sh
+├── codex/
+│   ├── AGENTS.md
+│   ├── compatibility.md
+│   ├── agents/
+│   │   └── <agent-name>.toml
+│   └── skills/
+│       └── <command-name>/
+│           ├── SKILL.md
+│           └── agents/openai.yaml
 ├── CLAUDE.md
 └── README.md
 ```
@@ -123,6 +134,8 @@ Current protocols:
 
 ## Installation
 
+### Claude Code
+
 ```bash
 # Global instructions
 ln -sf ~/llmfiles/shared/CLAUDE.md ~/.claude/CLAUDE.md
@@ -166,3 +179,86 @@ Anything spawned without a named agent follows `CLAUDE_CODE_SUBAGENT_MODEL`. Set
 ```json
 "env": { "CLAUDE_CODE_SUBAGENT_MODEL": "opus" }
 ```
+
+### Codex
+
+Codex uses global instructions in `$CODEX_HOME/AGENTS.md` (default `~/.codex/AGENTS.md`),
+personal agents in `$CODEX_HOME/agents/`, and shared skills in `~/.agents/skills/`.
+See the official documentation for [instructions](https://learn.chatgpt.com/docs/agent-configuration/agents-md),
+[skills](https://learn.chatgpt.com/docs/build-skills), and
+[custom agents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
+
+Keep this clone at `~/llmfiles`: command bodies and adapters use that path. Link skills and
+agents individually to preserve anything already installed in the global directories.
+The following commands leave existing matching links alone and report other collisions.
+Move a conflicting file aside or merge its contents before rerunning; an existing empty
+`AGENTS.md` also counts as a collision. An `AGENTS.override.md` in Codex home takes precedence
+over `AGENTS.md`, so check it if your global instructions do not load.
+
+```bash
+llmfiles_repo="$HOME/llmfiles"
+llmfiles_codex_home="${CODEX_HOME:-$HOME/.codex}"
+llmfiles_skills_home="$HOME/.agents/skills"
+
+mkdir -p "$llmfiles_codex_home/agents" "$llmfiles_skills_home"
+
+link_llmfile() {
+  local source_path="$1" target_path="$2"
+  if [ -L "$target_path" ] && [ "$(readlink "$target_path")" = "$source_path" ]; then
+    return 0
+  fi
+  if [ -e "$target_path" ] || [ -L "$target_path" ]; then
+    echo "Skipped existing path: $target_path" >&2
+    return 1
+  fi
+  ln -s "$source_path" "$target_path"
+}
+
+link_llmfile "$llmfiles_repo/codex/AGENTS.md" "$llmfiles_codex_home/AGENTS.md"
+
+for agent in "$llmfiles_repo"/codex/agents/*.toml; do
+  link_llmfile "$agent" "$llmfiles_codex_home/agents/${agent##*/}"
+done
+
+for skill in "$llmfiles_repo"/skills/*/ "$llmfiles_repo"/codex/skills/*/; do
+  skill="${skill%/}"
+  link_llmfile "$skill" "$llmfiles_skills_home/${skill##*/}"
+done
+```
+
+Resolve every reported collision before considering the installation complete. Re-run
+the loops after adding an agent or skill. No `config.toml` replacement is needed.
+Start a fresh Codex session to load global instructions and custom agents. In the CLI,
+use `/skills` to check discovery, then invoke a command adapter with `$name`, for example:
+
+```text
+$waitwhat
+$locallensedreview branch high
+$glablensedreview <mr-url> --dry-run
+```
+
+All eight command adapters are explicit-only skills. `agents/openai.yaml` sets
+`allow_implicit_invocation: false`; shared knowledge skills retain their own policies.
+
+`codex/compatibility.md` owns argument handling, delegation, tool substitutions, and Codex
+attribution for GitLab text. Each adapter loads its existing `commands/<name>.md` body and
+supplies any further differences. Codex agent definitions load the corresponding
+`agents/<name>.md` body; `explorer` maps to Claude's `Explore`.
+
+Codex agents use `gpt-6.1-sol` at high effort for `worker`, `reviewer`, and
+`general-purpose`, and medium effort for `reviewer-fast`. `explorer`, `worker-fast`, and
+`gitlab` use `gpt-6-luna` at high effort for narrower tasks. These are explicit model IDs,
+not Claude aliases or equivalent effort levels. Choose available models in the TOML files
+if your account does not support them; `$whichmodels` proposes changes to Codex settings.
+
+Adaptation boundaries:
+
+- Review workflows preserve their posting policies. Use `--dry-run` with
+  `$glablensedreview` to inspect findings before posting.
+- Review agents' read-only behavior is instructed, not a separate sandbox. Agents inherit
+  the parent session's permissions and schedule within its available concurrency limit.
+- `$dailyworkrecap` reads the existing collector's Claude transcripts. Codex session
+  history is not collected. Slack coverage depends on available connected tools.
+- Claude's `PushNotification`, Workflow, agent-team settings, and status line are not
+  installed as Codex features. The adapters use available Codex capabilities and report
+  missing coverage where it affects the result.
