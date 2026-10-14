@@ -99,6 +99,9 @@ first, then commit, push, and create the MR.
 
 ### Create MR
 
+For multiline descriptions, write the text to a file and pass
+`--description-file <path>` to `mr create` or `mr update`.
+
 ```bash
 # Standard MR creation
 glab mr create \
@@ -150,7 +153,7 @@ glab mr update <mr_id> --ready
 # Mark as draft
 glab mr update <mr_id> --draft
 
-# Add/remove labels (prefix with - to remove)
+# Add/remove labels
 glab mr update <mr_id> --label new-label --unlabel old-label
 
 # Change assignees (prefix with + to add, - to remove)
@@ -340,9 +343,9 @@ glab ci cancel                            # Cancel running pipeline
 glab ci lint                              # Validate .gitlab-ci.yml
 ```
 
-`glab ci status` streams and waits by default. Pass `--live=false` for a single
-snapshot, which is what you want when polling from a script. Its last line is
-`Pipeline state: <running|success|failed|canceled>`:
+`glab ci status` returns a snapshot by default. `--live` streams until the pipeline
+ends, and `--wait` blocks until completion. Keep `--live=false` explicit when polling
+from a script. The text output ends with `Pipeline state: <state>`:
 
 ```bash
 for i in $(seq 1 60); do
@@ -353,6 +356,9 @@ for i in $(seq 1 60); do
 done
 glab ci status --live=false | tail -25
 ```
+
+For structured snapshots, use `glab ci status --output json`, optionally with
+`--jq`. JSON output cannot combine with `--live`, `--wait`, or `--compact`.
 
 Bound the loop. `glab ci status` fails outside a git repo (and on any auth or network
 error), which prints nothing, matches no state, and turns an `until` into an infinite

@@ -6,6 +6,9 @@ Manages Claude Code skills, commands, agents, and global instructions in one pla
 Claude Code is the primary setup. Codex adaptations live under `codex/` and reuse the
 existing command bodies, agent instructions, skills, and shared protocols.
 
+[Agentic CLI registry](shared/agentic-clis.md) tracks CLI and companion-skill
+upgrade recipes. Ask "upgrade all my CLIs" to run its maintenance procedure.
+
 ## Structure
 
 ```
@@ -23,6 +26,7 @@ llmfiles/
 │   └── <script-name>.py
 ├── shared/
 │   ├── CLAUDE.md
+│   ├── agentic-clis.md
 │   ├── glab-mr-context.md
 │   └── review-lenses.md
 ├── statusline/
@@ -54,6 +58,11 @@ description: When to use this skill (max 1024 chars)
 
 Instructions and knowledge go here.
 ```
+
+Companion CLI skills may be maintained here, bundled with their CLI, or managed
+from upstream outside this repo. Their sources and refresh steps live in the
+[Agentic CLI registry](shared/agentic-clis.md). Cloudflare's official `cf-cli`
+skill is managed outside this repo and shared by Claude Code and Codex.
 
 ### Commands (`commands/<name>.md`)
 

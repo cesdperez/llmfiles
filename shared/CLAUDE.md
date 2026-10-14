@@ -1,5 +1,8 @@
 # Agent Instructions
 
+For CLI upgrades, including "upgrade all my CLIs", read
+`~/llmfiles/shared/agentic-clis.md` and follow its CLI and companion-skill procedure.
+
 ## Code Style
 - Minimal comments. Code should be self explanatory.
 - Single Level of Abstraction Principle.
