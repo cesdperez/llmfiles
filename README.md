@@ -61,8 +61,8 @@ Instructions and knowledge go here.
 
 Companion CLI skills may be maintained here, bundled with their CLI, or managed
 from upstream outside this repo. Their sources and refresh steps live in the
-[Agentic CLI registry](shared/agentic-clis.md). Cloudflare's official `cf-cli`
-skill is managed outside this repo and shared by Claude Code and Codex.
+[Agentic CLI registry](shared/agentic-clis.md). The official `cf-cli` and
+`playwright-cli` skills are managed outside this repo and shared by Claude Code and Codex.
 
 ### Commands (`commands/<name>.md`)
 
@@ -119,8 +119,7 @@ is needed.
 ### Git hooks (`hooks/`)
 
 `pre-commit` rejects em dashes in staged lines, so the writing rule in `shared/CLAUDE.md` holds
-without a model remembering it. `skills/playwright-cli` is exempt because it is synced from the
-`@playwright/cli` package.
+without a model remembering it.
 
 ### Status line (`statusline/statusline-command.sh`)
 

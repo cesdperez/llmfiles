@@ -2,7 +2,7 @@
 # Checks added lines only, so the backlog in TODO.md never blocks an unrelated commit.
 set -euo pipefail
 
-hits=$(git diff --cached -U0 --no-color -- . ':!shared/CLAUDE.md' ':!hooks/pre-commit' ':!skills/playwright-cli' \
+hits=$(git diff --cached -U0 --no-color -- . ':!shared/CLAUDE.md' ':!hooks/pre-commit' \
   | awk '/^\+\+\+ /{file=substr($0,7)} /^\+[^+]/ && /—/{print file": "substr($0,2)}')
 
 if [ -n "$hits" ]; then

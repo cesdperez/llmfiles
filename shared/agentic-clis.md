@@ -45,7 +45,7 @@ To restore it on another machine:
 npx --yes skills@latest add cloudflare/skills --skill cf-cli -g -a codex claude-code -y
 ```
 
-## Repository skills without a detected global CLI
+## Companion skills without a detected global CLI
 
 These skills remain useful for project-local or temporary CLI invocations. Check
 availability again during an upgrade; do not install a global CLI just because
@@ -53,23 +53,18 @@ its companion skill exists.
 
 | CLI | CLI upgrade when installed | Companion skill and refresh |
 | --- | --- | --- |
-| `playwright-cli` | Global npm install: `npm install -g @playwright/cli@latest`; preserve another package manager if detected | Microsoft's [official skill](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) is currently kept as a [repository copy with references](../skills/playwright-cli/). After a CLI upgrade, review/sync the entire skill folder from that exact package version. Generate it in a temporary directory with `playwright-cli install --skills` and preserve the repo symlinks. The skill is also independently installable; see below |
+| `playwright-cli` | Global npm install: `npm install -g @playwright/cli@latest`; preserve another package manager if detected | Microsoft's [official skill and references](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) are managed outside this repo. Refresh with `npx --yes skills@latest update playwright-cli -g -y` alongside a CLI upgrade |
 | `supabase` | For the Homebrew installation recorded by the skill: `brew upgrade supabase`; verify the actual owner first | [Local operational skill](../skills/supabase/SKILL.md). Review against [CLI documentation](https://supabase.com/docs/reference/cli/introduction) after a CLI upgrade. The official `supabase/agent-skills` app-building skills serve a different scope and do not replace this operational skill |
 | `likec4` | For a global npm installation: `npm install -g likec4@latest`; project-local versions stay with their project | [Local DSL skill](../skills/likec4/SKILL.md). Review against [LikeC4 CLI docs](https://likec4.dev/tooling/cli/) and its [official DSL skill](https://github.com/likec4/likec4/tree/main/skills/likec4-dsl) after a CLI upgrade; preserve local conventions |
 
-### Playwright skill installation options
+### Restore the managed Playwright skill
 
-Playwright documents a [native skill installer](https://playwright.dev/agent-cli/skills):
-`playwright-cli install --skills=agents --global` installs into `~/.agents/skills/`,
-and `playwright-cli install --skills --global` targets Claude's skill directory.
-
-For a source-tracked installation with a separate update command, use Microsoft's
-official repository through the Skills CLI. First reconcile this repository's
-existing agent symlinks; these commands apply after migrating the copied skill:
+The skill lives in `~/.agents/skills/playwright-cli/`, with Claude's path linked
+there. Its source is tracked in the Skills CLI lockfile. To restore it on another
+machine:
 
 ```bash
 npx --yes skills@latest add microsoft/playwright-cli --skill playwright-cli -g -a codex claude-code -y
-npx --yes skills@latest update playwright-cli -g -y
 ```
 
 API-only and framework skills such as `intervals-icu`, `zitadel-api`, and `svelte`
