@@ -1,5 +1,5 @@
 ---
-description: One day of my Acme work as a short Slack-ready standup post, split into my team and other teams, plus private notes. Defaults to yesterday.
+description: One day of my Acme work as a short Slack-ready standup post, split into team and no-team work, plus private notes. Defaults to yesterday.
 disable-model-invocation: true
 ---
 
@@ -11,6 +11,7 @@ Write up what I did on a given day as a Slack post for my team's async daily syn
 
 ```
 /dailyworkrecap              # yesterday (rolls back to Friday over a weekend)
+/dailyworkrecap thursday     # most recent past Thursday
 /dailyworkrecap 2026-07-30
 ```
 
@@ -125,18 +126,16 @@ effort stay pinned. Never do this work yourself sequentially.
 >
 > Skip personal and social chat, and skip anything unrelated to Acme work.
 >
-> There is no calendar bot in this workspace, so meetings only exist here if a human
-> mentioned one. Do not infer meetings that were not mentioned.
+> Report only meetings a message names. Do not infer others.
 
 ## Step 3: write the Slack post
 
 My team owns the `PROJ` Jira project. Split the work on that:
 
-- **My team:** anything tied to a `PE-` key, or with no key but clearly the same work as a
+- **Team:** anything tied to a `PE-` key, or with no key but clearly the same work as a
   `PE-` item that day.
-- **Other teams:** anything tied to another key (`OPS-`, `IS-`, ...), and keyless work for
-  another team's product or request. Name the team or person it was for.
-- No key and no clear owner goes under **My team**.
+- **No team:** anything tied to another key (`OPS-`, `IS-`, ...), keyless work for another
+  team, and department-wide work such as preparing or running an Engineering meeting.
 
 Print the post inside a ` ```text ` fence, so the terminal does not render the markup and I
 copy the raw characters. Use only the syntax the Slack composer converts on paste:
@@ -150,40 +149,37 @@ copy the raw characters. Use only the syntax the Slack composer converts on past
 Everything else stays literal in Slack, so no `#` headings, no `**`, no tables, no nested
 lists. Write people as plain names: a pasted `@name` does not become a mention.
 
+This is the length and tone I write myself:
+
 ```text
-*Daily recap: <Weekday> <D Month>*
+Team:
+- Password import: identity provider now accepts legacy passwords, tested locally, MRs up [PROJ-493](https://acme.atlassian.net/browse/PROJ-493)
+- Asset token: web MRs up, mobile waits on Team Mobile [PROJ-501](https://acme.atlassian.net/browse/PROJ-501)
+- Deployed orders-api to prod, token exchange included
 
-*My team*
-- Shipped: <what is now live or merged, and what it means> [PROJ-123](https://acme.atlassian.net/browse/PROJ-123)
-- In progress: <what is underway and what is left>
-- Blocked: <what is stuck>, waiting on <name>
-- Flagged: <risk or bug the team should know about>
+No team:
+- Prepared and organized the "web: where we are" status meeting
 
-*Other teams*
-- Helped <team or name> with <what>, <outcome> [OPS-45](https://acme.atlassian.net/browse/OPS-45)
-
-*Reviews:* N MRs across <repo>, <repo> and <repo>.
+Reviews: 5 MRs
 ```
 
 ### Rules
 
-- **The whole post fits on one phone screen.** Aim for 8 bullets or fewer. Cut the least
-  useful item before squeezing two into one.
-- **One line each, roughly 15 words**, starting with its status word: Shipped, In progress,
-  Blocked, Flagged, Discussed. Drop a section or the Reviews line when it is empty.
+- **Two to six bullets in total.** Cut the least useful item before squeezing two into one.
+- **One short line each, about 12 words.** Lead with the topic, not a status word. Drop a
+  section or the Reviews line when it is empty.
 - **Say the effect, not the mechanism.** "Admin panel changes now reach the identity
   system", not "added a nullable unique column and a set endpoint".
 - **No file paths, line numbers, SHAs, branch names, config keys or library versions.**
   The one exception is when the mechanism *is* the news, for example a dependency floating
   across five apps with no test coverage.
-- **Reviews are a count, not a list.** Number of MRs plus the repos. Never enumerate them,
-  never say which I approved, never repeat findings. A finding becomes a Flagged line only
-  if the team needs to act on it.
+- **Reviews are a count only.** Never enumerate MRs or repeat findings. A finding gets its
+  own bullet only if the team needs to act on it.
 - **One line per Jira ticket.** The same ticket shows up in commits, MRs, Slack and
   sessions; that is one item, and its state is the furthest it got that day.
 - **Link every Jira key** as `[PROJ-289](https://acme.atlassian.net/browse/PROJ-289)` at
   the end of the line. Link an MR only when it is the deliverable and has no Jira key.
-- **Name the person when something waits on them.** That is the point of Blocked.
+- **Name the person or team when something waits on them.**
 - **Plain simple language.** Short sentences, no jargon a PM would have to look up, no
   emoji, no em dashes, no softeners.
 - Personal work, prompt and tooling tinkering go to the notes in step 4, not the post.
@@ -211,8 +207,8 @@ Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack.
 - **Evidence or nothing.** Every line traces to a transcript quote or a Slack message. No
   "you probably should also". A day with no loose ends prints only the sources line, and that
   is a good outcome, not a sign the search failed.
-- **Do not repeat the post.** Something already in In progress or Blocked is not a loose
-  end. Loose ends are what I would forget, not what I am tracking.
+- **At most four items**, the ones easiest to lose. Drop the rest.
+- **Do not repeat the post.** Loose ends are what I would forget, not what I am tracking.
 - **Unanswered Slack goes stale, unfinished code does not.** Put the oldest unanswered
   message first, and say how long it has been waiting. Order the rest by how easy they are
   to lose.
@@ -220,17 +216,25 @@ Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack.
   stops at my question".
 - One line each, same 15-word budget. Link Jira keys and permalinks.
 
-Then ask if I want the recap adjusted or posted anywhere. Do not post it anywhere unless I
-ask, and never post the notes block.
+Then ask which meetings I organized, presented or attended that the recap misses, and whether
+to draft it in Slack. Never post the notes block.
+
+## Step 5: draft in Slack, on request
+
+Save a draft with `slack_send_message_draft`, never send. It goes as a reply in that day's
+async update thread in #team-standup (`C00000000`): the Slackbot post
+"Reminder: do an async update" at about 11:00. Get its `ts` with `slack_read_channel` around
+that time, `response_format="detailed"`. The draft tool takes standard markdown, so drop the
+Slack-paste `*bold*`. When the recap day is not today, say so before drafting.
 
 ## Gotchas
 
 These produced wrong output before. Keep them.
 
-- **There is no calendar source.** Outlook here runs in web mode, its local store has zero
-  accounts and zero cached events, and AppleScript against it times out. There is no Outlook
-  or calendar bot in Slack either. Meetings come only from what people mentioned in Slack.
-  Never guess at a calendar, and never claim a day's meetings are complete.
+- **No calendar source works yet.** Local Outlook is web mode with no cached events, and
+  AppleScript times out. The Outlook app posts in Slack, but searches for its messages
+  returned nothing. Meetings I organized or presented are easy to miss, hence the question
+  at the end of step 4. Never claim a day's meetings are complete.
 - **The default day is yesterday, rolled back over a weekend.** The script owns that. Take
   `day` from its output rather than working it out again, or a Monday recap will cover Sunday.
 - **Timestamps are UTC, the working day is local.** Transcripts and GitLab events both use

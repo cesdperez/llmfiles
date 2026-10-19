@@ -38,6 +38,10 @@ def resolve_day(arg):
     A recap run on Monday almost always wants Friday, not Sunday.
     """
     if arg:
+        weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        if arg.lower() in weekdays:
+            back = (date.today().weekday() - weekdays.index(arg.lower())) % 7 or 7
+            return date.today() - timedelta(days=back)
         return date.fromisoformat(arg)
     day = date.today() - timedelta(days=1)
     while day.isoweekday() > 5:
