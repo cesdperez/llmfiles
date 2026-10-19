@@ -47,7 +47,7 @@ and unblocking still count as work.
 
 ## Step 2: spawn agents in parallel
 
-All agents in **one message** so they run concurrently, each a `worker` agent so model and
+All agents in **one message** so they run concurrently, each a named executor so model and
 effort stay pinned. Never do this work yourself sequentially.
 
 **Session agents.** Split `sessions[]` across agents, at most 8 transcripts each, capped at
@@ -128,6 +128,17 @@ effort stay pinned. Never do this work yourself sequentially.
 >
 > Report only meetings a message names. Do not infer others.
 
+**Calendar agent.** One `worker-fast` agent, since attendee lists run to hundreds of addresses:
+
+> Load `ToolSearch("select:mcp__claude_ai_Microsoft_365__outlook_calendar_search")` and call
+> it with `query="*"`, `afterDateTime="<day>T00:00:00"`, `beforeDateTime="<day+1>T00:00:00"`,
+> `order="oldest"`, `limit=25`, `offset=0`. Page with `nextOffset` if present.
+>
+> Times come back in the `timeZone` each event names, usually UTC. Convert to Europe/Amsterdam.
+> Return one line per event: local start and end, subject, organizer, `isOrganizer`, and the
+> attendee count. Drop cancelled events. Mark company-wide ones, where the attendees include
+> an all-staff list such as `all-staff@`.
+
 ## Step 3: write the Slack post
 
 My team owns the `PROJ` Jira project. Split the work on that:
@@ -197,7 +208,7 @@ name my own sloppiness.
 - Left behind: <hardcoded value, disabled test, debug logging, failing check>
 - Also did: <tooling, prompt or personal work cut from the post>
 
-Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack.
+Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack, calendar.
 ```
 
 ### Rules
@@ -216,8 +227,7 @@ Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack.
   stops at my question".
 - One line each, same 15-word budget. Link Jira keys and permalinks.
 
-Then ask which meetings I organized, presented or attended that the recap misses, and whether
-to draft it in Slack. Never post the notes block.
+Then ask whether to draft it in Slack. Never post the notes block.
 
 ## Step 5: draft in Slack, on request
 
@@ -231,10 +241,9 @@ Slack-paste `*bold*`. When the recap day is not today, say so before drafting.
 
 These produced wrong output before. Keep them.
 
-- **No calendar source works yet.** Local Outlook is web mode with no cached events, and
-  AppleScript times out. The Outlook app posts in Slack, but searches for its messages
-  returned nothing. Meetings I organized or presented are easy to miss, hence the question
-  at the end of step 4. Never claim a day's meetings are complete.
+- **The calendar shows invites, not attendance.** The connector has no accepted or declined
+  status. A meeting I organized is work and gets a bullet. Others count only when Slack or a
+  session shows I took part. Company-wide meetings never make the post.
 - **The default day is yesterday, rolled back over a weekend.** The script owns that. Take
   `day` from its output rather than working it out again, or a Monday recap will cover Sunday.
 - **Timestamps are UTC, the working day is local.** Transcripts and GitLab events both use
