@@ -31,7 +31,7 @@ iid, derive `PROJECT` from `git remote get-url origin`. `ENC` is `PROJECT` url-e
 (`/` becomes `%2F`), needed for raw API calls.
 
 Map the clone by direct path: `gitlab.com/acme/<rest>` maps to
-`$HOME/projects/acme/<rest>`. If it does not exist, fall back to a
+`~/projects/acme/<rest>`. If it does not exist, fall back to a
 diff-only review and say so explicitly in the report: every surrounding-code and
 cross-repo lens degrades badly without a checkout.
 
@@ -42,7 +42,7 @@ biggest avoidable cost in the whole run.
 
 ```bash
 P=<PROJECT>; I=<IID>
-CLONE=$HOME/projects/acme/<rest>
+CLONE="$HOME/projects/acme/<rest>"
 OUT=<scratchpad>/mr-$I; WT=$OUT/head; mkdir -p "$OUT"
 
 glab mr view  "$I" -R "$P" --output json      > "$OUT/mr.json"     2>"$OUT/mr.err"    &
@@ -117,7 +117,7 @@ acme bindings to pass along when spawning it here.
 
 - **code-standards** reads, most-specific-wins: the repo's `CLAUDE.md`, its group
   `CLAUDE.md` (`web/CLAUDE.md`, `backend/CLAUDE.md`, `platform/CLAUDE.md`, ...),
-  `$HOME/projects/acme/CLAUDE.md`, and the repo's lint and format
+  `~/projects/acme/CLAUDE.md`, and the repo's lint and format
   config.
 - **reuse** also checks `web/packages` (`@acme/*`) for existing helpers.
 - **cross-repo-impact** sweeps the local mirror in one batched pass, then maps each hit's
@@ -126,8 +126,8 @@ acme bindings to pass along when spawning it here.
   rg -n --no-heading -g '!**/node_modules/**' -g '!**/.git/**' -g '!**/dist/**' \
      -g '!**/bin/**' -g '!**/obj/**' -g '!**/vendor/**' -g '!**/*.lock' -g '!**/.terraform/**' \
      -e '<symbol1>' -e '<symbol2>' -e '<route>' \
-     $HOME/projects/acme \
-     --glob '!$HOME/projects/acme/<rest>/**'
+     "$HOME/projects/acme" \
+     -g '!**/projects/acme/<rest>/**'
   ```
 - **ticket-alignment** uses `twg jira workitem get <KEY>`, keys matching `[A-Z]{2,10}-\d+`,
   capped at 3, preferring keys in the title or branch name.
