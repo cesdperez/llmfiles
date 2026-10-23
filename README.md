@@ -151,6 +151,17 @@ Current protocols:
 
 ## Installation
 
+Clone to `~/llmfiles`. Commands, adapters, and settings reference files by that path.
+
+```bash
+git clone git@github.com:cesdperez/llmfiles.git ~/llmfiles
+```
+
+Prerequisites: `python3` for the scripts and hooks, `jq` for the status line, and an
+authenticated `glab` for the GitLab commands. The GitLab review commands also expect the
+acme repos cloned under `~/projects/acme/`. Other CLIs with companion skills are
+listed in the [Agentic CLI registry](shared/agentic-clis.md).
+
 ### Claude Code
 
 ```bash
@@ -191,7 +202,8 @@ ln -sf ~/llmfiles/statusline/statusline-command.sh ~/.claude/statusline-command.
 ```
 
 Claude Code hooks are referenced by absolute path from the `hooks` block of
-`~/.claude/settings.json`:
+`~/.claude/settings.json`. Append the entry to an existing `PostToolUse` array rather than
+replacing it:
 
 ```json
 "PostToolUse": [
@@ -214,9 +226,8 @@ See the official documentation for [instructions](https://learn.chatgpt.com/docs
 [skills](https://learn.chatgpt.com/docs/build-skills), and
 [custom agents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
-Keep this clone at `~/llmfiles`: command bodies and adapters use that path. Link skills and
-agents individually to preserve anything already installed in the global directories.
-The following commands leave existing matching links alone and report other collisions.
+Link skills and agents individually to preserve anything already installed in the global
+directories. The following commands leave existing matching links alone and report other collisions.
 Move a conflicting file aside or merge its contents before rerunning; an existing empty
 `AGENTS.md` also counts as a collision. An `AGENTS.override.md` in Codex home takes precedence
 over `AGENTS.md`, so check it if your global instructions do not load.
@@ -285,6 +296,6 @@ Adaptation boundaries:
   the parent session's permissions and schedule within its available concurrency limit.
 - `$dailyworkrecap` reads the existing collector's Claude transcripts. Codex session
   history is not collected. Slack coverage depends on available connected tools.
-- Claude's `PushNotification`, Workflow, agent-team settings, and status line are not
-  installed as Codex features. The adapters use available Codex capabilities and report
+- Claude's `PushNotification`, Workflow, agent-team settings, status line, and
+  `claude-hooks/` are not installed as Codex features. The adapters use available Codex capabilities and report
   missing coverage where it affects the result.
