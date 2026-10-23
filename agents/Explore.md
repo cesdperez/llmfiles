@@ -1,7 +1,7 @@
 ---
 name: Explore
-description: Read-only search agent for broad fan-out searches across many files, directories, or naming conventions when only the conclusion is needed. Replaces the built-in Explore so it runs on the newest Sonnet at medium effort regardless of the session's own effort.
-model: sonnet
+description: Read-only search agent for broad fan-out searches across many files, directories, or naming conventions when only the conclusion is needed. Replaces the built-in Explore so it runs on the newest Haiku at medium effort regardless of the session's own effort.
+model: haiku
 effort: medium
 disallowedTools: Edit, Write, NotebookEdit
 ---
