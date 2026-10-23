@@ -83,12 +83,11 @@ Prompt content here. Use $ARGUMENTS for user input.
 
 Named subagents the orchestrator delegates to. Each pins a model alias and an effort so the
 session's own model and effort never leak into delegated work. The session and every agent
-whose output needs judgment run `opus`. Agents whose tasks have known steps (`gitlab`,
-`worker-fast`) run `sonnet`, where speed matters more than the quality gap on hard reasoning.
-`Explore` runs `haiku` to save usage budget on the highest-volume agent: bounded search
-matches Sonnet there, but Haiku is not faster per turn. Effort is the dial within each model,
-and it is re-tuned on every release: a level name does not mean the same amount of thinking
-across models (Sonnet `medium` is not Opus `medium`), so pick a level from an effort sweep on your own tasks, not from its name.
+whose output needs judgment run `opus`. Agents whose tasks have known steps (`Explore`,
+`gitlab`, `worker-fast`) run `sonnet`, where speed matters more than the quality gap on hard
+reasoning. Effort is the dial within each model, and it is re-tuned on every release: a level
+name does not mean the same amount of thinking across models (Sonnet `medium` is not Opus
+`medium`), so pick a level from an effort sweep on your own tasks, not from its name.
 
 ```markdown
 ---
@@ -102,8 +101,8 @@ disallowedTools: Edit, Write, NotebookEdit
 Standing instructions for the agent.
 ```
 
-Model aliases (`opus`, `fable`, `sonnet`, `haiku`) resolve to the newest model of that family,
-so the files need no edit when a new version ships. Files named after a built-in agent (`Explore`,
+Model aliases (`opus`, `fable`, `sonnet`) resolve to the newest model of that family, so the
+files need no edit when a new version ships. Files named after a built-in agent (`Explore`,
 `general-purpose`) replace it.
 
 ### Scripts (`scripts/<name>.py`)
