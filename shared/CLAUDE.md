@@ -34,6 +34,8 @@ Before updating a skill, prompt the user with what you want to change and why. W
 ## Delegation
 Executors are the named agents in `~/llmfiles/agents/`, each pinned to a model and effort so the session's own effort never leaks into delegated work. Pick by how much reasoning the task needs: `worker` for changes and investigations, `worker-fast` for chores with known steps, `reviewer` and `reviewer-fast` for read-only audits, `Explore` for locating code. A fork runs on the session model and effort, so fork only when the executor needs this conversation itself.
 
+Give each executor one working set: the files and decisions its task depends on. Send follow-up work in that working set to the same agent while it is under 300k tokens of context. Start a fresh agent when the working set changes or the context passes that limit, and hand it `file:line` pointers and decisions so it reads instead of re-explores.
+
 ## Writing Style
 - Never use em dashes (`—`). Rewrite the sentence with the punctuation it actually wants: a comma, colon, period, parentheses, or a conjunction. Never swap the character for another one in place.
 - Never use emojis.

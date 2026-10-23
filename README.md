@@ -20,6 +20,8 @@ llmfiles/
 │       └── SKILL.md
 ├── commands/
 │   └── <command-name>.md
+├── claude-hooks/
+│   └── subagent-context-budget.py
 ├── hooks/
 │   └── pre-commit
 ├── scripts/
@@ -121,6 +123,13 @@ is needed.
 `pre-commit` rejects em dashes in staged lines, so the writing rule in `shared/CLAUDE.md` holds
 without a model remembering it.
 
+### Claude Code hooks (`claude-hooks/`)
+
+`subagent-context-budget.py` is a `PostToolUse` hook. When a subagent's context passes 300k
+tokens, it tells that subagent once to finish its step and report a handoff. A subagent cannot
+see its own token count, so the delegation rule in `shared/CLAUDE.md` needs this to hold.
+`SUBAGENT_CONTEXT_WARN_TOKENS` overrides the limit.
+
 ### Status line (`statusline/statusline-command.sh`)
 
 Claude Code status line: path, git branch, model and effort, context window usage. It reads
@@ -179,6 +188,15 @@ ln -sf ~/llmfiles/statusline/statusline-command.sh ~/.claude/statusline-command.
 
 ```json
 "statusLine": { "type": "command", "command": "bash ~/.claude/statusline-command.sh" }
+```
+
+Claude Code hooks are referenced by absolute path from the `hooks` block of
+`~/.claude/settings.json`:
+
+```json
+"PostToolUse": [
+  { "matcher": "*", "hooks": [{ "type": "command", "command": "python3 ~/llmfiles/claude-hooks/subagent-context-budget.py", "timeout": 5 }] }
+]
 ```
 
 Anything spawned without a named agent follows `CLAUDE_CODE_SUBAGENT_MODEL`. Set it in the
