@@ -32,6 +32,8 @@ Before updating a skill, prompt the user with what you want to change and why. W
 - Prompt the positive. Steering by prohibition makes the forbidden behaviour more available, not less, so name the target behaviour and the banned one never gets spoken. A prohibition earns its place only as a hard guardrail no positive phrasing covers, and even then it carries the target beside it.
 
 ## Delegation
+Keep a step in this session when it builds on the details of the step before it: a chain of edits over the same files, or a fix that follows its own investigation. A handoff passes only a summary, and the next step loses the details. Delegate a piece when it is independent and only its conclusion comes back, when pieces run in parallel, or when this session's context is filling up.
+
 Executors are the named agents in `~/llmfiles/agents/`, each pinned to a model and effort so the session's own effort never leaks into delegated work. Pick by how much reasoning the task needs: `worker` for changes and investigations, `worker-fast` for chores with known steps, `reviewer` and `reviewer-fast` for read-only audits, `Explore` for locating code. A fork runs on the session model and effort, so fork only when the executor needs this conversation itself.
 
 Give each executor one working set: the files and decisions its task depends on. Send follow-up work in that working set to the same agent while it is under 300k tokens of context. Start a fresh agent when the working set changes or the context passes that limit, and hand it `file:line` pointers and decisions so it reads instead of re-explores.

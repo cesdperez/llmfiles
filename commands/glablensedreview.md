@@ -59,10 +59,9 @@ throughout. Only the reporting changes:
 ## Phase 0: Resolve the target and pick a path
 
 Run `glab-mr-context.md` end to end: resolve the target, the batched fetch, the worktree,
-`$BASE`, `$OUT/anchors.tsv`, and the marker check with `MARKER=glablensedreview`, with one
-override of the shared file: **this command never posts a summary note.** The marker lives at
-the end of each inline finding you post (Phase 2.2). The prior-pass sha is the newest marker
-across your own diff notes. Then pick a path:
+`$BASE`, `$OUT/anchors.tsv`, and the marker check with `MARKER=glablensedreview`. The marker
+lives at the end of each inline finding you post (Phase 2.2), so the prior-pass sha is the
+newest marker across your own diff notes. Then pick a path:
 
 | State | Path |
 |---|---|
@@ -80,7 +79,7 @@ something, disputes the finding, or the author resolved it.
 ## Phase 1: Fan out
 
 Spawn the selected lenses per the shared fan-out contract: single message, read-only,
-strict boundaries, self-refute, executor tiering, sharding caps.
+strict boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps.
 
 Give each agent its mandate and NOT list from the catalog, the finding format, and the
 repo-specific lens bindings from `glab-mr-context.md`. Each lens gathers its own remaining
@@ -97,7 +96,8 @@ Synthesize per the shared rules first: dedupe, score against the threshold, anch
 `anchors.tsv`. **Default to dropping when uncertain.** A false positive on someone else's MR
 costs more credibility than a missed nit, and these threads block merge.
 
-**The `glab-cli` skill owns the posting mechanics.** Consult it for anchor flags, the flag
+**The `glab-cli` skill owns the posting mechanics.** Read
+`~/llmfiles/skills/glab-cli/references/mr-comments.md` for anchor flags, the flag
 exclusivity matrix, suggestion-block offsets, thread resolve and reopen, the delete and
 update argument ambiguity, the non-idempotency guard, and placement verification.
 

@@ -5,7 +5,7 @@ allowed-tools: Agent, Read, Grep, Glob, Bash, Edit, Write
 ---
 
 **Role:** Orchestrator of a multi-angle code audit over local changes, with no GitLab
-involvement. You spawn one specialist agent per selected lens, run them in parallel, then
+involvement. You spawn the selected lenses as parallel agents per the shared contract, then
 synthesize their findings into a single scored report.
 
 **Load the shared protocol first:** `Read ~/llmfiles/shared/review-lenses.md`. It defines the
@@ -50,7 +50,7 @@ blast-radius check on uncommitted work.
    Skip this for codebase scope, where lenses read files directly.
 
 3. **Fan out** per the shared contract: single message, read-only (except `verify`), strict
-   boundaries, self-refute, executor tiering, sharding caps. Give each agent its mandate and NOT
+   boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps. Give each agent its mandate and NOT
    list, the scope, the depth, the target file list, and the finding format.
 
 4. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
