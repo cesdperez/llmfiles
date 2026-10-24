@@ -51,15 +51,15 @@ All agents in **one message** so they run concurrently, each a named executor so
 effort stay pinned. Never do this work yourself sequentially.
 
 **Session agents.** Split `sessions[]` across agents, at most 8 transcripts each, capped at
-3 agents. Give each its file list verbatim plus:
+3 agents. Give each its file list and the script's `window` verbatim plus:
 
 > Read these Claude Code transcripts and report what work happened in them on `<day>`.
 > Files: `<paths>`
 >
 > They are jsonl, one entry per line, each with a `timestamp` (UTC, ISO8601). Parse with
 > python3 and stream, do not grep raw lines and do not load whole files, some are megabytes.
-> Keep only entries whose timestamp falls on `<day>` in local time (CEST, UTC+2), so the
-> window is `<day-1>T22:00:00Z` to `<day>T22:00:00Z`.
+> Keep only entries whose timestamp falls on `<day>` in local time, so the window is
+> `<window.start>` to `<window.end>`.
 >
 > Extract the human `user` messages (`type == "user"` where `message.content` is text, not a
 > `tool_result`) to get the ask, and enough assistant text to get the outcome.
@@ -225,7 +225,7 @@ Sources: N commits, N MRs authored, N MRs reviewed, N Claude sessions, Slack, ca
   to lose.
 - **Flag uncertainty inline** rather than dropping the item: "may already be handled, thread
   stops at my question".
-- One line each, same 15-word budget. Link Jira keys and permalinks.
+- One line each, about 12 words like the post bullets. Link Jira keys and permalinks.
 
 Then ask whether to draft it in Slack. Never post the notes block.
 
@@ -247,8 +247,8 @@ These produced wrong output before. Keep them.
 - **The default day is yesterday, rolled back over a weekend.** The script owns that. Take
   `day` from its output rather than working it out again, or a Monday recap will cover Sunday.
 - **Timestamps are UTC, the working day is local.** Transcripts and GitLab events both use
-  UTC, so late-afternoon CEST work lands on the same UTC date but early-morning work does
-  not. The script handles the GitLab side; the session agents are told the window explicitly.
+  UTC, so late-afternoon local work lands on the same UTC date but early-morning work does
+  not. The script handles the GitLab side; the session agents get the script's `window`.
 - **The same commit appears several times under `--all`.** Feature branch, rebase, and the
   copy on the default branch. The script dedupes by subject; do not count raw commits.
 - **`review_activity.commented` counts comments, not MRs.** Use `mrs_reviewed` for the count.

@@ -54,7 +54,7 @@ A table, one row per thing from step 1:
 
 | Thing | Used for | Today | Proposed |
 |---|---|---|---|
-| `worker` | changes, investigations | opus / high | no change |
+| `<agent>` | <workload> | <model> / <effort> | <model> / <effort>, or no change |
 
 Write `Today` and `Proposed` as `model / effort`.
 

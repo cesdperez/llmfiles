@@ -225,6 +225,7 @@ def main():
     mrs = collect_authored_mrs(day)
     events, _ = collect_events(day)
     sessions = collect_sessions(day)
+    window_start, window_end = utc_window(day)
 
     text = " ".join(
         [c["subject"] for c in commits]
@@ -238,6 +239,10 @@ def main():
         json.dumps(
             {
                 "day": str(day),
+                "window": {
+                    "start": window_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "end": window_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                },
                 "weekday": day.strftime("%A"),
                 "commits": commits,
                 "mrs_authored": mrs,

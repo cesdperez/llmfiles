@@ -14,7 +14,7 @@ These adaptations take precedence over Claude-specific instructions in `commands
 
 - Use installed Codex agent roles from `~/llmfiles/codex/agents/`, mapping Claude's `Explore` to `explorer`. Supply each role's mandate, inputs, output contract, and write policy.
 - Carry this file and the calling skill's adaptations into every delegated brief, including nested dispatches. They must apply when a child reads a shared protocol or `glab-cli` itself.
-- Spawn independent work up to the available concurrency limit, then wait, collect results, and close finished threads. Source caps of 8 or 14 limit the total work, not the number of simultaneously available Codex slots.
+- Spawn independent work up to the available concurrency limit, then wait, collect results, and close finished threads. A source workflow's agent caps limit the total work, not the number of simultaneously available Codex slots.
 - When custom roles are unavailable but delegation is supported, read the matching TOML and use its instructions, model, and effort in the supported spawn mechanism. Otherwise run the mandates sequentially and disclose that limitation. Never drop a lens because no slot is available.
 - Inspection agents make no edits, commits, pushes, or external writes. The `verify` lens may run the affected flow and existing tests. These are behavioral restrictions; custom agents inherit the parent session's permissions.
 - Treat Claude's `background` and `maxTurns` as source metadata. Use Codex's available agent lifecycle and wait for required results before reporting completion.

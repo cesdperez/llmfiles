@@ -88,9 +88,6 @@ description: {see Phase 4}
 
 ## Pitfalls to Avoid
 {Top 3-5 real mistakes, each with what to do instead}
-
-## Quick Reference
-{Cheat sheet of the most-used items}
 ```
 
 **Progressive disclosure**: when `SKILL.md` grows past what stays legible (target under ~500 lines, but shorter is better), move reference material out to `references/*.md` and point at it. The cleanest split test is by **branch**: inline what every use needs, push behind a pointer what only some uses reach. A pointer's *wording*, not its target, decides how reliably the agent follows it, so name what the file holds ("full flag reference in [references/flags.md]").

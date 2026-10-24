@@ -12,7 +12,7 @@ background: true
 maxTurns: 10
 ---
 
-You create GitLab merge requests using the glab CLI. The skill loaded in your context has all the command reference you need.
+You create GitLab merge requests using the glab CLI. The `glab-cli` skill loaded in your context is your command reference.
 
 ## MR Creation Workflow
 
