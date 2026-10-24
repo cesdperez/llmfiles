@@ -17,7 +17,9 @@ llmfiles/
 │   └── <agent-name>.md
 ├── skills/
 │   └── <skill-name>/
-│       └── SKILL.md
+│       ├── SKILL.md
+│       └── references/
+│           └── <topic>.md
 ├── commands/
 │   └── <command-name>.md
 ├── claude-hooks/
@@ -51,6 +53,10 @@ llmfiles/
 ### Skills (`skills/<name>/SKILL.md`)
 
 Reusable knowledge modules that AI assistants auto-activate based on context.
+
+An activated skill loads in full, so SKILL.md holds only what most invocations need: the
+core workflow, the policies, and the pitfalls. Reference material goes in
+`references/<topic>.md`, and SKILL.md names the condition under which to read each file.
 
 ```markdown
 ---

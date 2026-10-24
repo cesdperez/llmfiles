@@ -54,8 +54,8 @@ Give each agent the entry's JSON verbatim plus this brief:
 >
 > **Setup.** Read `~/llmfiles/shared/glab-mr-context.md` and run it end to end with
 > `MARKER=glabsummary`: batched fetch, MR-head worktree, `$BASE`, `anchors.tsv`, marker
-> check. One override: your marker lives at the end of each inline finding you post, not
-> on a summary note; the prior-pass sha is the newest marker across your own diff notes.
+> check. Your marker lives at the end of each inline finding you post, so the prior-pass
+> sha is the newest marker across your own diff notes.
 > Run its cleanup before returning, even on failure. The local clone is `<local_repo>`;
 > note it sits on its default branch, so the worktree is the MR state and the clone is the
 > "before" state.
@@ -83,9 +83,10 @@ Give each agent the entry's JSON verbatim plus this brief:
 > - **quality 0-10**: is this good to merge? 8+ approve as-is, 6-7 approve with a note,
 >   ≤5 something needs changing first. Not a diff-size score.
 > - **Post findings of impact 7+** as diff-anchored resolvable threads. Read
->   `~/llmfiles/skills/glab-cli/SKILL.md` for the posting mechanics and the **Writing MR
->   Text** standard (1-3 sentences, lead with the point, severity tag, no softeners, no
->   emoji). Anchor only on literal lines from `anchors.tsv`. Head each thread
+>   `~/llmfiles/skills/glab-cli/references/mr-comments.md` for the posting mechanics and
+>   `~/llmfiles/skills/glab-cli/SKILL.md` for the **Writing MR Text** standard (1-3
+>   sentences, lead with the point, severity tag, no softeners, no emoji). Anchor only on
+>   literal lines from `anchors.tsv`. Head each thread
 >   `**fast review, impact <N>/10**` and end each body with
 >   `<!-- glabsummary: sha=<HEAD_SHA> -->`. Idempotency: skip any finding already present
 >   at that anchor. Prefer a suggestion block when the fix is a concrete, self-contained
