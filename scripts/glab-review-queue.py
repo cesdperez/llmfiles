@@ -17,7 +17,9 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
-REPO_ROOT = os.path.expanduser("~/projects/acme")
+import work_config
+
+REPO_ROOT = os.path.expanduser(work_config.load("repo_root")["repo_root"])
 BOT_HINTS = ("sonar", "gitlab-bot", "dependabot", "renovate", "[bot]")
 MAX_NOTE_CHARS = 600
 MY_USERNAME = ""  # set in main() once /user resolves
@@ -61,7 +63,7 @@ def is_bot(author):
 
 
 def local_path(path_with_namespace):
-    """acme/backend/orders-api -> ~/projects/acme/backend/orders-api"""
+    """acme/backend/orders-api -> <repo_root>/backend/orders-api"""
     rel = path_with_namespace.split("/", 1)[1] if "/" in path_with_namespace else ""
     p = os.path.join(REPO_ROOT, rel)
     return p if os.path.isdir(os.path.join(p, ".git")) else None

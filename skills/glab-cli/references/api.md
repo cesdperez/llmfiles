@@ -36,11 +36,11 @@ Project paths must be URL-encoded (slashes become `%2F`):
 
 ```bash
 # Close an MR
-glab api --method PUT "projects/acme%2Fbackend%2Fmy-project/merge_requests/123" \
+glab api --method PUT "projects/my-group%2Fmy-project/merge_requests/123" \
     -f state_event=close
 
 # Reopen an MR
-glab api --method PUT "projects/acme%2Fbackend%2Fmy-project/merge_requests/123" \
+glab api --method PUT "projects/my-group%2Fmy-project/merge_requests/123" \
     -f state_event=reopen
 ```
 

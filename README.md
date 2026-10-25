@@ -28,6 +28,8 @@ llmfiles/
 │   └── pre-commit
 ├── scripts/
 │   └── <script-name>.py
+├── local.example/
+│   └── <settings file>
 ├── shared/
 │   ├── CLAUDE.md
 │   ├── agentic-clis.md
@@ -124,6 +126,21 @@ is needed.
 - `glab-review-queue.py`, assigned GitLab merge requests with approval state, diffs,
   pipelines, and unresolved threads, used by `/glabsummary`.
 
+### Local org settings (`local/`)
+
+Employer-specific values stay out of this public repo. `local/` is gitignored, and
+`local.example/` holds a template for each file:
+
+- `work.json`: repo root, GitLab group, git author, Jira URL and project, Slack IDs, timezone.
+  The scripts load it through `scripts/work_config.py`, and `LLMFILES_WORK_CONFIG` overrides
+  its path. Commands read it directly.
+- `glab-lens-bindings.md`: org-specific lens bindings for the GitLab review commands.
+- `dailyworkrecap-style.md`: the sample post and team-specific gotchas for `/dailyworkrecap`.
+
+```bash
+mkdir -p ~/llmfiles/local && cp ~/llmfiles/local.example/* ~/llmfiles/local/
+```
+
 ### Git hooks (`hooks/`)
 
 `pre-commit` rejects em dashes in staged lines, so the writing rule in `shared/CLAUDE.md` holds
@@ -153,7 +170,7 @@ Deliberately not skills: a skill is auto-listed with its description and can act
 
 Current protocols:
 - `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glablensedreview`, `/locallensedreview`.
-- `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the acme lens bindings, used by `/glablensedreview` and the per-MR agents of `/glabsummary`.
+- `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the org-specific lens bindings from `local/`, used by `/glablensedreview` and the per-MR agents of `/glabsummary`.
 
 ## Installation
 
@@ -164,8 +181,9 @@ git clone git@github.com:cesdperez/llmfiles.git ~/llmfiles
 ```
 
 Prerequisites: `python3` for the scripts and hooks, `jq` for the status line, and an
-authenticated `glab` for the GitLab commands. The GitLab review commands also expect the
-acme repos cloned under `~/projects/acme/`. Other CLIs with companion skills are
+authenticated `glab` for the GitLab commands. The GitLab and recap commands also need
+`local/work.json` (see [Local org settings](#local-org-settings-local)), and the review
+commands expect the GitLab group cloned under its `repo_root`. Other CLIs with companion skills are
 listed in the [Agentic CLI registry](shared/agentic-clis.md).
 
 ### Claude Code

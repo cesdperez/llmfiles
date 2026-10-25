@@ -1,5 +1,5 @@
 ---
-description: One day of my Acme work as a short Slack-ready standup post, split into team and no-team work, plus private notes. Defaults to yesterday.
+description: One day of my work as a short Slack-ready standup post, split into team and no-team work, plus private notes. Defaults to yesterday.
 disable-model-invocation: true
 ---
 
@@ -21,6 +21,13 @@ Other engineers and my PM, skim-reading an offline daily sync. They want to know
 moved, what is stuck, and what needs them. They do not want the mechanics.
 
 That drives every formatting rule below. When in doubt, cut.
+
+## Org settings
+
+Read `~/llmfiles/local/work.json` (shape in `~/llmfiles/local.example/work.json`). The
+`<key>` placeholders below are its values. Also read `~/llmfiles/local/dailyworkrecap-style.md`
+if it exists: its sample post replaces the one in step 3, and its gotchas join the list at
+the end. Pass the resolved values, never the placeholders, into agent prompts.
 
 ## Step 1: gather the hard data
 
@@ -66,7 +73,7 @@ effort stay pinned. Never do this work yourself sequentially.
 >
 > Return a flat list. One entry per distinct piece of work, not per session. For each:
 > what the work was, the service or product area it touched, any Jira keys verbatim
-> (`PROJ-123`, `OPS-45`, `WEB-41`), and its state: shipped, in progress, blocked, or
+> (`<team_jira_project>-123`, `<other_jira_examples>`), and its state: shipped, in progress, blocked, or
 > investigation only. Note explicitly anything that was handed to someone else, anything
 > waiting on a decision, and any meeting or discussion that was prepared for.
 >
@@ -88,20 +95,20 @@ effort stay pinned. Never do this work yourself sequentially.
 > and finished it, drop it. If you are not sure it is still open, say so rather than
 > dropping it.
 >
-> Skip anything that is not Acme work. Skip tooling and prompt tinkering unless it
+> Skip anything that is not `<org_name>` work. Skip tooling and prompt tinkering unless it
 > changed something the team uses. Report facts, no editorialising.
 
 **Slack agent.** One agent, with:
 
-> Report what César Pérez (`U00000000`) discussed on Slack on `<day>`, for a team standup.
+> Report what `<slack_user_name>` (`<slack_user_id>`) discussed on Slack on `<day>`, for a team standup.
 >
 > Load the tools first:
 > `ToolSearch("select:mcp__claude_ai_Slack__slack_search_public_and_private,mcp__claude_ai_Slack__slack_read_thread,mcp__claude_ai_Slack__slack_read_channel")`
 >
 > Run these searches, `sort="timestamp"`, `channel_types="public_channel,private_channel,mpim,im"`:
-> - `from:<@U00000000> after:<day-1> before:<day+1>` returns everything I said
-> - `to:<@U00000000> after:<day-1> before:<day+1>` returns what was asked of me
-> - `<@U00000000> after:<day-1> before:<day+1>` returns where I was mentioned or pinged
+> - `from:<@<slack_user_id>> after:<day-1> before:<day+1>` returns everything I said
+> - `to:<@<slack_user_id>> after:<day-1> before:<day+1>` returns what was asked of me
+> - `<@<slack_user_id>> after:<day-1> before:<day+1>` returns where I was mentioned or pinged
 > - the same window plus each Jira key in this list: `<jira_keys>`
 >
 > Slack's `after`/`before` are exclusive, hence the day either side. Drop anything outside
@@ -124,7 +131,7 @@ effort stay pinned. Never do this work yourself sequentially.
 > and how long it has been sitting. Drop it if a reaction emoji from him or a later message
 > in the thread shows it was handled. A reply from someone else is not him replying.
 >
-> Skip personal and social chat, and skip anything unrelated to Acme work.
+> Skip personal and social chat, and skip anything unrelated to `<org_name>` work.
 >
 > Report only meetings a message names. Do not infer others.
 
@@ -134,18 +141,18 @@ effort stay pinned. Never do this work yourself sequentially.
 > it with `query="*"`, `afterDateTime="<day>T00:00:00"`, `beforeDateTime="<day+1>T00:00:00"`,
 > `order="oldest"`, `limit=25`, `offset=0`. Page with `nextOffset` if present.
 >
-> Times come back in the `timeZone` each event names, usually UTC. Convert to Europe/Amsterdam.
+> Times come back in the `timeZone` each event names, usually UTC. Convert to `<timezone>`.
 > Return one line per event: local start and end, subject, organizer, `isOrganizer`, and the
 > attendee count. Drop cancelled events. Mark company-wide ones, where the attendees include
-> an all-staff list such as `all-staff@`.
+> an all-staff list such as `<all_staff_list>`.
 
 ## Step 3: write the Slack post
 
-My team owns the `PROJ` Jira project. Split the work on that:
+My team owns the `<team_jira_project>` Jira project. Split the work on that:
 
-- **Team:** anything tied to a `PE-` key, or with no key but clearly the same work as a
-  `PE-` item that day.
-- **No team:** anything tied to another key (`OPS-`, `IS-`, ...), keyless work for another
+- **Team:** anything tied to a `<team_jira_project>-` key, or with no key but clearly the
+  same work as a `<team_jira_project>-` item that day.
+- **No team:** anything tied to another project's key, keyless work for another
   team, and department-wide work such as preparing or running an Engineering meeting.
 
 Print the post inside a ` ```text ` fence, so the terminal does not render the markup and I
@@ -164,12 +171,11 @@ This is the length and tone I write myself:
 
 ```text
 Team:
-- Password import: identity provider now accepts legacy passwords, tested locally, MRs up [PROJ-493](https://acme.atlassian.net/browse/PROJ-493)
-- Asset token: web MRs up, mobile waits on Team Mobile [PROJ-501](https://acme.atlassian.net/browse/PROJ-501)
+- Password import: identity provider now accepts legacy passwords, tested locally, MRs up [PROJ-493](<jira_base_url>PROJ-493)
 - Deployed orders-api to prod, token exchange included
 
 No team:
-- Prepared and organized the "web: where we are" status meeting
+- Prepared and organized the platform status meeting
 
 Reviews: 5 MRs
 ```
@@ -188,7 +194,7 @@ Reviews: 5 MRs
   own bullet only if the team needs to act on it.
 - **One line per Jira ticket.** The same ticket shows up in commits, MRs, Slack and
   sessions; that is one item, and its state is the furthest it got that day.
-- **Link every Jira key** as `[PROJ-289](https://acme.atlassian.net/browse/PROJ-289)` at
+- **Link every Jira key** as `[PROJ-289](<jira_base_url>PROJ-289)` at
   the end of the line. Link an MR only when it is the deliverable and has no Jira key.
 - **Name the person or team when something waits on them.**
 - **Plain simple language.** Short sentences, no jargon a PM would have to look up, no
@@ -232,8 +238,8 @@ Then ask whether to draft it in Slack. Never post the notes block.
 ## Step 5: draft in Slack, on request
 
 Save a draft with `slack_send_message_draft`, never send. It goes as a reply in that day's
-async update thread in #team-standup (`C00000000`): the Slackbot post
-"Reminder: do an async update" at about 11:00. Get its `ts` with `slack_read_channel` around
+async update thread in `<standup_channel.name>` (`<standup_channel.id>`), found by
+`<standup_thread_hint>`. Get its `ts` with `slack_read_channel` around
 that time, `response_format="detailed"`. The draft tool takes standard markdown, so drop the
 Slack-paste `*bold*`. When the recap day is not today, say so before drafting.
 
@@ -254,8 +260,6 @@ These produced wrong output before. Keep them.
 - **`review_activity.commented` counts comments, not MRs.** Use `mrs_reviewed` for the count.
 - **A merged MR is not automatically shipped.** Check whether the session or Slack evidence
   says it was deployed and verified. When it is merged but unverified, say merged.
-- **A fix can be merged and still inert.** Some work does nothing until the Zitadel
-  cutover lands. Say so on the same line rather than reporting it as delivered.
 - **No Slack reply is not proof of no answer.** I answer in MR comments, in a call, or at a
   desk, and Slack never sees it. Report unanswered messages as "no reply in the thread", and
   let me be the one to say it was handled elsewhere.

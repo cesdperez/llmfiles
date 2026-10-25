@@ -1,0 +1,16 @@
+{
+  "org_name": "Acme",
+  "repo_root": "~/projects/acme",
+  "gitlab_group": "acme",
+  "git_author": "you@acme.com",
+  "session_slug_hint": "acme",
+  "jira_base_url": "https://acme.atlassian.net/browse/",
+  "team_jira_project": "PROJ",
+  "other_jira_examples": ["OPS-45", "WEB-41"],
+  "slack_user_id": "U00000000",
+  "slack_user_name": "Your Name",
+  "standup_channel": { "name": "#team-standup", "id": "C00000000" },
+  "standup_thread_hint": "Slackbot post \"Reminder: do an async update\" at about 11:00",
+  "all_staff_list": "all-staff@",
+  "timezone": "Europe/Amsterdam"
+}

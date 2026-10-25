@@ -1,7 +1,7 @@
 # GitLab MR review context
 
-Shared setup for commands that review a GitLab merge request against the local acme
-mirror. Loaded on demand by `/glablensedreview` and the per-MR agents of
+Shared setup for commands that review a GitLab merge request against a local mirror of
+the GitLab group. Loaded on demand by `/glablensedreview` and the per-MR agents of
 `/glabsummary`. Covers target resolution, the batched fetch, the read-only MR-head
 worktree, the deterministic anchor map, and the prior-pass marker check.
 
@@ -30,8 +30,9 @@ Parse the URL into `PROJECT` (e.g. `acme/web/account`) and `IID`. For a bare
 iid, derive `PROJECT` from `git remote get-url origin`. `ENC` is `PROJECT` url-encoded
 (`/` becomes `%2F`), needed for raw API calls.
 
-Map the clone by direct path: `gitlab.com/acme/<rest>` maps to
-`~/projects/acme/<rest>`. If it does not exist, fall back to a
+Read `gitlab_group` and `repo_root` from `~/llmfiles/local/work.json` as `GROUP` and
+`REPO_ROOT`. Map the clone by direct path: `gitlab.com/$GROUP/<rest>` maps to
+`$REPO_ROOT/<rest>`. If it does not exist, fall back to a
 diff-only review and say so explicitly in the report: every surrounding-code and
 cross-repo lens degrades badly without a checkout.
 
@@ -42,7 +43,7 @@ biggest avoidable cost in the whole run.
 
 ```bash
 P=<PROJECT>; I=<IID>
-CLONE="$HOME/projects/acme/<rest>"
+CLONE="$REPO_ROOT/<rest>"
 OUT=<scratchpad>/mr-$I; WT=$OUT/head; mkdir -p "$OUT"
 
 glab mr view  "$I" -R "$P" --output json      > "$OUT/mr.json"     2>"$OUT/mr.err"    &
@@ -112,25 +113,9 @@ command decides what to do about that.
 
 ## Repo-specific lens bindings
 
-The lens catalog in `review-lenses.md` is deliberately organization-agnostic. These are the
-acme bindings to pass along when spawning it here.
-
-- **code-standards** reads, most-specific-wins: the repo's `CLAUDE.md`, its group
-  `CLAUDE.md` (`web/CLAUDE.md`, `backend/CLAUDE.md`, `platform/CLAUDE.md`, ...),
-  `~/projects/acme/CLAUDE.md`, and the repo's lint and format
-  config.
-- **reuse** also checks `web/packages` (`@acme/*`) for existing helpers.
-- **cross-repo-impact** sweeps the local mirror in one batched pass, then maps each hit's
-  repo to its owning team via the teams catalog in the root `CLAUDE.md`:
-  ```bash
-  rg -n --no-heading -g '!**/node_modules/**' -g '!**/.git/**' -g '!**/dist/**' \
-     -g '!**/bin/**' -g '!**/obj/**' -g '!**/vendor/**' -g '!**/*.lock' -g '!**/.terraform/**' \
-     -e '<symbol1>' -e '<symbol2>' -e '<route>' \
-     "$HOME/projects/acme" \
-     -g '!**/projects/acme/<rest>/**'
-  ```
-- **ticket-alignment** uses `twg jira workitem get <KEY>`, keys matching `[A-Z]{2,10}-\d+`,
-  capped at 3, preferring keys in the title or branch name.
+The lens catalog in `review-lenses.md` is deliberately organization-agnostic. Read
+`~/llmfiles/local/glab-lens-bindings.md` if it exists and pass its bindings along when
+spawning the lenses. Without it, the lenses run on the catalog defaults.
 
 Every lens also gets `$OUT/diff.patch`, `$WT`, `$BASE`, `$OUT/anchors.tsv`, and the MR
 title and description.

@@ -47,7 +47,7 @@ throughout. Only the reporting changes:
 
 ## Arguments
 
-- **target** (required): an MR URL (`https://gitlab.com/acme/<path>/-/merge_requests/<iid>`)
+- **target** (required): an MR URL (`https://gitlab.com/<group>/<path>/-/merge_requests/<iid>`)
   or a bare `<iid>` when the cwd is inside the repo's clone.
 - **`--threshold N`**: reporting bar, default **7**.
 - **`--only a,b,...`** / **`--skip a,b,...`**: restrict the lens set. Default is all eight.

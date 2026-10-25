@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect one day of Acme work signal for /dailyworkrecap.
+"""Collect one day of work signal for /dailyworkrecap.
 
 Emits JSON on stdout with the deterministic half of the recap: git commits,
 merge requests authored, GitLab review activity, and the Claude Code session
@@ -20,15 +20,18 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
-REPO_ROOT = Path.home() / "projects" / "acme"
+import work_config
+
+WORK = work_config.load("repo_root", "gitlab_group", "git_author", "session_slug_hint")
+REPO_ROOT = Path(WORK["repo_root"]).expanduser()
 SESSION_ROOT = Path.home() / ".claude" / "projects"
-GIT_AUTHOR = "you@acme.com"
-GITLAB_GROUP = "acme/"
+GIT_AUTHOR = WORK["git_author"]
+GITLAB_GROUP = WORK["gitlab_group"] + "/"
 JIRA_KEY = re.compile(r"\b([A-Z]{2,5}-\d{1,5})\b")
 
 # Session dirs are cwd-slugs. Personal projects live under the same root, so the
 # recap has to opt in by slug rather than scan everything.
-SESSION_SLUG_HINT = "acme"
+SESSION_SLUG_HINT = WORK["session_slug_hint"]
 SESSION_SLUG_SKIP = "personal-projects"
 
 
