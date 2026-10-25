@@ -120,6 +120,7 @@ glab mr diff <mr_id>                      # View diff
 glab mr list --assignee=@me               # Assigned to me
 glab mr list --reviewer=@me               # I'm reviewing
 glab mr checkout <mr_id>                  # Checkout branch locally
+glab mr checkout <mr_id> --worktree ../<repo>-mr-<mr_id>  # Separate worktree, current checkout untouched
 glab mr merge <mr_id>                     # Merge MR
 glab mr merge <mr_id> --squash            # Squash and merge
 glab ci status                            # Current pipeline status
@@ -143,7 +144,7 @@ Pass `--auto-merge=false` to merge immediately.
 ## Pitfalls to Avoid
 
 1. **Forgetting `--yes` in scripts** - Without it, commands prompt for confirmation
-2. **Not pushing before MR** - Use `--fill` which auto-pushes, or push manually first
+2. **Not pushing before MR** - Use `--fill` which auto-pushes (unless `--push=false`), or push manually first
 3. **Squash flag timing** - `--squash-before-merge` is on create/update, `--squash` is on merge
 4. **Assignee modification** - Use `+` to add, `-` to remove, or plain to replace all
 5. **JSON parsing** - Use `--output json` not `--json`
