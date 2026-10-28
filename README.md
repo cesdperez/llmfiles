@@ -131,7 +131,8 @@ is needed.
 Employer-specific values stay out of this public repo. `local/` is gitignored, and
 `local.example/` holds a template for each file:
 
-- `work.json`: repo root, GitLab group, git author, Jira URL and project, Slack IDs, timezone.
+- `work.json`: repo root, GitLab group, git author, Jira URL and project, Slack IDs, timezone,
+  and the platform directory and team that `/fullsend` picks reviewers from.
   The scripts load it through `scripts/work_config.py`, and `LLMFILES_WORK_CONFIG` overrides
   its path. Commands read it directly.
 - `glab-lens-bindings.md`: org-specific lens bindings for the GitLab review commands.
@@ -298,7 +299,7 @@ $locallensedreview branch high
 $glablensedreview <mr-url> --dry-run
 ```
 
-All eight command adapters are explicit-only skills. `agents/openai.yaml` sets
+All nine command adapters are explicit-only skills. `agents/openai.yaml` sets
 `allow_implicit_invocation: false`; shared knowledge skills retain their own policies.
 
 `codex/compatibility.md` owns argument handling, delegation, tool substitutions, and Codex

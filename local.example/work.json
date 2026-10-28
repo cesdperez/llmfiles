@@ -12,5 +12,7 @@
   "standup_channel": { "name": "#team-standup", "id": "C00000000" },
   "standup_thread_hint": "Slackbot post \"Reminder: do an async update\" at about 11:00",
   "all_staff_list": "all-staff@",
-  "timezone": "Europe/Amsterdam"
+  "timezone": "Europe/Amsterdam",
+  "platform_directory": "~/projects/acme/meta/platform-directory.yaml",
+  "team_id": "team-core"
 }
