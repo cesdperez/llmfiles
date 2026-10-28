@@ -57,8 +57,19 @@ Use `--worktree current`, never `active`: `active` is whichever card the user ha
 At stage 0, a `selector_not_found` error means the run is outside Orca: skip every later
 Orca call. Any other error goes in the ledger, and the run continues.
 
-Status is `in-progress` for stages 0 to 4, `in-review` from stage 5, `completed` when the
-endpoint is reached. A blocked stage keeps its status, with the comment
+The board columns are the workspace statuses. At stage 0, read the configured ones:
+
+```bash
+python3 -I -c 'import json,sys; [print(s["id"], s["label"], sep="\t") for s in json.load(open(sys.argv[1]))["ui"]["workspaceStatuses"]]' \
+  "$HOME/Library/Application Support/orca/profiles/local-default/orca-data.json"
+```
+
+If columns labelled Implement, Review, Verify, MR and Green all exist (any case), use one
+column per stage: Implement for stages 0 to 2, then the column named after stages 3 to 6,
+and `completed` when the endpoint is reached. Pass the id, not the label: ids of columns
+made in the app need not match their label. Otherwise use the defaults: `in-progress` for
+stages 0 to 4, `in-review` from stage 5, `completed` at the endpoint. Set only ids that are
+configured. A blocked stage keeps its status, with the comment
 `blocked: <reason>`. Add `--unread` whenever the run stops for the user. Add
 `--gitlab-mr <url>` once the MR exists.
 
