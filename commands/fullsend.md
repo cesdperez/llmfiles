@@ -57,11 +57,13 @@ Use `--worktree current`, never `active`: `active` is whichever card the user ha
 At stage 0, a `selector_not_found` error means the run is outside Orca: skip every later
 Orca call. Any other error goes in the ledger, and the run continues.
 
-The board columns are the workspace statuses. At stage 0, read the configured ones:
+The board columns are the workspace statuses. At stage 0, read the configured ones from Orca's live state.
+`orca-data.json` is a stale export, so do not read it:
 
 ```bash
-python3 -I -c 'import json,sys; [print(s["id"], s["label"], sep="\t") for s in json.load(open(sys.argv[1]))["ui"]["workspaceStatuses"]]' \
-  "$HOME/Library/Application Support/orca/profiles/local-default/orca-data.json"
+sqlite3 -readonly "$HOME/Library/Application Support/orca/profiles/local-default/profile-state.db" \
+  "select payload from profile_state_documents where domain = 'ui'" |
+  python3 -I -c 'import json,sys; [print(s["id"], s["label"], sep="\t") for s in json.load(sys.stdin)["workspaceStatuses"]]'
 ```
 
 If columns labelled Implement, Review, Verify, MR and Green all exist (any case), use one
