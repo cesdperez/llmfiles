@@ -123,9 +123,8 @@ checkout. It diffs against `main`: when the recorded base differs, use the base 
 Give the lens agents absolute paths, because sibling worktrees are not the session's
 working directory. Its autofix commits the fixes.
 
-Run a second round only if the first one changed code. Stop after two rounds: write any
-finding still open to the ledger, and carry it into the MR description if it matters to a
-reviewer.
+Run it once. Write any finding it leaves unfixed to the ledger, and carry it into the MR
+description if it matters to a reviewer.
 
 ### 4. Verify
 
@@ -145,7 +144,7 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
   by `-` as the session name: playwright-cli treats `/` as a path.
 - Report Pass or Fail per criterion with one line of evidence. Save screenshots of failures
   and of the main UI change in `fullsend-qa/`.
-- On a Fail, fix it, then repeat stages 3 and 4 once. A second Fail blocks the run.
+- On a Fail, fix it, then repeat verify once. A second Fail blocks the run.
 
 ### 5. MR
 
