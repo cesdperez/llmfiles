@@ -299,7 +299,7 @@ $locallensedreview branch high
 $glablensedreview <mr-url> --dry-run
 ```
 
-All nine command adapters are explicit-only skills. `agents/openai.yaml` sets
+All ten command adapters are explicit-only skills. `agents/openai.yaml` sets
 `allow_implicit_invocation: false`; shared knowledge skills retain their own policies.
 
 `codex/compatibility.md` owns argument handling, delegation, tool substitutions, and Codex
