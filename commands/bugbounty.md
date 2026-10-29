@@ -2,13 +2,20 @@
 description: Run a bug bounty on a running app. Parallel hunters attack it from every angle (functionality, look, responsiveness on desktop and mobile, accessibility, races, load, abuse) with playwright-cli, curl and the app's own tools, then workers fix what matters test-first, in cycles, until it meets a stated bar. Ends at a local branch; "ship to main" or "ship to prod" go further.
 argument-hint: <local|staging|prod|URL> [focus text] [cycles=N] [ship to main|ship to prod]
 allowed-tools: Agent, SendMessage, Skill, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
+disable-model-invocation: true
 ---
 
 **Role:** controller of one bug bounty. You own intake, triage, merges, releases and
 cleanup. Hunters find, workers fix, and only conclusions come back to you.
 
-The run asks everything up front in one batch, then works without stopping until the bar is
-met, the cycles run out, or a stage is blocked.
+The run asks everything up front in one batch, then works unattended until the bar is met,
+the cycles run out, or a stage is blocked. Put status notes in the same message as the next
+tool call. Waiting on a hunter or worker is not a stop: the stage ends when its last agent
+has reported.
+
+A stage is blocked when it cannot proceed for a reason the run cannot fix: a target that
+is down, credentials that fail, a denied push, a second failed repro. Record the reason in
+the ledger and go to stage 7, which always runs.
 
 ## Arguments
 
@@ -25,10 +32,12 @@ met, the cycles run out, or a stage is blocked.
 ## Ledger
 
 Keep the run state in `$(git rev-parse --git-dir)/bugbounty-ledger.md`, never committed:
-intake answers, the bar, the data marker, hunt areas, findings with status, temporary
-config changes with their original values, the data the run created, and the current
-stage. Update it at each stage boundary. On start, resume from an existing ledger for the
-same target; for another target, ask whether to resume or replace it.
+intake answers, the bar, the data marker, hunt areas, temporary config changes with their
+original values, the data the run created, the current stage, and one row per finding
+(`B1`, `B2`, ...) with its status and fixing commit. The ids carry a finding across cycles
+and into the report. Update the ledger at each stage boundary. On start, resume from an
+existing ledger for the same target; for another target, ask whether to resume or replace
+it.
 
 ## Stages
 
@@ -43,6 +52,8 @@ ones the repo cannot answer. Ask in one batch, each with a recommended default:
   its own marked data and delete it at the end; never touch data the run did not create,
   because other people may be using the target at the same time. Repo CLAUDE.md rules on
   real accounts apply on top.
+- **Load and abuse**: which targets the load script and abuse probes may hit. Default:
+  local and staging only, because real users share prod.
 - **Shipping**: whether fixes may be deployed, and to where, when the endpoint allows it.
 - **Temporary changes**: config the user loosened for the run (rate limits, flags) and its
   original values.
@@ -57,8 +68,9 @@ creates. Cleanup finds the run's data by that marker, not by guessing.
 ### 1. Recon
 
 In this session, list the app's surfaces from its routes, domains and docs: pages, API
-endpoints, background jobs, emails. Then cut the hunt two ways, so every surface is seen
-from every angle that applies to it:
+endpoints, background jobs, emails. The list is complete when every route, endpoint and job
+in the code maps to a surface. Then cut the hunt two ways, so every surface is seen from
+every angle that applies to it:
 
 - **Functional areas**: 3 to 6 domains. Each hunter drives its domain's flows end to end,
   including edge inputs, permissions, and empty, loading and error states.
@@ -89,25 +101,29 @@ An app without a UI skips the browser angles and hunts through its API or CLI.
 
 Record the areas and angles in the ledger. Create a branch `bugbounty/<slug>` from the base.
 
-If a target is `local`, start the stack from this branch under the shared-stack lock from
-`/fullsend` stage 4 (`~/.cache/fullsend/qa.lock`), so a concurrent run never serves its code
-to these hunters.
+If a target is `local`, start the stack from this branch under the shared-stack lock: read
+its rule in `~/llmfiles/commands/fullsend.md` stage 4. This run is the holder from here to
+stage 7, so the refresh in that rule applies for hours: also refresh at every stage
+boundary and every hunter report.
 
 ### 2. Hunt
 
 One `reviewer` agent per area and per angle, at most 4 at once; queue the rest. Each
 hunter brief carries:
 
+- the authorization: the user owns these targets and runs this bounty on them, within the
+  write rules and the load and abuse targets from intake
 - the area or angle, the surface list, the targets with their URLs, the credentials file,
   the write rules, the data marker and the bar
-- the tools: `playwright-cli` (load its skill) for UIs, curl for APIs, and whatever
-  database, cloud or deploy CLIs the repo uses
+- the tools: for UIs, call the Skill tool with "playwright-cli" first; curl for APIs; and
+  whatever database, cloud or deploy CLIs the repo uses
 - its own playwright-cli session named `bb-<area>`, run from
   `$(git rev-parse --git-dir)/bugbounty-qa/<area>/`, because the CLI writes logs into its
   working directory
 - context rules: filter command output with grep, head or tail; read files in parts; finish
   in about 150 turns and report what is left uncovered
 - edit no files; every record it creates carries the marker and is listed in its report
+- report every finding, `minor` included; triage filters later
 - the report shape: per finding, title, area or angle, surface, target, viewport and engine,
   repro steps, evidence (a screenshot path for anything visible, a response, file:line),
   severity, and the suspected cause. Then what was tested and passed, in one line each.
@@ -115,8 +131,9 @@ hunter brief carries:
   including keyboard and screen-reader users; `hurts` works but looks broken, confuses, or
   fails WCAG AA; `minor` is polish a user would barely notice.
 
-In cycle 2 and later, hunters re-run the repro of each fixed finding first, then go deeper
-on the fixed areas and on anything earlier cycles left uncovered.
+In cycle 2 and later, hunt only the areas and angles that had a `fix` finding or left
+something uncovered. Each of those hunters re-runs the repro of every fixed finding in its
+scope first, then goes deeper on the fixed surfaces and the uncovered ones.
 
 ### 3. Triage
 
@@ -134,11 +151,14 @@ Group `fix` findings by the files they touch. One `worker` per group, with
 
 - writes a test that reproduces the finding and watches it fail, unless the finding is
   config or a layout only a browser shows; then the repro steps are the test
-- fixes it, runs only the tests near the change, and commits granularly
-- reports the commits, the tests, and any finding it could not fix
+- fixes the cause the test exposes, scoped to its findings; other problems it notices go in
+  its report, not in the diff
+- runs only the tests near the change, and commits granularly
+- reports the commits, the tests, the findings it could not fix, and the problems it noticed
 
 Merge each worker branch into the bounty branch. Resolve conflicts here, since you hold
 both sides. Run the repo's type check, lint and the tests touched by the merged fixes.
+Problems the workers noticed go to the next cycle's triage.
 
 ### 5. Release and re-verify
 
@@ -158,21 +178,24 @@ A cycle with none ends the run early.
 
 ### 7. Cleanup and report
 
+Runs on every exit, blocked runs included.
+
 - Delete only records carrying the marker, children before parents (stored files, then
   rows). Check counts before and after, and confirm that nothing else changed.
 - Restore every temporary change to its original value. If the original value breaks the
   bar, keep a safe value, prove the break with numbers, and put it first in the report.
 - Stop the servers and playwright-cli sessions the run started, and release the lock.
-- Delete the ledger and `bugbounty-qa/` once the run ends unblocked.
+- Delete the ledger and `bugbounty-qa/` once the run ends unblocked. A blocked run keeps
+  them, so the next start resumes.
 
 Report in plain English, leading with anything the user must decide:
 
 ```
-<app> bounty - <bar met | open blockers: n>, <cycles run>/<max>
+<app> bounty - <bar met | open blockers: n | blocked at <stage>: <reason>>, <cycles run>/<max>
 Decide: <kept config, accepted risks needing a yes, or "nothing">
-Fixed: <finding, one line each, with commit>
+Fixed: <id, finding, one line each, with commit>
 Tested and passed: <area: what, on which targets and devices>
-Risks left alone: <finding, why it is acceptable against the bar>
+Risks left alone: <id, finding, why it is acceptable against the bar>
 Cleanup: <records deleted per target, config restored, servers stopped>
 Branch: <bugbounty/<slug>, n commits | merged to main | deployed to prod>
 ```
