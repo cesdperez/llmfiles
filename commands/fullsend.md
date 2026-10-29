@@ -118,18 +118,14 @@ card `--unread` and give one concise instruction.
 
 ### 3. Review
 
-The `/code-review` skill always reviews the session's starting directory, whatever path
-you are in. So:
+Run `/locallensedreview branch medium --autofix` once per repo, from inside that repo's
+checkout. It diffs against `main`: when the recorded base differs, use the base instead.
+Give the lens agents absolute paths, because sibling worktrees are not the session's
+working directory. Its autofix commits the fixes.
 
-- Home repo, when the session started inside it: run `/code-review <base>...HEAD medium --fix`.
-- Every other repo, or when the session started elsewhere: spawn a fresh `reviewer` per
-  repo with its path and `<base>...HEAD`. Ask it for the same review at medium threshold:
-  correctness bugs first, then reuse and simplification, high-confidence findings only.
-  Apply its findings yourself.
-
-Commit the fixes. Run a second round with a fresh reviewer, only if the first one changed
-code. Stop after two rounds: write any finding still open to the ledger, and carry it into
-the MR description if it matters to a reviewer.
+Run a second round only if the first one changed code. Stop after two rounds: write any
+finding still open to the ledger, and carry it into the MR description if it matters to a
+reviewer.
 
 ### 4. Verify
 

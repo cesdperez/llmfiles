@@ -5,4 +5,4 @@ description: Run the llmfiles end-to-end delivery of a task (Jira, Slack, or tex
 
 Read `~/llmfiles/codex/compatibility.md`, then `~/llmfiles/commands/fullsend.md`. Execute the command body with the Codex adaptations taking precedence. Use the user's text after `$fullsend` as its arguments.
 
-Where the command runs `/code-review`, run `$locallensedreview branch medium --autofix` instead. Ask the intake questions in one message and wait for the answers.
+Run its `/locallensedreview` step as `$locallensedreview`. Ask the intake questions in one message and wait for the answers.
