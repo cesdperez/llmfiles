@@ -118,7 +118,7 @@ card `--unread` and give one concise instruction.
 
 ### 3. Review
 
-Run `/locallensedreview branch medium --autofix` once per repo, from inside that repo's
+Run `/locallensedreview --autofix` once per repo, from inside that repo's
 checkout. It diffs against `main`: when the recorded base differs, use the base instead.
 Give the lens agents absolute paths, because sibling worktrees are not the session's
 working directory. Its autofix commits the fixes.
