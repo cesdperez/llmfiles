@@ -2,13 +2,16 @@
 description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
 argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod]
 allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
+disable-model-invocation: true
 ---
 
 **Role:** controller of one end-to-end delivery run. You own the stage order, the ledger,
 and the human checkpoints. Delegate the pieces whose conclusion is all you need.
 
-"Full send" means: ask everything up front in one batch, then work without stopping until
-the endpoint is reached or a stage is blocked.
+"Full send" means: ask everything up front in one batch, then work unattended until the
+endpoint is reached or a stage is blocked. Put status notes in the same message as the next
+tool call. Waiting on an agent, a pipeline or the lock is not a stop: the stage ends when
+what it waits on has finished.
 
 ## Arguments
 
@@ -20,7 +23,8 @@ the endpoint is reached or a stage is blocked.
   merges once the pipeline is green. The phrase "ship to prod" sets `prod`, which also
   deploys to production and checks it is healthy. Only these exact phrases count: a task
   text can say "merge" without asking for one.
-- **Source**: a Jira key or URL (read with `twg-jira`), a Slack thread URL (read it in full),
+- **Source**: a Jira key or URL (call the Skill tool with "twg-jira" to read it), a Slack
+  thread URL (read it in full),
   a backlog or plan file reference, or free text.
 
 Read `~/llmfiles/local/work.json` for the org values. `platform_directory` and `team_id`
@@ -101,8 +105,8 @@ recommended default. AskUserQuestion holds four questions per call, so use as fe
 fit. If nothing is unclear, ask nothing. If asking is not possible (headless or delegated
 run), take the defaults and record them in the ledger.
 
-Without a Jira key and with a work repo involved, ask whether to create a ticket (written
-per `jira-writing`). With no ticket, skip every Jira step, and use a short task slug
+Without a Jira key and with a work repo involved, ask whether to create a ticket (call the
+Skill tool with "jira-writing" to write it). With no ticket, skip every Jira step, and use a short task slug
 wherever a Jira key is named below.
 
 After intake, stop for the user only for things only they can do: create a feature flag,
@@ -115,7 +119,8 @@ card `--unread` and give one concise instruction.
   branch (`git symbolic-ref --short refs/remotes/origin/HEAD`). With no remote, use the
   local default branch. For endpoint `mr` or later, record in the ledger that the MR stage
   will be blocked.
-- Branch from the base, using the branch naming rule in `glab-cli`. Use the same branch
+- Branch from the base, using the branch naming rule in `glab-cli` (call the Skill tool
+  with "glab-cli"; the later stages use it too). Use the same branch
   name in every repo. Record the base per repo in the ledger: stage 3 diffs against it.
 - Work in the current checkout for the home repo. For each other repo, add a sibling
   worktree `<repo>-<jira-key>` from the base and record its path.
@@ -123,19 +128,22 @@ card `--unread` and give one concise instruction.
 
 ### 2. Implement
 
+- Deliver the acceptance criteria at the scope asked. Adjacent problems you notice go in
+  the ledger and the handoff's Open line, not in the diff.
 - Commit as you go, granularly, with the commit title format from `glab-cli`.
 - Run only the tests that cover the change. Run a full suite only when the repo's
   instructions say it is cheap, or when the change is cross-cutting. Without a test suite,
   the verify stage carries the proof.
 - Small changes stay in this session. Delegate to `worker` agents when parts are
   independent. When the task splits into many independent units, or the user asked for a
-  workflow, run them as a Workflow. Never run two implementers in the same checkout.
+  workflow, run them as a Workflow. Each implementer gets its own checkout: delegated
+  `worker` agents run with `isolation: "worktree"`.
 - Keep docs that describe the changed behaviour in sync in the same commits.
 
 ### 3. Review
 
-Run `/locallensedreview --autofix` once per repo, from inside that repo's
-checkout. It diffs against `main`: when the recorded base differs, use the base instead.
+Call the Skill tool with "locallensedreview" and args `--autofix`, once per repo, from
+inside that repo's checkout. It diffs against `main`: when the recorded base differs, use the base instead.
 Give the lens agents absolute paths, because sibling worktrees are not the session's
 working directory. Its autofix commits the fixes.
 
@@ -150,12 +158,14 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 - One shared local stack serves every run on this machine. The worker takes the lock
   before starting it: `mkdir -p ~/.cache/fullsend && mkdir ~/.cache/fullsend/qa.lock`, then
   writes the branch name into `qa.lock/owner`. If the lock exists, wait for it with Monitor.
-  A lock older than one hour is from a crashed run: remove it and take it. The worker
-  removes its own lock when verify ends, also on failure. Nothing else touches the lock.
+  The holder runs `touch qa.lock/owner` at least every 30 minutes while it holds the lock.
+  An `owner` file not modified for over an hour is from a crashed run: remove the lock and
+  take it. The holder removes its own lock when it is done, also on failure. Only the
+  holder removes it.
 - Start the stack from this run's checkouts, so it serves this branch and not another
   run's code.
-- APIs: exercise with curl. UI: use `playwright-cli` at desktop (1440x900) and mobile
-  (390x844) sizes. Run it from `$(git rev-parse --git-dir)/fullsend-qa/` of the home repo,
+- APIs: exercise with curl. UI: call the Skill tool with "playwright-cli", then check at
+  desktop (1440x900) and mobile (390x844) sizes. Run it from `$(git rev-parse --git-dir)/fullsend-qa/` of the home repo,
   because it writes logs into its working directory. Use the branch name with `/` replaced
   by `-` as the session name: playwright-cli treats `/` as a path.
 - Report Pass or Fail per criterion with one line of evidence. Save screenshots of failures
@@ -173,11 +183,13 @@ Push each branch and open one draft MR per repo (`glab mr create --draft` with t
   only from members with a `gitlab` handle. Rank them by MRs they merged in that repo in the
   last 90 days (`glab mr list --merged --author <handle>`). Never add anyone outside the
   roster, and never the user.
-- Description: load `plainenglish`, then follow **Writing MR Text** in `glab-cli`. Link the
+- Description: call the Skill tool with "plainenglish", then follow **Writing MR Text** in
+  `glab-cli`. Link the
   ticket and the sibling MRs. Add one line saying what was verified and where, for example
   "Verified locally: signup and resend flows, desktop and mobile." Write only what is true
   of the final diff. Never cite the ledger, plans, or notes.
-- Jira: comment with the MR links and move to In Review. Write it per `jira-writing`.
+- Jira: comment with the MR links and move to In Review. Write it per `jira-writing`
+  (call the Skill tool with "jira-writing" if it is not loaded).
 
 ### 6. Green
 
