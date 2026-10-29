@@ -1,6 +1,6 @@
 ---
-description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline. Say "ship to main" or "ship to prod" to go further.
-argument-hint: <jira key|jira url|slack url|task text> [ship to main|ship to prod]
+description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
+argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod]
 allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
 ---
 
@@ -14,15 +14,29 @@ the endpoint is reached or a stage is blocked.
 
 `$ARGUMENTS` holds the task source and, optionally, the endpoint:
 
-- **Endpoint** (default `mr`): `mr` stops at a draft MR with a green pipeline. The phrase
-  "ship to main" sets `main`, which also merges once the pipeline is green. The phrase
-  "ship to prod" sets `prod`, which also deploys to production and checks it is healthy.
-  Only these exact phrases count: a task text can say "merge" without asking for one.
+- **Endpoint** (default per repo kind, below): `branch` stops at reviewed, verified
+  commits on a local branch. `mr` stops at a draft MR with a green pipeline. The phrase
+  "open a PR" or "open an MR" sets `mr`. The phrase "ship to main" sets `main`, which also
+  merges once the pipeline is green. The phrase "ship to prod" sets `prod`, which also
+  deploys to production and checks it is healthy. Only these exact phrases count: a task
+  text can say "merge" without asking for one.
 - **Source**: a Jira key or URL (read with `twg-jira`), a Slack thread URL (read it in full),
   a backlog or plan file reference, or free text.
 
 Read `~/llmfiles/local/work.json` for the org values. `platform_directory` and `team_id`
 there name the reviewer roster.
+
+## Repo kind
+
+Classify each involved repo by its `origin` URL. A repo is **work** when the URL path
+starts with `gitlab_group/` from `work.json`. Every other repo is **personal**, including
+one with no remote.
+
+- Work repos default to endpoint `mr` and use every Jira and reviewer step.
+- Personal repos default to endpoint `branch`: the user checks the branch and merges it.
+  Skip Jira and reviewers. Open a PR only when the endpoint is `mr` from an explicit
+  phrase. "ship to main" without "open a PR" merges the branch into its base locally, then
+  pushes the base if it tracks a remote.
 
 ## Ledger
 
@@ -87,8 +101,9 @@ recommended default. AskUserQuestion holds four questions per call, so use as fe
 fit. If nothing is unclear, ask nothing. If asking is not possible (headless or delegated
 run), take the defaults and record them in the ledger.
 
-Without a Jira key, ask whether to create a ticket (written per `jira-writing`). With no
-ticket, skip every Jira step, and use a short task slug wherever a Jira key is named below.
+Without a Jira key and with a work repo involved, ask whether to create a ticket (written
+per `jira-writing`). With no ticket, skip every Jira step, and use a short task slug
+wherever a Jira key is named below.
 
 After intake, stop for the user only for things only they can do: create a feature flag,
 grant a permission, pass 2FA, approve a manual pipeline job outside the endpoint. Mark the
@@ -98,7 +113,8 @@ card `--unread` and give one concise instruction.
 
 - In every involved repo, `git fetch origin` and resolve the base: the remote default
   branch (`git symbolic-ref --short refs/remotes/origin/HEAD`). With no remote, use the
-  local default branch and record in the ledger that the MR stage will be blocked.
+  local default branch. For endpoint `mr` or later, record in the ledger that the MR stage
+  will be blocked.
 - Branch from the base, using the branch naming rule in `glab-cli`. Use the same branch
   name in every repo. Record the base per repo in the ledger: stage 3 diffs against it.
 - Work in the current checkout for the home repo. For each other repo, add a sibling
@@ -148,6 +164,8 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 
 ### 5. MR
 
+Skip this stage and stage 6 at endpoint `branch`.
+
 Push each branch and open one draft MR per repo (`glab mr create --draft` with the flags in
 `glab-cli`), assigned to the user. On a GitHub remote, open a draft PR with `gh` instead.
 
@@ -179,7 +197,8 @@ Clean up only what this run made and what is safe to lose:
 
 - Stop the servers you started, unless intake asked to leave one running.
 - Remove a sibling worktree only when its branch has no uncommitted or unpushed changes.
-- Delete a local branch only if this run created it and it is merged.
+- Delete a local branch only if this run created it and it is merged. At endpoint
+  `branch`, keep it: it is the deliverable.
 - Delete the ledger and `fullsend-qa/` once the endpoint is reached. A blocked run keeps
   them, so it can resume.
 
@@ -187,7 +206,7 @@ Then report in plain English:
 
 ```
 <ticket or slug> - <endpoint reached | blocked at <stage>: <reason>>
-MRs: <url> (pipeline green|failing: <job>), or none
+MRs: <url> (pipeline green|failing: <job>), or branches: <repo>:<branch> (<n> commits)
 Verified: <criteria passed>/<total>, <environment>
 Open: <blocked stages, unfixed findings, failed criteria, kept branches and worktrees, or "nothing">
 Try it: <URL of the server left running, the preview URL, or the command to start it>
