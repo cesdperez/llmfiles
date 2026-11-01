@@ -32,6 +32,7 @@ llmfiles/
 │   └── <settings file>
 ├── shared/
 │   ├── CLAUDE.md
+│   ├── agent-docs-bar.md
 │   ├── agentic-clis.md
 │   ├── glab-mr-context.md
 │   └── review-lenses.md
@@ -170,6 +171,7 @@ Content reused by several commands, extracted so it lives in one place. Commands
 Deliberately not skills: a skill is auto-listed with its description and can activate in unrelated sessions, whereas a shared protocol should load only when a command asks for it. Use a skill when the knowledge should surface on its own (`glab-cli`), a shared protocol when it should not (`review-lenses`).
 
 Current protocols:
+- `agent-docs-bar.md`, the quality bar for files an agent reads, used by `/curatemds` and `/skillbuilder`, and by `/fullsend`, `/bugbounty` and the `code-standards` lens for the docs they touch. It targets Opus 5.5, so update it when a new model ships.
 - `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glablensedreview`, `/locallensedreview`.
 - `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the org-specific lens bindings from `local/`, used by `/glablensedreview` and the per-MR agents of `/glabsummary`.
 

@@ -102,11 +102,8 @@ description: {see Phase 4}
 
 ## Phase 6: Prune
 
-- **Single source of truth**: each fact lives in exactly one place, so a change is a one-place edit.
-- **The environment is a source of truth**: `--help` output, config files, `package.json` scripts. Restating them makes the skill a cache that goes stale on the next release. Keep what a lookup cannot give: the unwritten convention, the reason behind a choice, the flag combination that works, the gotcha no help text confesses. For a CLI skill, point at `{cli} <cmd> --help` for full flag lists.
-- **Relevance**: every line still bears on what the skill does.
-- **No-op test**, sentence by sentence: does this sentence change behaviour versus the model's default? "Be thorough" when the agent is already thorough-ish is a no-op; delete it or replace it with a stronger leading word. Delete whole failing sentences rather than trimming words.
-- **Prompt the positive**: steer by stating the target behaviour, not by banning the wrong one (naming the elephant makes it more available). Keep a prohibition only as a hard guardrail, and pair it with what to do instead.
+Read `~/llmfiles/shared/agent-docs-bar.md` and prune the skill against it. For a CLI skill, point at `{cli} <cmd> --help` for full flag lists instead of restating them.
+
 - **No em dashes** in any content you write (repo style): use a comma, colon, or rewrite.
 
 ## Phase 7: Validate

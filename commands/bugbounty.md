@@ -153,12 +153,15 @@ Group `fix` findings by the files they touch. One `worker` per group, with
   config or a layout only a browser shows; then the repro steps are the test
 - fixes the cause the test exposes, scoped to its findings; other problems it notices go in
   its report, not in the diff
+- updates docs the fix makes stale, following `~/llmfiles/shared/agent-docs-bar.md`
 - runs only the tests near the change, and commits granularly
 - reports the commits, the tests, the findings it could not fix, and the problems it noticed
 
 Merge each worker branch into the bounty branch. Resolve conflicts here, since you hold
 both sides. Run the repo's type check, lint and the tests touched by the merged fixes.
-Problems the workers noticed go to the next cycle's triage.
+Problems the workers noticed go to the next cycle's triage. A trap a hunter or worker hit
+running the app that the repo's agent docs did not warn about goes into the file that
+owns that topic, in its own commit.
 
 ### 5. Release and re-verify
 

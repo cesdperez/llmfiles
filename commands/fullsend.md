@@ -138,7 +138,9 @@ card `--unread` and give one concise instruction.
   independent. When the task splits into many independent units, or the user asked for a
   workflow, run them as a Workflow. Each implementer gets its own checkout: delegated
   `worker` agents run with `isolation: "worktree"`.
-- Keep docs that describe the changed behaviour in sync in the same commits.
+- Keep docs in sync in the same commits: docs that describe the changed behaviour, and
+  any trap this run hit that the repo's agent docs did not warn about, written in the file
+  that owns that topic. Both follow `~/llmfiles/shared/agent-docs-bar.md`.
 
 ### 3. Review
 
