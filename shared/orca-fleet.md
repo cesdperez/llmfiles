@@ -20,6 +20,10 @@ fails or a worker's state is unclear. The commands below are the ones that work.
   <args>" and the worker calls it through the Skill tool.
 - The preamble tells workers to post nothing to Slack, GitHub or other channels. A spec
   that needs pushes, MRs, PRs or Jira updates must say so.
+- A chat is bound to one Run at a time. A second `run-create` rebinds it without warning,
+  and `run-use --id <run_id>` binds it back. Pass `--run` explicitly on `task-create` and
+  `check`.
+- A task whose dependencies have already settled is `ready` as soon as it is created.
 - `worker-start` on a task with `--worktree new-top-level --base-branch origin/<base>`
   cuts the worktree at start time. Run `git fetch origin` just before, so a dependent task
   builds on what its dependencies shipped.

@@ -5,4 +5,4 @@ description: Run the llmfiles Orca fleet coordinator when explicitly requested. 
 
 Read `~/llmfiles/codex/compatibility.md`, then `~/llmfiles/commands/fleet.md`. Execute the command body with the Codex adaptations taking precedence. Use the user's text after `$fleet` as its arguments.
 
-Start workers with `--agent codex`, and write each spec's first line as "Invoke the $<command> skill with: ...". Ask the plan confirmation in one message and wait for the answer. Run `check --wait` in the foreground with a timeout your shell allows, and repeat it.
+Start workers with `--agent codex`, and write each spec's first line as "Invoke the $<command> skill with: ...". In a handoff without supervision, start the prompt with `$<command>`. Ask the plan confirmation in one message and wait for the answer. Run `check --wait` in the foreground with a timeout your shell allows, and repeat it.

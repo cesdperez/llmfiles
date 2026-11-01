@@ -1,6 +1,6 @@
 ---
-description: Run several tasks as supervised Orca sessions, one worktree each, in parallel or in order. Tasks come from this conversation, a list of Jira keys, GitHub issues, Slack threads or text, or a Jira or GitHub query. Each worker runs /fullsend (or the command named) to the endpoint asked, and this session answers their questions, chains what depends on what, and reports.
-argument-hint: [plan text | jira keys | issue urls | jql:<query> | gh:<search>] [ship to main|ship to prod|open a PR] [unattended]
+description: Run several tasks as supervised Orca sessions, one worktree each, in parallel or in order. Tasks come from this conversation, a list of Jira keys, GitHub issues, Slack threads or text, or a Jira or GitHub query. Each worker runs /fullsend (or the command named) to the endpoint asked, and this session answers their questions, chains what depends on what, and reports. "no supervision" hands the tasks off instead and frees this session.
+argument-hint: [plan text | jira keys | issue urls | jql:<query> | gh:<search>] [ship to main|ship to prod|open a PR] [unattended] [no supervision]
 allowed-tools: Skill, Read, Grep, Glob, Bash, AskUserQuestion, Monitor, ToolSearch, PushNotification
 disable-model-invocation: true
 ---
@@ -10,7 +10,8 @@ questions, start dependent tasks when their dependencies ship, and report. Worke
 work, so you edit no code. Read `~/llmfiles/shared/orca-fleet.md` first: it has the
 commands, the worker contract and the shipping rules.
 
-Ask one plan confirmation up front, then work unattended until every task has settled.
+Ask one plan confirmation up front (none for a single task), then work unattended until
+every task has settled.
 Waiting on the inbox is not a stop: put status notes in the same message as the next
 tool call.
 
@@ -29,6 +30,8 @@ tool call.
   "open a PR". Without one, each `/fullsend` task uses its own default per repo kind.
 - **"unattended"**: skip the plan confirmation, and add "unattended" to every worker's
   arguments.
+- **"no supervision"**: hand the tasks off and end. See
+  [Handoff without supervision](#handoff-without-supervision).
 
 ## 1. Plan
 
@@ -46,7 +49,29 @@ files with a quick grep, not a full read.
   make it depend on all of them.
 
 Show the plan as a table (slug, command, depends on, files) and ask one AskUserQuestion to
-confirm it, unless "unattended" was given.
+confirm it. Skip the question when there is a single task, because the conversation
+already agreed on it, or when "unattended" or "no supervision" was given.
+
+## Handoff without supervision
+
+With "no supervision", create no Run, and do not wait or report on the workers: this session
+may close right after. A worker that cannot ask anyone takes its defaults and files the
+items for the user itself. Tasks that depend on each other cannot be chained without a
+coordinator, so hand off only the tasks with no dependencies. List the rest in the
+summary as not started.
+
+For each task, run `git fetch origin`, then:
+
+```bash
+orca worktree create --repo path:<repo root> --name <slug> --no-parent \
+  --base-branch origin/<base> --agent claude --json \
+  --prompt "/<command> <source or full task text> <endpoint phrase> unattended
+
+<the context block from the spec in Launch, without the authorization line>"
+```
+
+The prompt carries no Orca preamble, so it starts with the slash command, which Claude
+Code expands. Then reply with one line per task: slug, worktree name, and command.
 
 ## 2. Launch
 
@@ -68,6 +93,17 @@ Follow ~/llmfiles/shared/orca-fleet.md: worker mode, and sharing a repo with sib
 
 For a task that is not `/fullsend` or `/bugbounty`, also state the endpoint as an
 instruction, for example "commit the fixes, then ship to main as orca-fleet.md describes".
+
+## Adding tasks to a live Run
+
+This chat keeps its Run while any task in it has not settled. A later `/fleet`, or a plain
+request in this chat to launch more work, adds tasks to that Run. Find it with
+`orca orchestration run-current --json`, and do not call `run-create` while it has open tasks.
+
+Plan the new tasks against the open ones: depend on a running task whose files they touch,
+and run in parallel otherwise. Confirm only when the request is ambiguous. Create them with
+`task-create --run <run_id>`, start the ready ones, and keep the same background wait.
+A "no supervision" request is a handoff, and stays outside the Run.
 
 ## 3. Coordinate
 
