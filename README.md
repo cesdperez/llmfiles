@@ -35,6 +35,7 @@ llmfiles/
 │   ├── agent-docs-bar.md
 │   ├── agentic-clis.md
 │   ├── glab-mr-context.md
+│   ├── orca-fleet.md
 │   └── review-lenses.md
 ├── statusline/
 │   └── statusline-command.sh
@@ -172,6 +173,7 @@ Deliberately not skills: a skill is auto-listed with its description and can act
 
 Current protocols:
 - `agent-docs-bar.md`, the quality bar for files an agent reads, used by `/curatemds` and `/skillbuilder`, and by `/fullsend`, `/bugbounty` and the `code-standards` lens for the docs they touch. It targets Opus 5.5, so update it when a new model ships.
+- `orca-fleet.md`, the Orca orchestration commands, worker mode and shipping rules for runs that share a repo, used by `/fleet` and by `/fullsend` and `/bugbounty` when they run as its workers or with "unattended".
 - `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glablensedreview`, `/locallensedreview`.
 - `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the org-specific lens bindings from `local/`, used by `/glablensedreview` and the per-MR agents of `/glabsummary`.
 
@@ -301,7 +303,7 @@ $locallensedreview branch high
 $glablensedreview <mr-url> --dry-run
 ```
 
-All ten command adapters are explicit-only skills. `agents/openai.yaml` sets
+All eleven command adapters are explicit-only skills. `agents/openai.yaml` sets
 `allow_implicit_invocation: false`; shared knowledge skills retain their own policies.
 
 `codex/compatibility.md` owns argument handling, delegation, tool substitutions, and Codex

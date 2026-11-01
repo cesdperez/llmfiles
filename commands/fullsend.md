@@ -1,6 +1,6 @@
 ---
 description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
-argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod]
+argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod] [unattended]
 allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
 disable-model-invocation: true
 ---
@@ -28,6 +28,9 @@ report is a status note, so the next stage's tool call goes in the same message.
   thread URL (read it in full),
   a backlog or plan file reference, or free text.
 
+- **"unattended"**: nobody will answer questions. See
+  [Worker mode and unattended runs](#worker-mode-and-unattended-runs).
+
 Read `~/llmfiles/local/work.json` for the org values. `platform_directory` and `team_id`
 there name the reviewer roster.
 
@@ -42,6 +45,14 @@ one with no remote.
   Skip Jira and reviewers. Open a PR only when the endpoint is `mr` from an explicit
   phrase. "ship to main" without "open a PR" merges the branch into its base locally, then
   pushes the base if it tracks a remote.
+
+## Worker mode and unattended runs
+
+When the prompt starts with Orca's dispatched-worker preamble, or holds "unattended", follow
+the worker mode section of `~/llmfiles/shared/orca-fleet.md`. Its rules for questions, the
+items only the user can do, and the final report take precedence over the rules below.
+When `git worktree list` shows other worktrees of this repo, also follow its section on
+sharing a repo with sibling worktrees.
 
 ## Ledger
 
@@ -103,8 +114,9 @@ Find the repos involved and the acceptance criteria. Collect every open question
 (ambiguous scope, feature flags to create, test accounts, which environment to verify on,
 whether to leave a server running to try it) and ask them in one batch, each with a
 recommended default. AskUserQuestion holds four questions per call, so use as few calls as
-fit. If nothing is unclear, ask nothing. If asking is not possible (headless or delegated
-run), take the defaults and record them in the ledger.
+fit. If nothing is unclear, ask nothing. In worker mode, ask through the coordinator. If asking
+is not possible (headless, delegated or unattended run), take the defaults and record them
+in the ledger.
 
 Without a Jira key and with a work repo involved, ask whether to create a ticket (call the
 Skill tool with "jira-writing" to write it). With no ticket, skip every Jira step, and use a short task slug

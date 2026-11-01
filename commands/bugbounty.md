@@ -1,6 +1,6 @@
 ---
 description: Run a bug bounty on a running app. Parallel hunters attack it from every angle (functionality, look, responsiveness on desktop and mobile, accessibility, races, load, abuse) with playwright-cli, curl and the app's own tools, then workers fix what matters test-first, in cycles, until it meets a stated bar. Ends at a local branch; "ship to main" or "ship to prod" go further.
-argument-hint: <local|staging|prod|URL> [focus text] [cycles=N] [ship to main|ship to prod]
+argument-hint: <local|staging|prod|URL> [focus text] [cycles=N] [ship to main|ship to prod] [unattended]
 allowed-tools: Agent, SendMessage, Skill, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
 disable-model-invocation: true
 ---
@@ -28,6 +28,17 @@ the ledger and go to stage 7, which always runs.
 - **Endpoint**: default `branch`, fixes committed on a local bounty branch. The phrase
   "ship to main" sets `main`: merge into the base and push. The phrase "ship to prod" sets
   `prod`: also deploy to production, and re-verify there. Only these exact phrases count.
+- **"unattended"**: nobody will answer questions. See the next section.
+
+## Worker mode and unattended runs
+
+When the prompt starts with Orca's dispatched-worker preamble, or holds "unattended", follow
+the worker mode section of `~/llmfiles/shared/orca-fleet.md`. Its rules for questions, the
+items only the user can do, and the final report take precedence over the rules below.
+With no coordinator to ask, intake takes its recommended defaults, which keep load and
+abuse off prod. When
+`git worktree list` shows other worktrees of this repo, also follow its section on sharing
+a repo with sibling worktrees.
 
 ## Ledger
 
