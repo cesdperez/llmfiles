@@ -11,7 +11,8 @@ and the human checkpoints. Delegate the pieces whose conclusion is all you need.
 "Full send" means: ask everything up front in one batch, then work unattended until the
 endpoint is reached or a stage is blocked. Put status notes in the same message as the next
 tool call. Waiting on an agent, a pipeline or the lock is not a stop: the stage ends when
-what it waits on has finished.
+what it waits on has finished. A skill this run calls returns control to the run: its final
+report is a status note, so the next stage's tool call goes in the same message.
 
 ## Arguments
 
@@ -150,7 +151,8 @@ Give the lens agents absolute paths, because sibling worktrees are not the sessi
 working directory. Its autofix commits the fixes.
 
 Run it once. Write any finding it leaves unfixed to the ledger, and carry it into the MR
-description if it matters to a reviewer.
+description if it matters to a reviewer. Its printed report ends the skill, not the run:
+the message that holds it also launches the stage 4 verify worker.
 
 ### 4. Verify
 
