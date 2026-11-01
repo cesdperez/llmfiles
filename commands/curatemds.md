@@ -12,7 +12,7 @@ Read `~/llmfiles/shared/agent-docs-bar.md`. It is the bar for every step below.
 
 Propose first and wait for approval. With `--apply`, go straight from the proposal to applying it.
 
-Leave out model and effort pinning (that is `/whichmodels`) and the user's setup outside this repo. A nested repo with its own git root is outside the scope unless the boundary says otherwise.
+A nested repo with its own git root is outside the scope unless the boundary says otherwise.
 
 ## Quick (default)
 

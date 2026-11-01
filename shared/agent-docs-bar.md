@@ -8,7 +8,7 @@ The bar targets Opus 5.5. When a new model ships, re-read the sources at the end
 
 - The reader is a capable model. Cut what it can infer from the code, `--help`, `package.json` scripts, config files, or general knowledge. Keep the unwritten part: conventions, the reason behind a choice, commands that work, and traps.
 - Deletion test on every sentence: if removing it would not change what the model does, delete the whole sentence.
-- One owner per fact. Other files link to the owner.
+- One owner per fact. Other files link to the owner. The owner lives in the repo: the user's global instructions do not count, because other tools and other people read the repo without them.
 - Two files that disagree make the model pick one at random. Resolve the conflict in the owner.
 - Every claim is true against today's code, and every path and command it names exists.
 - No dated history, migration status, personal names, handles, or personal paths. Git holds the history. A rule a past incident taught stays as a rule with its reason.
