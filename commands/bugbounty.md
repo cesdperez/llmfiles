@@ -2,7 +2,6 @@
 description: Run a bug bounty on a running app. Parallel hunters attack it from every angle (functionality, look, responsiveness on desktop and mobile, accessibility, races, load, abuse) with playwright-cli, curl and the app's own tools, then workers fix what matters test-first, in cycles, until it meets a stated bar. Ends at a local branch; "ship to main" or "ship to prod" go further.
 argument-hint: <local|staging|prod|URL> [focus text] [cycles=N] [ship to main|ship to prod] [unattended]
 allowed-tools: Agent, SendMessage, Skill, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
-disable-model-invocation: true
 ---
 
 **Role:** controller of one bug bounty. You own intake, triage, merges, releases and

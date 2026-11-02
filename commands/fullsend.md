@@ -2,7 +2,6 @@
 description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
 argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod] [unattended]
 allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
-disable-model-invocation: true
 ---
 
 **Role:** controller of one end-to-end delivery run. You own the stage order, the ledger,

@@ -17,7 +17,9 @@ fails or a worker's state is unclear. The commands below are the ones that work.
   reaches them, but `orca terminal send` does not.
 - Orca puts its worker preamble in front of the spec, so a spec that starts with
   `/fullsend` is not expanded as a slash command. Write "Invoke the fullsend skill with:
-  <args>" and the worker calls it through the Skill tool.
+  <args>" and the worker calls it through the Skill tool. That works only for a command
+  without `disable-model-invocation`: the harness refuses the Skill call otherwise, so
+  every command a worker runs (`/fullsend`, `/bugbounty`) stays model-invocable.
 - The preamble tells workers to post nothing to Slack, GitHub or other channels. A spec
   that needs pushes, MRs, PRs or Jira updates must say so.
 - A chat is bound to one Run at a time. A second `run-create` rebinds it without warning,
@@ -51,7 +53,8 @@ orca orchestration worker-list --run <run_id> --json
   `--ack`.
 - A dependent task moves from `pending` to `ready` when its dependencies settle. Nothing
   starts it automatically.
-- Release each worker after its `worker_done`. Otherwise its terminal stays open.
+- Keep a worker's chat open after its `worker_done`: it is the user's record of what ran.
+  `worker-release` closes it, so release a worker only when its worktree is removed.
 - `worker-start` takes `--model` and `--effort`. Pass them only when the user names a
   model. Without them, the worker uses the user's agent default.
 

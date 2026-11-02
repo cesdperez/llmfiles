@@ -120,7 +120,7 @@ delivery, acknowledge it, start the tasks that became ready, and start the wait 
   - endpoint `main`: the branch tip is an ancestor of `origin/<base>`;
   - endpoint `prod`: production serves the change;
   - endpoint `mr`: the MR is open and its pipeline is green.
-  Collect its `Open:` items, then release the worker.
+  Collect its `Open:` items, and leave its chat open.
 - **A failed task**: its dependents stay `pending`. Do not retry it, because `/fullsend`
   has its own fix loops. Report it with the tasks it held back.
 
@@ -132,9 +132,10 @@ The Run is done when every task has settled or is held back by a failed task.
 ## 4. Close
 
 - File the items for the user as `orca-fleet.md` describes.
-- Remove a worker's worktree (`orca worktree rm --worktree path:<path>`) only when its
-  branch is merged into the base and has no uncommitted changes. Keep the others: they
-  are the deliverable or the evidence.
+- Remove a worker's worktree only when its branch is merged into the base and has no
+  uncommitted changes: `worker-release` its dispatch, then
+  `orca worktree rm --worktree path:<path>`. Keep the others and their chats: they are the
+  deliverable or the evidence.
 - Send a PushNotification with the one-line summary.
 
 Then report in plain English, one line per task:
