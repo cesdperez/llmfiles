@@ -35,6 +35,7 @@ llmfiles/
 │   ├── agent-docs-bar.md
 │   ├── agentic-clis.md
 │   ├── glab-mr-context.md
+│   ├── meta-hub.md
 │   ├── orca-fleet.md
 │   └── review-lenses.md
 ├── statusline/
@@ -127,6 +128,10 @@ is needed.
   matching Claude Code transcripts, used by `/dailyworkrecap`.
 - `glab-review-queue.py`, assigned GitLab merge requests with approval state, diffs,
   pipelines, and unresolved threads, used by `/glabsummary`.
+- `orca-add-repo.py`, registers a repo in Orca under the project group of the closest
+  registered repo that contains it, used by `/fleet` and `/fullsend`. The CLI cannot move a
+  repo into a group, so it calls the app's `projectGroup.moveProject` through the CLI's
+  client library, and an Orca update can break that call.
 
 ### Local org settings (`local/`)
 
@@ -139,9 +144,10 @@ Employer-specific values stay out of this public repo. `local/` is gitignored, a
   its path. Commands read it directly.
 - `glab-lens-bindings.md`: org-specific lens bindings for the GitLab review commands.
 - `dailyworkrecap-style.md`: the sample post and team-specific gotchas for `/dailyworkrecap`.
+- `meta-hub-verify.md`: how `/fullsend` runs the hub's shared local stack on a worktree.
 
 ```bash
-mkdir -p ~/llmfiles/local && cp ~/llmfiles/local.example/* ~/llmfiles/local/
+mkdir -p ~/llmfiles/local && cp -n ~/llmfiles/local.example/* ~/llmfiles/local/
 ```
 
 ### Git hooks (`hooks/`)
@@ -174,6 +180,8 @@ Deliberately not skills: a skill is auto-listed with its description and can act
 Current protocols:
 - `agent-docs-bar.md`, the quality bar for files an agent reads, used by `/curatemds` and `/skillbuilder`, and by `/fullsend`, `/bugbounty` and the `code-standards` lens for the docs they touch. It targets Opus 5.5, so update it when a new model ships.
 - `orca-fleet.md`, the Orca orchestration commands, worker mode and shipping rules for runs that share a repo, used by `/fleet` and by `/fullsend` and `/bugbounty` when they run as its workers or with "unattended".
+- `meta-hub.md`, checkouts, task ordering and verify for runs whose session sits in a
+  checkout that holds other repos, such as a `meta` repo, used by `/fleet` and `/fullsend`.
 - `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glablensedreview`, `/locallensedreview`.
 - `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the org-specific lens bindings from `local/`, used by `/glablensedreview` and the per-MR agents of `/glabsummary`.
 

@@ -37,8 +37,9 @@ tool call.
 
 For each task, record a slug, the source or a self-contained description, the command
 (`fullsend` by default, or the one the user named, for example `bugbounty` or
-`locallensedreview --autofix`), the repo, and the files it will likely touch. Find those
-files with a quick grep, not a full read.
+`locallensedreview --autofix`), the repos, and the files it will likely touch. Find those
+files with a quick grep, not a full read. Read `~/llmfiles/shared/meta-hub.md` when
+this session runs in a hub as that file defines it: its ordering rules apply.
 
 - **Group** small related changes into one task. Keep each task to what one reviewer can
   read in one sitting.
@@ -64,20 +65,24 @@ For each task, run `git fetch origin`, then:
 
 ```bash
 orca worktree create --repo path:<repo root> --name <slug> --no-parent \
-  --base-branch origin/<base> --agent claude --json \
+  --base-branch origin/<base> [--reference <JIRA-KEY>] --agent claude --json \
   --prompt "/<command> <source or full task text> <endpoint phrase> unattended
 
 <the context block from the spec in Launch, without the authorization line>"
 ```
 
-The prompt carries no Orca preamble, so it starts with the slash command, which Claude
-Code expands. Then reply with one line per task: slug, worktree name, and command.
+Pass one `--reference` per Jira key the task comes from, so the Orca card links its
+ticket. Under a hub, register the repo and replace `--no-parent` with the parent
+`orca-fleet.md` gives the handoff's lead or its other tasks. Keep `--agent` and `--prompt`:
+a handoff has no worker to start. The prompt carries no
+Orca preamble, so it starts with the slash command, which Claude Code expands. Then reply with one line per task: slug, worktree name, and command.
 
 ## 2. Launch
 
 Create one Run, then one task per row with its `--deps`. Then start every ready task, up to
 the cap. Run `git fetch origin` before each start. Each worker gets a new top-level
-worktree named after the slug, cut from `origin/<base>`.
+worktree named after the slug, cut from `origin/<base>`. A task from Jira or under a hub
+gets its worktree as `orca-fleet.md` shows.
 
 Each spec is self-contained, because the worker cannot see this conversation:
 
@@ -103,6 +108,7 @@ request in this chat to launch more work, adds tasks to that Run. Find it with
 Plan the new tasks against the open ones: depend on a running task whose files they touch,
 and run in parallel otherwise. Confirm only when the request is ambiguous. Create them with
 `task-create --run <run_id>`, start the ready ones, and keep the same background wait.
+Under a hub, their worktrees go under the Run's existing lead.
 A "no supervision" request is a handoff, and stays outside the Run.
 
 ## 3. Coordinate

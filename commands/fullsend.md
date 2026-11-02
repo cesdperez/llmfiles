@@ -67,6 +67,11 @@ Update it at each stage boundary.
 On start, if a ledger exists for the same source, resume from its stage. A ledger for
 another source belongs to an unfinished run: ask whether to resume it or replace it.
 
+When the home checkout is a hub, as `~/llmfiles/shared/meta-hub.md` defines it, read that
+file too. Several runs share a hub, so wherever this file names `fullsend-ledger.md` or
+`fullsend-qa/`, use `fullsend-ledger-<jira-key>.md` and `fullsend-qa-<jira-key>/`, and
+leave other sources' ledgers alone.
+
 ## Blocked stages
 
 A stage is blocked when it cannot proceed for a reason the run cannot fix: no remote, a
@@ -135,7 +140,15 @@ card `--unread` and give one concise instruction.
   with "glab-cli"; the later stages use it too). Use the same branch
   name in every repo. Record the base per repo in the ledger: stage 3 diffs against it.
 - Work in the current checkout for the home repo. For each other repo, add a sibling
-  worktree `<repo>-<jira-key>` from the base and record its path.
+  worktree `<repo>-<jira-key>` from the base and record its path. Inside Orca, register the
+  repo with `python3 ~/llmfiles/scripts/orca-add-repo.py <repo root>`, then create the
+  worktree with `orca worktree create --repo path:<repo root> --name <repo>-<jira-key>
+  --parent-worktree current --base-branch origin/<base> --reference <jira-key> --json`,
+  so its card links the ticket. `worktree set` cannot add the link later. Without a ticket,
+  leave out `--reference`: Orca reads its value as a Jira key.
+- At a hub, leave the home checkout on its branch: every involved repo gets a worktree.
+  The first takes `--parent-worktree current`, and the others take
+  `--parent-worktree path:<first worktree>`, so the run folds under one card.
 - Jira: assign to the user and move to In Progress.
 
 ### 2. Implement

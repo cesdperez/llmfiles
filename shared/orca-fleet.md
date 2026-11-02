@@ -29,6 +29,11 @@ fails or a worker's state is unclear. The commands below are the ones that work.
 - `worker-start` on a task with `--worktree new-top-level --base-branch origin/<base>`
   cuts the worktree at start time. Run `git fetch origin` just before, so a dependent task
   builds on what its dependencies shipped.
+- Only `orca worktree create --reference <jira key or url>` links a worktree to its Jira
+  issue on the Orca card. `worker-start` and `worktree set` take no `--reference`, and a link
+  cannot be added later. `worker-start` sets no parent worktree either. So a task that needs
+  a Jira link or a parent gets its worktree from `worktree create`, without `--agent`, and
+  its worker from `worker-start --worktree path:<path>`.
 
 ## Coordinator commands
 
@@ -38,6 +43,11 @@ orca orchestration task-create --task-title "<title>" --spec "<spec>" [--deps '[
 orca orchestration task-list --ready --brief --json
 orca orchestration worker-start --task <task_id> --worktree new-top-level \
   --repo path:<repo root> --name <slug> --base-branch origin/<base> --agent claude --json
+# A task with a Jira source: the worktree first, with one --reference per key, then the worker.
+orca worktree create --repo path:<repo root> --name <slug> --no-parent \
+  --base-branch origin/<base> --reference <JIRA-KEY> --json
+orca orchestration worker-start --task <task_id> --worktree path:<worktree path> \
+  --agent claude --json
 orca orchestration check --run <run_id> --wait --types worker_done,escalation,question \
   --timeout-ms 3600000 --json
 orca orchestration reply --id <message_id> --body "<answer>" --json
@@ -57,6 +67,21 @@ orca orchestration worker-list --run <run_id> --json
   `worker-release` closes it, so release a worker only when its worktree is removed.
 - `worker-start` takes `--model` and `--effort`. Pass them only when the user names a
   model. Without them, the worker uses the user's agent default.
+
+## Repos under a hub
+
+These rules apply when the session runs in a hub, as `~/llmfiles/shared/meta-hub.md`
+defines it. In a single repo, worktrees stay as above.
+
+- Register a repo before its first worktree with
+  `python3 ~/llmfiles/scripts/orca-add-repo.py <repo path>`, never a bare `orca repo add`.
+  It files the repo under the hub's project group. A `warning` in its output does not stop
+  the run.
+- Nest each batch of work under the hub's card, so each one folds on its own. A batch is
+  a Run, or the tasks of one "no supervision" handoff:
+  - its first worktree, the lead: `--parent-worktree path:<hub root>`;
+  - every other worktree of the batch, in any repo: `--parent-worktree path:<lead path>`.
+- Remove the lead last. While any child of the lead is kept, keep the lead.
 
 ## Worker mode
 
