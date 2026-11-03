@@ -10,9 +10,10 @@ fails or a worker's state is unclear. The commands below are the ones that work.
 
 ## Behaviour that is not in Orca's docs
 
-- A chat session can be the coordinator. Orca also pushes "You have N orchestration
-  messages" into the coordinator chat, but only while a turn is running. Keep a
-  background `check --wait` so an idle coordinator is woken too.
+- A chat session can be the coordinator. Orca pushes "You have N orchestration
+  messages" into the coordinator chat for every message, idle or not, including each
+  worker's heartbeat every 5 minutes. The push does not say the type and cannot be turned
+  off. Keep a background `check --wait` running, because a push is best-effort.
 - Workers start in the user's default mode, usually a chat. `send --to dispatch:<id>`
   reaches them, but `orca terminal send` does not.
 - Orca puts its worker preamble in front of the spec, so a spec that starts with
@@ -49,7 +50,8 @@ orca worktree create --repo path:<repo root> --name <slug> --no-parent \
 orca orchestration worker-start --task <task_id> --worktree path:<worktree path> \
   --agent claude --json
 orca orchestration check --run <run_id> --wait --types worker_done,escalation,question \
-  --timeout-ms 3600000 --json
+  --timeout-ms 3600000 --json 2>/dev/null \
+  | jq 'if .result.messages then .result.messages |= map(select(.type != "heartbeat")) else . end'
 orca orchestration reply --id <message_id> --body "<answer>" --json
 orca orchestration send --to dispatch:<dispatch_id> --subject "<subject>" --body "<text>" --json
 orca orchestration check --run <run_id> --ack <delivery_id> --json
@@ -58,7 +60,11 @@ orca orchestration worker-list --run <run_id> --json
 ```
 
 - Start the wait with Bash `run_in_background` and a 2-hour timeout: its exit re-invokes
-  the session.
+  the session. Its stderr carries a keepalive line every 15 seconds, and the `jq` drops the
+  heartbeats saved up in the delivery. The ack still covers them.
+- While the wait runs, answer a push with no tool call and no text. The wait wakes the
+  session for every message that needs action, and the heartbeats are acked with that
+  delivery. Without a running wait, start one.
 - A delivery replays until it is acknowledged. Process every message in it before the
   `--ack`.
 - A dependent task moves from `pending` to `ready` when its dependencies settle. Nothing

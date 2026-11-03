@@ -115,6 +115,8 @@ A "no supervision" request is a handoff, and stays outside the Run.
 
 Keep one background `check --wait` running. Each time it returns, process the whole
 delivery, acknowledge it, start the tasks that became ready, and start the wait again.
+An Orca push that arrives while the wait runs gets no tool call and no reply, as
+`orca-fleet.md` explains.
 
 - **question**: answer from this conversation and the repo. A decision only the user
   should make: reply with the default the worker proposed, and add the question to the
