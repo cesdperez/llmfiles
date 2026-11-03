@@ -154,7 +154,7 @@ def collect_events(day):
     paths = {}
     ids = {e["project_id"] for e in data if e.get("project_id")}
     with ThreadPoolExecutor(max_workers=16) as pool:
-        for pid, project in zip(ids, pool.map(lambda i: glab(f"/projects/{i}"), ids)):
+        for pid, project in zip(ids, pool.map(lambda i: glab(f"/projects/{i}"), ids), strict=True):
             if project:
                 paths[pid] = project["path_with_namespace"].replace(GITLAB_GROUP, "", 1)
 

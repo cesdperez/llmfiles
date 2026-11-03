@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
-# Checks added lines only, so the backlog in TODO.md never blocks an unrelated commit.
 set -euo pipefail
 
+cd "$(git rev-parse --show-toplevel)"
+
+missing=$(for tool in yamllint shellcheck ruff; do command -v "$tool" >/dev/null || echo "$tool"; done)
+if [ -n "$missing" ]; then
+  echo "Missing linters, install with: brew install $(echo "$missing" | tr '\n' ' ')" >&2
+  exit 1
+fi
+
+# Checks added lines only, so the backlog in TODO.md never blocks an unrelated commit.
 hits=$(git diff --cached -U0 --no-color -- . ':!shared/CLAUDE.md' ':!hooks/pre-commit' \
   | awk '/^\+\+\+ /{file=substr($0,7)} /^\+[^+]/ && /—/{print file": "substr($0,2)}')
 
@@ -10,3 +18,10 @@ if [ -n "$hits" ]; then
   echo "$hits" >&2
   exit 1
 fi
+
+status=0
+yamllint --strict . || status=1
+git ls-files -z '*.sh' hooks/pre-commit | xargs -0 shellcheck || status=1
+ruff check --quiet . || status=1
+python3 hooks/check-repo.py || status=1
+exit "$status"

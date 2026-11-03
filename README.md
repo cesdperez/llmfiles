@@ -25,7 +25,8 @@ llmfiles/
 ├── claude-hooks/
 │   └── subagent-context-budget.py
 ├── hooks/
-│   └── pre-commit
+│   ├── pre-commit
+│   └── check-repo.py
 ├── scripts/
 │   └── <script-name>.py
 ├── local.example/
@@ -153,7 +154,16 @@ mkdir -p ~/llmfiles/local && cp -n ~/llmfiles/local.example/* ~/llmfiles/local/
 ### Git hooks (`hooks/`)
 
 `pre-commit` rejects em dashes in staged lines, so the writing rule in `shared/CLAUDE.md` holds
-without a model remembering it.
+without a model remembering it. It then lints the whole tracked tree and blocks the commit on
+any finding:
+
+- `yamllint --strict`, configured in `.yamllint`.
+- `shellcheck` on the shell scripts.
+- `ruff check`, configured in `ruff.toml`.
+- `check-repo.py`, for what the agent CLIs load but no linter sees: frontmatter that parses as
+  YAML, required keys, skill and agent names that match their file, model aliases and effort
+  levels, Codex agent TOML, example JSON, and every `~/llmfiles/` path and relative Markdown
+  link pointing at a file that exists.
 
 ### Claude Code hooks (`claude-hooks/`)
 
@@ -193,7 +203,8 @@ Clone to `~/llmfiles`. Commands, adapters, and settings reference files by that 
 git clone git@github.com:cesdperez/llmfiles.git ~/llmfiles
 ```
 
-Prerequisites: `python3` for the scripts and hooks, `jq` for the status line, and an
+Prerequisites: `python3` (3.11 or later) for the scripts and hooks, `yamllint`, `shellcheck` and
+`ruff` for the git hook (`brew install yamllint shellcheck ruff`), `jq` for the status line, and an
 authenticated `glab` for the GitLab commands. The GitLab and recap commands also need
 `local/work.json` (see [Local org settings](#local-org-settings-local)), and the review
 commands expect the GitLab group cloned under its `repo_root`. Other CLIs with companion skills are

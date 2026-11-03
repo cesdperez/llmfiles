@@ -1,5 +1,5 @@
 ---
-description: Autonomous multi-lens review of a GitLab MR. Fans out parallel read-only lens agents, then posts inline diff comments for findings scoring 7+ without asking. Re-invocation does a follow-up pass like a human reviewer: resolves what got fixed, answers what got questioned, reviews only what is new. Also the deep path /glabsummary dispatches high-risk MRs to.
+description: 'Autonomous multi-lens review of a GitLab MR. Fans out parallel read-only lens agents, then posts inline diff comments for findings scoring 7+ without asking. Re-invocation does a follow-up pass like a human reviewer: resolves what got fixed, answers what got questioned, reviews only what is new. Also the deep path /glabsummary dispatches high-risk MRs to.'
 argument-hint: <mr-url|iid> [--threshold N] [--dry-run] [--only a,b] [--skip a,b] [--no-cross-repo] [--force-full]
 allowed-tools: Agent, Read, Grep, Glob, Bash, PushNotification
 ---

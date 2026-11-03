@@ -1,6 +1,6 @@
 ---
 description: Curate the agent-facing .md files in a repo (CLAUDE.md, AGENTS.md, rules, skills, commands, agents, and the docs they route to) to the Opus 5.5 bar, so agents load less and hit fewer wrong turns. Quick inline pass by default; --deep adds claims checked against the code, Anthropic's prompt audit, additions, and an adversarial review of the diff.
-argument-hint: [scope or boundary, e.g. "only docs/" or "stop at group level"] [--deep] [--apply]
+argument-hint: '[scope or boundary, e.g. "only docs/" or "stop at group level"] [--deep] [--apply]'
 disable-model-invocation: true
 ---
 

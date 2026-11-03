@@ -1,6 +1,6 @@
 ---
-description: Recommend how to run the task I am about to start: solo session, subagents, a Workflow, or an agent team. Says why, what it costs, and when to switch.
-argument-hint: [the task, if not already described in the session]
+description: 'Recommend how to run the task I am about to start: solo session, subagents, a Workflow, or an agent team. Says why, what it costs, and when to switch.'
+argument-hint: '[the task, if not already described in the session]'
 ---
 
 # /whichagents

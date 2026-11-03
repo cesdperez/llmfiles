@@ -36,7 +36,7 @@ def parse_ts(s):
 def api(path, attempts=3):
     """Returns parsed JSON, or None. Never raises: a single hung or failed call
     must degrade one field, not abort the whole report."""
-    for attempt in range(attempts):
+    for _ in range(attempts):
         try:
             r = subprocess.run(
                 ["glab", "api", path], capture_output=True, text=True, timeout=30
@@ -76,8 +76,8 @@ def diff_stats(pid, iid):
     files, added, removed, paths = 0, 0, 0, []
     for c in d.get("changes", []):
         files += 1
-        a = sum(1 for l in c.get("diff", "").split("\n") if l.startswith("+"))
-        r = sum(1 for l in c.get("diff", "").split("\n") if l.startswith("-"))
+        a = sum(1 for line in c.get("diff", "").split("\n") if line.startswith("+"))
+        r = sum(1 for line in c.get("diff", "").split("\n") if line.startswith("-"))
         added, removed = added + a, removed + r
         paths.append({"path": c["new_path"], "added": a, "removed": r})
     paths.sort(key=lambda p: -(p["added"] + p["removed"]))

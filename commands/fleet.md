@@ -1,6 +1,6 @@
 ---
 description: Run several tasks as supervised Orca sessions, one worktree each, in parallel or in order. Tasks come from this conversation, a list of Jira keys, GitHub issues, Slack threads or text, or a Jira or GitHub query. Each worker runs /fullsend (or the command named) to the endpoint asked, and this session answers their questions, chains what depends on what, and reports. "no supervision" hands the tasks off instead and frees this session.
-argument-hint: [plan text | jira keys | issue urls | jql:<query> | gh:<search>] [ship to main|ship to prod|open a PR] [unattended] [no supervision]
+argument-hint: '[plan text | jira keys | issue urls | jql:<query> | gh:<search>] [ship to main|ship to prod|open a PR] [unattended] [no supervision]'
 allowed-tools: Skill, Read, Grep, Glob, Bash, AskUserQuestion, Monitor, ToolSearch, PushNotification
 disable-model-invocation: true
 ---
