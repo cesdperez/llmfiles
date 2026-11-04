@@ -29,24 +29,32 @@ report is a status note, so the next stage's tool call goes in the same message.
 
 - **"unattended"**: nobody will answer questions. See
   [Worker mode and unattended runs](#worker-mode-and-unattended-runs).
-- **"in a new worktree"** or **"in a new Orca worktree"**: hand the run off, so it gets its own chat on the
-  new card, and end this session's run. Ask no intake questions here: the new session asks
-  them. Under a hub, register the repo first as `orca-fleet.md` describes. Then run
-  `git fetch origin` and:
-
-  ```bash
-  orca worktree create --repo path:<repo root> --name <slug> --parent-worktree current \
-    --base-branch origin/<base> [--reference <JIRA-KEY>] --agent claude --surface chat --json \
-    --prompt "/fullsend <task source> <endpoint phrase>
-
-  <everything this conversation agreed about the task>"
-  ```
-
-  The new session sees only the prompt, so it carries every decision made here. Reply with
-  the worktree name.
+- **"in a new worktree"** or **"in a new Orca worktree"**: hand the run off. See
+  [Handoff to a new worktree](#handoff-to-a-new-worktree).
 
 Read `~/llmfiles/local/work.json` for the org values. `platform_directory` and `team_id`
 there name the reviewer roster.
+
+## Handoff to a new worktree
+
+Hand the run off when the arguments ask for a new worktree, or when this session runs in
+Orca at a hub, as `~/llmfiles/shared/meta-hub.md` defines it. A run that works from this
+chat in another worktree leaves that worktree's card with no chat, so the new card gets
+its own session instead. Ask no intake questions here: the new session asks them.
+
+At a hub, the worktree is for the repo the task changes most, registered first as
+`orca-fleet.md` describes. Run `git fetch origin` in it, then:
+
+```bash
+orca worktree create --repo path:<repo root> --name <slug> --parent-worktree current \
+  --base-branch origin/<base> [--reference <JIRA-KEY>] --agent claude --surface chat --json \
+  --prompt "/fullsend <task source> <endpoint phrase> [unattended]
+
+<everything this conversation agreed about the task, and the other repos it touches>"
+```
+
+The new session sees only the prompt, so it carries every decision made here. Reply with
+the worktree name and end the run.
 
 ## Repo kind
 
@@ -161,7 +169,7 @@ card `--unread` and give one concise instruction.
   --parent-worktree current --base-branch origin/<base> --reference <jira-key> --json`,
   so its card links the ticket. `worktree set` cannot add the link later. Without a ticket,
   leave out `--reference`: Orca reads its value as a Jira key.
-- At a hub, leave the home checkout on its branch: every involved repo gets a worktree.
+- At a hub outside Orca, leave the home checkout on its branch: every involved repo gets a worktree.
   The first takes `--parent-worktree current`, and the others take
   `--parent-worktree path:<first worktree>`, so the run folds under one card.
 - Jira: assign to the user and move to In Progress.
