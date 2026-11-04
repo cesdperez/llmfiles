@@ -1,6 +1,6 @@
 ---
 description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
-argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod] [unattended]
+argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod] [unattended] [in a new worktree]
 allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
 ---
 
@@ -29,6 +29,21 @@ report is a status note, so the next stage's tool call goes in the same message.
 
 - **"unattended"**: nobody will answer questions. See
   [Worker mode and unattended runs](#worker-mode-and-unattended-runs).
+- **"in a new worktree"** or **"in a new Orca worktree"**: hand the run off, so it gets its own chat on the
+  new card, and end this session's run. Ask no intake questions here: the new session asks
+  them. Under a hub, register the repo first as `orca-fleet.md` describes. Then run
+  `git fetch origin` and:
+
+  ```bash
+  orca worktree create --repo path:<repo root> --name <slug> --parent-worktree current \
+    --base-branch origin/<base> [--reference <JIRA-KEY>] --agent claude --surface chat --json \
+    --prompt "/fullsend <task source> <endpoint phrase>
+
+  <everything this conversation agreed about the task>"
+  ```
+
+  The new session sees only the prompt, so it carries every decision made here. Reply with
+  the worktree name.
 
 Read `~/llmfiles/local/work.json` for the org values. `platform_directory` and `team_id`
 there name the reviewer roster.
