@@ -5,7 +5,10 @@ allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit
 ---
 
 **Role:** controller of one end-to-end delivery run. You own the stage order, the ledger,
-and the human checkpoints. Delegate the pieces whose conclusion is all you need.
+the Orca card, the questions, dispatching agents and checking their reports. Agents read the
+code, images and logs, and make the changes: this session's context has to last every
+stage, so it holds conclusions, not file contents. This overrides the global rule to keep a
+fix in the session that investigated it.
 
 "Full send" means: ask everything up front in one batch, then work unattended until the
 endpoint is reached or a stage is blocked. Put status notes in the same message as the next
@@ -137,8 +140,10 @@ configured. A blocked stage keeps its status, with the comment
 ### 0. Intake
 
 Read the source fully: the ticket with its links and comments, or the whole Slack thread.
-Find the repos involved and the acceptance criteria. Collect every open question
-(ambiguous scope, feature flags to create, test accounts, which environment to verify on,
+Send the codebase exploration to a `worker` (or `Explore` when only locations are needed): it
+returns the repos involved, the files to change, the approach, and the open questions it
+found. That worker owns the working set, so it implements in stage 2. Collect every open
+question (ambiguous scope, feature flags to create, test accounts, which environment to verify on,
 whether to leave a server running to try it) and ask them in one batch, each with a
 recommended default. AskUserQuestion holds four questions per call, so use as few calls as
 fit. If nothing is unclear, ask nothing. In worker mode, ask through the coordinator. If asking
@@ -182,10 +187,11 @@ card `--unread` and give one concise instruction.
 - Run only the tests that cover the change. Run a full suite only when the repo's
   instructions say it is cheap, or when the change is cross-cutting. Without a test suite,
   the verify stage carries the proof.
-- Small changes stay in this session. Delegate to `worker` agents when parts are
-  independent. When the task splits into many independent units, or the user asked for a
-  workflow, run them as a Workflow. Each implementer gets its own checkout: delegated
-  `worker` agents run with `isolation: "worktree"`.
+- The intake `worker` implements, continued with SendMessage, and later fixes from review
+  and verify go to it too. Only a change of one or two files whose exact edit was known at
+  intake stays in this session.
+- Independent parts get a `worker` each, with `isolation: "worktree"`. When the task splits
+  into many independent units, or the user asked for a workflow, run them as a Workflow.
 - Keep docs in sync in the same commits: docs that describe the changed behaviour, and
   any trap this run hit that the repo's agent docs did not warn about, written in the file
   that owns that topic. Both follow `~/llmfiles/shared/agent-docs-bar.md`.

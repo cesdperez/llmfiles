@@ -120,9 +120,11 @@ An Orca push that arrives while the wait runs gets no tool call and no reply, as
 - **question**: answer from this conversation and the repo. A decision only the user
   should make: reply with the default the worker proposed, and add the question to the
   items for the user.
-- **escalation**: do what unblocks the worker when this session can, for example when a
-  sibling's push conflicts with it. Otherwise reply that the stage stays blocked, and add
-  it to the items for the user.
+- **escalation**: unblock the worker with Orca, git, glab or Jira actions this session can
+  take, for example approving or merging a sibling's MR. An unblock that needs a code change
+  or an investigation becomes a new task in the Run: reply to the worker that it waits for
+  that task, and tell it when the task settles.
+  Otherwise reply that the stage stays blocked, and add it to the items for the user.
 - **worker_done**: check the claim, because the dependent tasks build on it:
   - endpoint `main`: the branch tip is an ancestor of `origin/<base>`;
   - endpoint `prod`: production serves the change;
