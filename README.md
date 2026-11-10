@@ -35,6 +35,7 @@ llmfiles/
 │   ├── CLAUDE.md
 │   ├── agent-docs-bar.md
 │   ├── agentic-clis.md
+│   ├── digest-message.md
 │   ├── glab-mr-context.md
 │   ├── meta-hub.md
 │   ├── orca-fleet.md
@@ -129,6 +130,10 @@ is needed.
   matching Claude Code transcripts, used by `/dailyworkrecap`.
 - `glab-review-queue.py`, assigned GitLab merge requests with approval state, diffs,
   pipelines, and unresolved threads, used by `/glabsummary`.
+- `merge-digest.py`, the draft Slack message for `/teamdigest` and `/repodigest`: what a team
+  or a repo merged, grouped by Jira key, flagged when not yet in prod. It prints text rather
+  than JSON, so the command only rewords titles. For a team it reads ownership from
+  `platform_directory` in `local/work.json`, and parses that YAML with Ruby.
 - `orca-add-repo.py`, registers a repo in Orca under the project group of the closest
   registered repo that contains it, used by `/fleet` and `/fullsend`. The CLI cannot move a
   repo into a group, so it calls the app's `projectGroup.moveProject` through the CLI's
@@ -140,7 +145,8 @@ Employer-specific values stay out of this public repo. `local/` is gitignored, a
 `local.example/` holds a template for each file:
 
 - `work.json`: repo root, GitLab group, git author, Jira URL and project, Slack IDs, timezone,
-  and the platform directory and team that `/fullsend` picks reviewers from.
+  and the platform directory and team that `/fullsend` picks reviewers from and `/teamdigest`
+  reads team repos and members from.
   The scripts load it through `scripts/work_config.py`, and `LLMFILES_WORK_CONFIG` overrides
   its path. Commands read it directly.
 - `glab-lens-bindings.md`: org-specific lens bindings for the GitLab review commands.
@@ -194,6 +200,7 @@ Current protocols:
 - `meta-hub.md`, checkouts, task ordering and verify for runs whose session sits in a
   checkout that holds other repos, such as a `meta` repo, used by `/fleet` and `/fullsend`.
 - `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glablensedreview`, `/locallensedreview`.
+- `digest-message.md`, the draft format, wording, print and publish steps shared by `/teamdigest` and `/repodigest`.
 - `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the org-specific lens bindings from `local/`, used by `/glablensedreview` and the per-MR agents of `/glabsummary`.
 
 ## Installation
