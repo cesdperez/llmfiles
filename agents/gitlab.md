@@ -4,7 +4,7 @@ description: Creates GitLab merge requests using glab CLI. Use when the user wan
 tools:
   - Bash
 model: sonnet
-effort: low
+effort: medium
 skills:
   - glab-cli
   - plainenglish

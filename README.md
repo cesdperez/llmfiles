@@ -259,7 +259,8 @@ replacing it:
 ]
 ```
 
-Anything spawned without a named agent follows `CLAUDE_CODE_SUBAGENT_MODEL`. Set it in the
+Agents without a `model` of their own follow `CLAUDE_CODE_SUBAGENT_MODEL`, except the built-in
+Plan, which inherits the session model unless `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is set. Set it in the
 `env` block of `~/.claude/settings.json` so ad hoc delegation, whose task shape is unknown, also runs on Opus:
 
 ```json
