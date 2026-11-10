@@ -107,6 +107,8 @@ list, the target, and the output contract.
 
 6. **performance**: N+1 queries, poor algorithmic complexity, redundant work in hot paths,
    unnecessary allocations, blocking I/O where it matters, missing pagination or indexes.
+   For a schema or data migration, judge how long locks stay held across the whole script
+   (it often runs as one transaction), not only whether a single statement escalates.
    - NOT: micro-optimizations with no measurable impact.
 
 7. **cross-repo-impact**: Owns its own discovery. Enumerate the changed public surface,
