@@ -350,8 +350,9 @@ supplies any further differences. Codex agent definitions load the corresponding
 `agents/<name>.md` body; `explorer` maps to Claude's `Explore`.
 
 Codex agents use `gpt-6.1-sol` at high effort for `worker`, `reviewer`, and
-`general-purpose`, and medium effort for `reviewer-fast`. `explorer`, `worker-fast`, and
-`gitlab` use `gpt-6-luna` at high effort for narrower tasks. These are explicit model IDs,
+`general-purpose`, and medium effort for `reviewer-fast`. `worker-fast` and `gitlab` use
+`gpt-6.1-terra` at medium effort, which needs Codex CLI 0.165.0 or later. `explorer` uses
+`gpt-6-luna` at high effort, whose usage limits suit high-volume search. These are explicit model IDs,
 not Claude aliases or equivalent effort levels. Choose available models in the TOML files
 if your account does not support them; `$whichmodels` proposes changes to Codex settings.
 
