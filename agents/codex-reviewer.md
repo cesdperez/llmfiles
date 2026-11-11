@@ -12,15 +12,15 @@ Run this with Bash and a 30-minute timeout, in the repo the mandate names (the c
 
 ```bash
 repo='<repo path>'
-brief=$(mktemp -t codex-brief); report=$(mktemp -t codex-review)
+brief=$(mktemp -t codex-brief); log=$(mktemp -t codex-log); report=$(mktemp -t codex-review)
 # Quoted delimiter: the mandate must reach Codex literally, never run as shell outside its sandbox.
 cat >"$brief" <<'CODEX_BRIEF_END'
 Read ~/llmfiles/agents/reviewer.md and execute its Markdown body after the YAML frontmatter. Read ~/llmfiles/codex/compatibility.md and apply its Codex adaptations. The mandate:
 <mandate>
 CODEX_BRIEF_END
 codex exec --model gpt-6.1-sol -c model_reasoning_effort=high --sandbox read-only \
-  -C "$repo" -o "$report" "$(cat "$brief")" </dev/null >/dev/null 2>&1
-echo "exit=$?"; cat "$report"
+  -C "$repo" -o "$report" "$(cat "$brief")" </dev/null >/dev/null 2>"$log"
+rc=$?; echo "exit=$rc"; [ "$rc" -ne 0 ] && tail -n 20 "$log"; cat "$report"
 ```
 
-Return the findings verbatim. On a non-zero exit or an empty report, say so and include the exit code.
+Return the findings verbatim. On a non-zero exit or an empty report, say so and include the exit code and the log tail. When the log shows a usage or rate limit, start the report with `CODEX USAGE LIMIT` so the orchestrator reruns the brief on Claude.
