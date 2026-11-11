@@ -36,6 +36,7 @@ llmfiles/
 │   ├── agent-docs-bar.md
 │   ├── agentic-clis.md
 │   ├── digest-message.md
+│   ├── digest-page.html
 │   ├── glab-mr-context.md
 │   ├── meta-hub.md
 │   ├── orca-fleet.md
@@ -134,6 +135,10 @@ is needed.
   or a repo merged, grouped by Jira key, flagged when not yet in prod. It prints text rather
   than JSON, so the command only rewords titles. For a team it reads ownership from
   `platform_directory` in `local/work.json`, and parses that YAML with Ruby.
+- `digest-page.py`, renders the written `/teamdigest` or `/repodigest` digest and a notes JSON (areas, a TL;DR
+  per repo, a line per epic) into the filterable Artifact page from `shared/digest-page.html`, with changes grouped
+  under their tickets' Jira epics through `twg` and the rest as unplanned work. For
+  `/repodigest` the notes group one repo's changes instead of areas of repos.
 - `orca-add-repo.py`, registers a repo in Orca under the project group of the closest
   registered repo that contains it, used by `/fleet` and `/fullsend`. The CLI cannot move a
   repo into a group, so it calls the app's `projectGroup.moveProject` through the CLI's
@@ -201,6 +206,7 @@ Current protocols:
   checkout that holds other repos, such as a `meta` repo, used by `/fleet` and `/fullsend`.
 - `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glablensedreview`, `/locallensedreview`.
 - `digest-message.md`, the draft format, wording, print and publish steps shared by `/teamdigest` and `/repodigest`.
+- `digest-page.html`, the Artifact page template `scripts/digest-page.py` fills for `/teamdigest` and `/repodigest`.
 - `glab-mr-context.md`, GitLab MR setup (batched fetch, read-only MR-head worktree, diff anchor map, prior-pass marker check) plus the org-specific lens bindings from `local/`, used by `/glablensedreview` and the per-MR agents of `/glabsummary`.
 
 ## Installation

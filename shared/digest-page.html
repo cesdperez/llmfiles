@@ -1,0 +1,333 @@
+<title>/*TITLE*/</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: summary first (totals, work per epic and unplanned, what is not in prod), then a sticky filter bar over repo rows grouped by area that expand into the MR list. */
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --sunk: #eceef3; --line: #dcdfe7;
+  --fg: #1a1d26; --muted: #5d6475; --faint: #8a90a0;
+  --accent: #2c56c9; --accent-soft: #e5ecfb;
+  --prod: #1d7a55; --prod-soft: #dff2e9;
+  --wait: #a8660c; --wait-soft: #fbefd9;
+  --none: #9aa1b1; --none-soft: #e9ebf0;
+  --display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
+  --body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12141a; --surface: #1a1d25; --sunk: #22252f; --line: #2e323e;
+  --fg: #e7e9ef; --muted: #a2a8b8; --faint: #737a8c;
+  --accent: #7b9cf0; --accent-soft: #232e4d;
+  --prod: #4cc08f; --prod-soft: #173328;
+  --wait: #e6a646; --wait-soft: #3a2b14;
+  --none: #6b7285; --none-soft: #262a35; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12141a; --surface: #1a1d25; --sunk: #22252f; --line: #2e323e;
+  --fg: #e7e9ef; --muted: #a2a8b8; --faint: #737a8c;
+  --accent: #7b9cf0; --accent-soft: #232e4d;
+  --prod: #4cc08f; --prod-soft: #173328;
+  --wait: #e6a646; --wait-soft: #3a2b14;
+  --none: #6b7285; --none-soft: #262a35; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); padding-inline: 16px; padding-block: 0 64px }
+.wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px }
+a { color: var(--accent); text-decoration: none }
+a:hover { text-decoration: underline }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px }
+code { font: 0.86em var(--mono); background: var(--sunk); padding: 1px 5px; border-radius: 4px }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0 }
+.eyebrow { font: 600 12px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.num { font-variant-numeric: tabular-nums }
+
+header { padding-top: 40px; display: flex; flex-direction: column; gap: 20px }
+header h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.05; letter-spacing: -.01em }
+header h1 span { color: var(--muted); font-weight: 600 }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px }
+.stat b { font: 700 28px/1.1 var(--display); font-variant-numeric: tabular-nums }
+.stat small { color: var(--muted); font-size: 13px }
+.stat.prod b { color: var(--prod) } .stat.wait b { color: var(--wait) } .stat.none b { color: var(--none) }
+.bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--none-soft) }
+.bar i { display: block; height: 100% }
+.bar .p { background: var(--prod) } .bar .w { background: var(--wait) } .bar .n { background: var(--none) }
+.note { color: var(--muted); font-size: 13px; margin: 0; max-width: 70ch }
+
+section > h2 { font-size: 22px; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+section > h2 small { font: 500 14px var(--body); color: var(--muted) }
+
+.themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+#unplanned { margin-top: 12px }
+#unplanned .theme { border-style: dashed; background: transparent }
+.ehead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px }
+.ehead a { font: 500 13px var(--mono) }
+.status { font: 600 11px var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--sunk); color: var(--muted) }
+.status.done { background: var(--prod-soft); color: var(--prod) }
+.status.blocked { background: var(--wait-soft); color: var(--wait) }
+.estats { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted) }
+.estats .bar { flex: 1 1 80px; height: 6px; min-width: 60px }
+.theme details { font-size: 13px }
+.theme details summary { display: inline; padding: 0; cursor: pointer; color: var(--accent) }
+.theme details ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px }
+.theme details li { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap }
+.theme details li span.s { color: var(--muted) }
+.btn.show { align-self: flex-start }
+.active { display: inline-flex; gap: 6px; align-items: center; font: 500 13px var(--body); padding: 5px 6px 5px 10px; border-radius: 8px; background: var(--accent-soft); color: var(--accent) }
+.active button { border: 0; background: transparent; color: inherit; cursor: pointer; font: 600 14px var(--body); padding: 0 4px }
+.theme { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.theme h3 { font-size: 16px; line-height: 1.3 }
+.theme p { margin: 0; color: var(--muted); font-size: 14px }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto }
+.chip { font: 500 12px var(--mono); padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); background: var(--sunk); color: var(--fg); cursor: pointer; white-space: nowrap }
+.chip:hover { border-color: var(--accent); text-decoration: none }
+a.chip.ticket { background: var(--accent-soft); border-color: transparent; color: var(--accent) }
+button.chip { font-family: var(--mono) }
+
+.waitbox { background: var(--wait-soft); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px }
+.waitbox h2 { font-size: 18px; color: var(--wait); margin: 0 }
+.waitbox ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px }
+.waitbox li { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline }
+.waitbox li .repo { font: 500 13px var(--mono) }
+
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+#q { flex: 1 1 220px; min-width: 0; font: 15px var(--body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg) }
+.btn { font: 500 13px var(--body); padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer }
+.btn:hover { border-color: var(--accent) }
+.btn[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg) }
+.btn.wait[aria-pressed="true"] { background: var(--wait); border-color: var(--wait); color: #fff }
+.count { color: var(--muted); font-size: 13px; margin-left: auto }
+
+.area { display: flex; flex-direction: column; gap: 8px }
+.area > h2 { font-size: 20px; margin: 18px 0 6px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap }
+.area > h2 small { font: 500 13px var(--body); color: var(--muted) }
+
+details.repo { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; scroll-margin-top: 140px }
+details.repo[open] { border-color: var(--faint) }
+details.repo.flash { animation: flash 1.2s ease-out }
+@keyframes flash { from { box-shadow: 0 0 0 3px var(--accent) } to { box-shadow: 0 0 0 3px transparent } }
+summary { list-style: none; cursor: pointer; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: start }
+summary::-webkit-details-marker { display: none }
+.repo-mode .rname { font: 600 15px var(--body) }
+.rname { font: 500 14px var(--mono); display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere }
+.rname::before { content: ""; flex: none; width: 7px; height: 7px; border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint); transform: rotate(-45deg); transition: transform .15s }
+details[open] .rname::before { transform: rotate(45deg) }
+.tldr { grid-column: 1; color: var(--muted); font-size: 14px; margin: 0; padding-left: 15px }
+.pills { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
+.pillrow { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end }
+.pill { font: 600 12px var(--body); padding: 2px 8px; border-radius: 99px; white-space: nowrap; font-variant-numeric: tabular-nums }
+.pill.mr { background: var(--sunk); color: var(--fg) }
+.pill.p { background: var(--prod-soft); color: var(--prod) }
+.pill.w { background: var(--wait-soft); color: var(--wait) }
+.pill.n { background: var(--none-soft); color: var(--muted); font-weight: 500 }
+.mini { width: 120px; height: 5px }
+
+ul.items { list-style: none; margin: 0; padding: 4px 16px 14px 31px; display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line) }
+ul.items li { padding: 9px 0; border-bottom: 1px dashed var(--line); display: flex; flex-direction: column; gap: 4px }
+ul.items li:last-child { border-bottom: 0 }
+ul.items li.house { color: var(--muted); font-size: 13px }
+.itext { overflow-wrap: anywhere }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.mrlink { font: 500 12px var(--mono) }
+.badge { font: 600 11px var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px }
+.badge.w { background: var(--wait-soft); color: var(--wait) }
+.badge.brk { background: var(--sunk); color: var(--fg) }
+mark { background: var(--wait-soft); color: inherit; border-radius: 2px }
+.empty { color: var(--muted); padding: 24px 0; text-align: center }
+footer { color: var(--faint); font-size: 13px }
+
+@media (max-width: 720px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .themes { grid-template-columns: minmax(0, 1fr) }
+  summary { grid-template-columns: minmax(0, 1fr) }
+  .pills { grid-column: 1; grid-row: auto; align-items: flex-start; padding-left: 15px }
+  .pillrow { justify-content: flex-start }
+  .count { margin-left: 0; width: 100% }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="range"></h1>
+    <div class="stats" id="stats"></div>
+    <div class="bar" id="bigbar" role="img"></div>
+    <p class="note">"In prod" means the MR is in the last successful deploy to the repo's prod environment. Many of our repos (tooling, charts, packages, the local stack) have no prod environment, so they never count as in prod or waiting.</p>
+  </header>
+
+  <section>
+    <h2>Work by epic <small>planned work first, then everything without an epic</small></h2>
+    <div class="themes" id="themes"></div>
+    <div id="unplanned"></div>
+  </section>
+
+  <section class="waitbox" id="waitbox"></section>
+
+  <section>
+    <div class="controls">
+      <div class="row">
+        <input id="q" type="search" placeholder="Search changes, repos or tickets" autocomplete="off" aria-label="Search">
+        <button class="btn" id="expand">Expand all</button>
+        <button class="btn" id="collapse">Collapse all</button>
+      </div>
+      <div class="row" id="filters">
+        <button class="btn wait" id="onlyWait" aria-pressed="false">Not in prod only</button>
+        <button class="btn" id="hideHouse" aria-pressed="false">Hide housekeeping</button>
+        <span id="activeEpic"></span>
+        <span class="count num" id="count"></span>
+      </div>
+      <div class="row" id="areaChips"></div>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <footer>Generated by <code>merge-digest.py</code>. Change lines are rewritten in plain English; the MR and ticket links hold the detail.</footer>
+</div>
+
+<script>
+const D = /*DATA*/null;
+const GL = "https://gitlab.com/goodhabitz/", JIRA = "https://goodhabitz.atlassian.net/browse/";
+
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const slug = s => "r-" + s.replace(/[^a-z0-9]+/gi, "-");
+const short = s => s.replace(/^newhabitz\/devops\/newstack\//, "newstack/");
+const fmt = (s, q) => {
+  let h = esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+  if (q) h = h.replace(new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?![^<]*>)", "gi"), "<mark>$1</mark>");
+  return h;
+};
+const pct = (n, t) => (100 * n / t).toFixed(2) + "%";
+const bar = (p, w, n, t, cls = "bar") => `<div class="${cls} bar"><i class="p" style="width:${pct(p, t)}"></i><i class="w" style="width:${pct(w, t)}"></i><i class="n" style="width:${pct(n, t)}"></i></div>`;
+const byName = Object.fromEntries(D.repos.map(r => [r.name, r]));
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("ped:" + k); return v === null ? d : JSON.parse(v) } catch { return d } },
+  set(k, v) { try { localStorage.setItem("ped:" + k, JSON.stringify(v)) } catch {} },
+};
+function epicCard(e) {
+  const planned = e.key !== "unplanned";
+  const st = e.status ? `<span class="status ${/done|closed/i.test(e.status) ? "done" : /block/i.test(e.status) ? "blocked" : ""}">${esc(e.status)}</span>` : "";
+  const sub = planned ? `<div class="ehead"><a href="${JIRA + e.key}" target="_blank" rel="noopener">${e.key}</a>${st}</div>`
+                      : `<div class="ehead"><span class="eyebrow">No epic, or no ticket</span></div>`;
+  const none = e.mrs - e.prod - e.waiting;
+  const stats = `<div class="estats num"><span><b>${e.mrs}</b> MR${e.mrs > 1 ? "s" : ""}</span>${e.prod ? `<span>${e.prod} in prod</span>` : ""}${e.waiting ? `<span style="color:var(--wait)">${e.waiting} not in prod</span>` : ""}${bar(e.prod, e.waiting, none, e.mrs)}</div>`;
+  const tickets = e.tickets.length ? `<details><summary>${e.tickets.length} ticket${e.tickets.length > 1 ? "s" : ""}${planned ? "" : " without an epic"}</summary><ul>${e.tickets.map(t => `<li><a class="mrlink" href="${JIRA + t.k}" target="_blank" rel="noopener">${t.k}</a><span>${esc(t.summary)}</span>${t.status ? `<span class="status ${/done|closed/i.test(t.status) ? "done" : /block/i.test(t.status) ? "blocked" : ""}">${esc(t.status)}</span>` : ""}</li>`).join("")}</ul></details>` : "";
+  const repos = e.repos.slice(0, 6).map(r => `<button class="chip" data-jump="${r}">${short(r)}</button>`).join("") + (e.repos.length > 6 ? `<span class="chip" style="cursor:default">+${e.repos.length - 6} more</span>` : "");
+  return `<article class="theme">${sub}<h3>${esc(e.summary)}</h3>${e.d ? `<p>${fmt(e.d)}</p>` : ""}${stats}${tickets}<div class="chips">${repos}</div>
+    <button class="btn show" data-epic="${e.key}">Show ${e.lines} change${e.lines > 1 ? "s" : ""}</button></article>`;
+}
+
+const state = { epic: "", q: "", onlyWait: store.get("onlyWait", false), hideHouse: store.get("hideHouse", false), area: store.get("area", "All") };
+
+function header() {
+  document.getElementById("eyebrow").textContent = D.team + " \u00b7 merge digest";
+  document.getElementById("range").textContent = "Merged " + D.range;
+  if (!D.waiting) document.getElementById("waitbox").hidden = true;
+  if (D.areas.length < 2) document.getElementById("areaChips").hidden = true;
+  if (D.mode === "repo") document.body.classList.add("repo-mode");
+  document.getElementById("stats").innerHTML = [
+    ["", D.total, D.mode === "repo" ? `MRs merged in ${D.team}` : `MRs merged across ${D.repoCount} repos`],
+    ["prod", D.prod, "in prod"],
+    ["wait", D.waiting, "merged, not in prod yet"],
+    ["none", D.noProd, "in repos with no prod env"],
+  ].map(([c, n, l]) => `<div class="stat ${c}"><b>${n}</b><small>${l}</small></div>`).join("");
+  const big = document.getElementById("bigbar");
+  big.outerHTML = bar(D.prod, D.waiting, D.noProd, D.total).replace('class="bar bar"', 'class="bar" role="img" aria-label="' + D.prod + ' in prod, ' + D.waiting + ' waiting, ' + D.noProd + ' without a prod environment"');
+
+  document.getElementById("themes").innerHTML = D.epics.map(epicCard).join("");
+  document.getElementById("unplanned").innerHTML = D.unplanned.mrs ? epicCard(D.unplanned) : "";
+
+  const waits = D.repos.flatMap(r => r.items.filter(i => i.waiting).map(i => ({ r, i })));
+  document.getElementById("waitbox").innerHTML = `<h2>Not in prod yet: ${D.waiting} MRs</h2><ul>${waits.map(({ r, i }) => `
+    <li><button class="chip" data-jump="${r.name}">${short(r.name)}</button><span>${i.house ? "Housekeeping" : fmt(i.text)}</span>
+    ${i.tickets.map(t => `<a class="mrlink" href="${t.u}" target="_blank" rel="noopener">${t.k}</a>`).join(" ")}
+    ${i.mrs.map(m => `<a class="mrlink" href="${m.u}" target="_blank" rel="noopener">${m.k}</a>`).join(" ")}</li>`).join("")}</ul>`;
+
+  const areas = ["All", ...D.areas];
+  document.getElementById("areaChips").innerHTML = areas.map(a => {
+    const n = a === "All" ? D.total : D.repos.filter(r => r.area === a).reduce((s, r) => s + r.mrs, 0);
+    return `<button class="btn" data-area="${a}" aria-pressed="${state.area === a}">${a} <span class="num" style="opacity:.6">${n}</span></button>`;
+  }).join("");
+}
+
+function itemHTML(i, q) {
+  const links = [...i.tickets.map(t => `<a class="chip ticket" href="${t.u}" target="_blank" rel="noopener">${t.k}</a>`),
+                 ...i.mrs.map(m => `<a class="mrlink" href="${m.u}" target="_blank" rel="noopener">${m.k}</a>`)].join("");
+  if (i.house) return `<li class="house"><div class="meta">${i.waiting ? '<span class="badge w">Not in prod</span>' : ""}<span>Housekeeping (${i.mrs.length} MR${i.mrs.length > 1 ? "s" : ""})</span>${links}</div></li>`;
+  let text = i.text, brk = / Breaking change\.$/.test(text);
+  if (brk) text = text.replace(/ Breaking change\.$/, "");
+  return `<li><span class="itext">${fmt(text, q)}</span><div class="meta">${i.waiting ? '<span class="badge w">Not in prod</span>' : ""}${brk ? '<span class="badge brk">Breaking</span>' : ""}${links}</div></li>`;
+}
+
+function matches(r, i, q) {
+  if (!q) return true;
+  const hay = (r.name + " " + i.text + " " + i.tickets.map(t => t.k).join(" ") + " " + i.mrs.map(m => m.k).join(" ")).toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+
+function render() {
+  const open = new Set([...document.querySelectorAll("details.repo[open]")].map(d => d.dataset.name));
+  const q = state.q.trim();
+  let shownRepos = 0, shownItems = 0, html = "";
+  for (const area of D.areas) {
+    if (state.area !== "All" && state.area !== area) continue;
+    const repos = D.repos.filter(r => r.area === area).sort((a, b) => b.mrs - a.mrs);
+    let block = "", areaMrs = 0;
+    for (const r of repos) {
+      const repoHit = q && r.name.toLowerCase().includes(q.toLowerCase());
+      let items = r.items.filter(i => (!state.onlyWait || i.waiting) && (!state.hideHouse || !i.house) && (!state.epic || (i.epics || []).includes(state.epic)));
+      if (q && !repoHit) items = items.filter(i => matches(r, i, q));
+      if (!items.length) continue;
+      shownRepos++; shownItems += items.length; areaMrs += r.mrs;
+      const n = r.prodEnv ? 0 : r.mrs;
+      const pills = r.prodEnv
+        ? `<span class="pill p">${r.inProd} in prod</span>${r.waiting ? `<span class="pill w">${r.waiting} not in prod</span>` : ""}`
+        : `<span class="pill n">no prod env</span>`;
+      const isOpen = open.has(r.name) || (q && !repoHit) || state.onlyWait || state.epic || D.repos.length === 1;
+      block += `<details class="repo" id="${slug(r.name)}" data-name="${r.name}"${isOpen ? " open" : ""}>
+        <summary><span class="rname">${fmt(r.name, q)}</span>
+          <div class="pills"><div class="pillrow"><span class="pill mr">${r.mrs} MR${r.mrs > 1 ? "s" : ""}</span>${pills}</div>${bar(r.inProd || 0, r.waiting, n, r.mrs, "mini")}</div>
+          <p class="tldr">${fmt(r.tldr)}</p></summary>
+        <ul class="items">${items.map(i => itemHTML(i, q)).join("")}</ul></details>`;
+    }
+    if (block) html += `<div class="area"><h2>${area} <small class="num">${areaMrs} MRs</small></h2>${block}</div>`;
+  }
+  document.getElementById("list").innerHTML = html || `<p class="empty">Nothing matches. Clear the search or the filters.</p>`;
+  const ep = state.epic && (state.epic === "unplanned" ? "Unplanned work" : state.epic);
+  document.getElementById("activeEpic").innerHTML = ep ? `<span class="active">Epic: ${esc(ep)}<button id="clearEpic" aria-label="Clear epic filter">&times;</button></span>` : "";
+  document.getElementById("count").textContent = `${shownRepos} ${D.mode === "repo" ? "groups" : "repos"}, ${shownItems} lines`;
+}
+
+function syncButtons() {
+  document.getElementById("onlyWait").setAttribute("aria-pressed", state.onlyWait);
+  document.getElementById("hideHouse").setAttribute("aria-pressed", state.hideHouse);
+  document.querySelectorAll("[data-area]").forEach(b => b.setAttribute("aria-pressed", b.dataset.area === state.area));
+}
+
+function jump(name) {
+  if (state.area !== "All" && byName[name].area !== state.area) { state.area = "All"; store.set("area", "All") }
+  state.q = ""; document.getElementById("q").value = ""; state.onlyWait = false; state.epic = "";
+  syncButtons(); render();
+  const el = document.getElementById(slug(name));
+  if (!el) return;
+  el.open = true; el.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+
+header(); syncButtons(); render();
+let t;
+document.getElementById("q").addEventListener("input", e => { clearTimeout(t); t = setTimeout(() => { state.q = e.target.value; render() }, 120) });
+document.getElementById("expand").onclick = () => document.querySelectorAll("details.repo").forEach(d => d.open = true);
+document.getElementById("collapse").onclick = () => document.querySelectorAll("details.repo").forEach(d => d.open = false);
+document.getElementById("onlyWait").onclick = () => { state.onlyWait = !state.onlyWait; store.set("onlyWait", state.onlyWait); syncButtons(); render() };
+document.getElementById("hideHouse").onclick = () => { state.hideHouse = !state.hideHouse; store.set("hideHouse", state.hideHouse); syncButtons(); render() };
+document.getElementById("areaChips").onclick = e => { const b = e.target.closest("[data-area]"); if (!b) return; state.area = b.dataset.area; store.set("area", state.area); syncButtons(); render() };
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-jump]"); if (b) return jump(b.dataset.jump);
+  const s = e.target.closest("[data-epic]");
+  if (s) { state.epic = s.dataset.epic; state.area = "All"; state.q = ""; document.getElementById("q").value = ""; syncButtons(); render(); document.querySelector(".controls").scrollIntoView({ behavior: "smooth" }); return }
+  if (e.target.closest("#clearEpic")) { state.epic = ""; render() }
+});
+</script>
