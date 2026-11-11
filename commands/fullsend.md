@@ -190,8 +190,11 @@ card `--unread` and give one concise instruction.
 - The intake `worker` implements, continued with SendMessage, and later fixes from review
   and verify go to it too. Only a change of one or two files whose exact edit was known at
   intake stays in this session.
-- Independent parts get a `worker` each, with `isolation: "worktree"`. When the task splits
-  into many independent units, or the user asked for a workflow, run them as a Workflow.
+- Independent parts get a `worker` each, with `isolation: "worktree"`. A part whose brief is
+  complete and needs no network or follow-up goes to `codex-worker` instead, with the same
+  isolation. Its brief names no repo path, or Codex edits that checkout instead of the
+  isolated one. When the task splits into many independent units, or the user asked for a
+  workflow, run them as a Workflow.
 - Keep docs in sync in the same commits: docs that describe the changed behaviour, and
   any trap this run hit that the repo's agent docs did not warn about, written in the file
   that owns that topic. Both follow `~/llmfiles/shared/agent-docs-bar.md`.

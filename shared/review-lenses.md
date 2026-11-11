@@ -49,7 +49,10 @@ determines speed.
    `correctness`, `security`, `cross-repo-impact`, `verify`. Findings that hinge on
    pattern recognition against stated rules run as `reviewer-fast`: `test-health`,
    `code-standards`, `reuse`, `ticket-alignment`, `performance`. A fork inherits the
-   session model and effort, so a lens is never a fork.
+   session model and effort, so a lens is never a fork. When the change touches
+   authentication, authorization, payments, data migrations or concurrency, or the caller
+   marks it high risk, also run `correctness` as `codex-reviewer` in the same message, for
+   a second model family's read of that lens.
 7. **Bundle the rule lenses.** `test-health`, `code-standards`, `reuse`, and `performance`
    read the same diff against stated rules, so they run as one `reviewer-fast` agent that
    sees the change whole. Its brief keeps each selected lens as its own section with its
@@ -142,7 +145,7 @@ list, the target, and the output contract.
 The orchestrator does three things and does not re-litigate the lenses' work.
 
 1. **Dedupe.** When two lenses report the same underlying issue, keep the one whose lens
-   owns it per the NOT lists.
+   owns it per the NOT lists. A finding both `correctness` runs report is one finding.
 2. **Score.** Impact 0 to 10, keep only findings at or above the caller's threshold. Do
    not pad a score to clear the bar. Guidance: 5 to 6 worth considering, 7 to 8 should
    address, 9 to 10 must address.
