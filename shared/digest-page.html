@@ -11,6 +11,7 @@
   --prod: #1d7a55; --prod-soft: #dff2e9;
   --wait: #a8660c; --wait-soft: #fbefd9;
   --none: #9aa1b1; --none-soft: #e9ebf0;
+  --unplan: #b0447a;
   --display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
   --body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -21,14 +22,14 @@
   --accent: #7b9cf0; --accent-soft: #232e4d;
   --prod: #4cc08f; --prod-soft: #173328;
   --wait: #e6a646; --wait-soft: #3a2b14;
-  --none: #6b7285; --none-soft: #262a35; color-scheme: dark } }
+  --none: #6b7285; --none-soft: #262a35; --unplan: #e27fb2; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #12141a; --surface: #1a1d25; --sunk: #22252f; --line: #2e323e;
   --fg: #e7e9ef; --muted: #a2a8b8; --faint: #737a8c;
   --accent: #7b9cf0; --accent-soft: #232e4d;
   --prod: #4cc08f; --prod-soft: #173328;
   --wait: #e6a646; --wait-soft: #3a2b14;
-  --none: #6b7285; --none-soft: #262a35; color-scheme: dark }
+  --none: #6b7285; --none-soft: #262a35; --unplan: #e27fb2; color-scheme: dark }
 
 * { box-sizing: border-box }
 body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); padding-inline: 16px; padding-block: 0 64px }
@@ -48,11 +49,17 @@ header h1 span { color: var(--muted); font-weight: 600 }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px }
 .stat b { font: 700 28px/1.1 var(--display); font-variant-numeric: tabular-nums }
 .stat small { color: var(--muted); font-size: 13px }
+.statgroup { display: flex; flex-direction: column; gap: 8px }
+.stats.three { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+button.stat { font: inherit; color: inherit; text-align: left; cursor: pointer }
+button.stat:hover { border-color: var(--accent) }
+.stat.plan b { color: var(--accent) } .stat.unplan b { color: var(--unplan) }
+.bar .pl { background: var(--accent) } .bar .up { background: var(--unplan) }
 .stat.prod b { color: var(--prod) } .stat.wait b { color: var(--wait) } .stat.none b { color: var(--none) }
 .bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--none-soft) }
 .bar i { display: block; height: 100% }
 .bar .p { background: var(--prod) } .bar .w { background: var(--wait) } .bar .n { background: var(--none) }
-.note { color: var(--muted); font-size: 13px; margin: 0; max-width: 70ch }
+.note { color: var(--muted); font-size: 13px; margin: 0 }
 
 section > h2 { font-size: 22px; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
 section > h2 small { font: 500 14px var(--body); color: var(--muted) }
@@ -95,6 +102,8 @@ button.chip { font-family: var(--mono) }
 #q { flex: 1 1 220px; min-width: 0; font: 15px var(--body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg) }
 .btn { font: 500 13px var(--body); padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer }
 .btn:hover { border-color: var(--accent) }
+.btn:disabled { opacity: .4; cursor: default }
+select.btn { max-width: 100%; min-width: 0 }
 .btn[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg) }
 .btn.wait[aria-pressed="true"] { background: var(--wait); border-color: var(--wait); color: #fff }
 .count { color: var(--muted); font-size: 13px; margin-left: auto }
@@ -138,7 +147,7 @@ mark { background: var(--wait-soft); color: inherit; border-radius: 2px }
 footer { color: var(--faint); font-size: 13px }
 
 @media (max-width: 720px) {
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .stats, .stats.three { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .themes { grid-template-columns: minmax(0, 1fr) }
   summary { grid-template-columns: minmax(0, 1fr) }
   .pills { grid-column: 1; grid-row: auto; align-items: flex-start; padding-left: 15px }
@@ -152,8 +161,12 @@ footer { color: var(--faint); font-size: 13px }
   <header>
     <div class="eyebrow" id="eyebrow"></div>
     <h1 id="range"></h1>
-    <div class="stats" id="stats"></div>
-    <div class="bar" id="bigbar" role="img"></div>
+    <div class="statgroup"><div class="eyebrow">Delivery</div>
+      <div class="stats" id="stats"></div>
+      <div class="bar" id="bigbar" role="img"></div></div>
+    <div class="statgroup"><div class="eyebrow">Planned vs unplanned</div>
+      <div class="stats three" id="planStats"></div>
+      <div class="bar" id="planbar" role="img"></div></div>
     <p class="note">"In prod" means the MR is in the last successful deploy to the repo's prod environment. Many of our repos (tooling, charts, packages, the local stack) have no prod environment, so they never count as in prod or waiting.</p>
   </header>
 
@@ -175,7 +188,8 @@ footer { color: var(--faint); font-size: 13px }
       <div class="row" id="filters">
         <button class="btn wait" id="onlyWait" aria-pressed="false">Not in prod only</button>
         <button class="btn" id="hideHouse" aria-pressed="false">Hide housekeeping</button>
-        <span id="activeEpic"></span>
+        <button class="btn" id="onlyUnplanned" aria-pressed="false">Unplanned only</button>
+        <select id="epicSel" class="btn" aria-label="Filter by epic"></select>
         <span class="count num" id="count"></span>
       </div>
       <div class="row" id="areaChips"></div>
@@ -227,6 +241,15 @@ function header() {
   if (!D.waiting) document.getElementById("waitbox").hidden = true;
   if (D.areas.length < 2) document.getElementById("areaChips").hidden = true;
   if (D.mode === "repo") document.body.classList.add("repo-mode");
+  const P = D.plan, pt = P.planned + P.unplanned + P.housekeeping || 1;
+  const pc = n => Math.round(100 * n / pt) + "%";
+  document.getElementById("planStats").innerHTML = [
+    ["plan", P.planned, `planned, under an epic (${pc(P.planned)})`, "planned"],
+    ["unplan", P.unplanned, `unplanned: no epic or no ticket (${pc(P.unplanned)})`, "unplanned"],
+    ["none", P.housekeeping, `housekeeping (${pc(P.housekeeping)})`, null],
+  ].map(([c, n, l, f]) => f === null ? `<div class="stat ${c}"><b>${n}</b><small>${l}</small></div>`
+      : `<button class="stat ${c}" data-epicstat="${f}" title="Filter the list"><b>${n}</b><small>${l}</small></button>`).join("");
+  document.getElementById("planbar").outerHTML = `<div class="bar" role="img" aria-label="${P.planned} planned, ${P.unplanned} unplanned, ${P.housekeeping} housekeeping"><i class="pl" style="width:${pct(P.planned, pt)}"></i><i class="up" style="width:${pct(P.unplanned, pt)}"></i><i class="n" style="width:${pct(P.housekeeping, pt)}"></i></div>`;
   document.getElementById("stats").innerHTML = [
     ["", D.total, D.mode === "repo" ? `MRs merged in ${D.team}` : `MRs merged across ${D.repoCount} repos`],
     ["prod", D.prod, "in prod"],
@@ -248,7 +271,7 @@ function header() {
   const areas = ["All", ...D.areas];
   document.getElementById("areaChips").innerHTML = areas.map(a => {
     const n = a === "All" ? D.total : D.repos.filter(r => r.area === a).reduce((s, r) => s + r.mrs, 0);
-    return `<button class="btn" data-area="${a}" aria-pressed="${state.area === a}">${a} <span class="num" style="opacity:.6">${n}</span></button>`;
+    return `<button class="btn" data-area="${a}" aria-pressed="${state.area === a}">${a} <span class="num acount" style="opacity:.6">${n}</span></button>`;
   }).join("");
 }
 
@@ -267,42 +290,54 @@ function matches(r, i, q) {
   return hay.includes(q.toLowerCase());
 }
 
+const inEpic = i => !state.epic || (state.epic === "planned" ? !!i.epics && !i.epics.includes("unplanned") : (i.epics || []).includes(state.epic));
+
 function render() {
   const open = new Set([...document.querySelectorAll("details.repo[open]")].map(d => d.dataset.name));
   const q = state.q.trim();
+  const filtered = !!(q || state.epic || state.onlyWait || state.hideHouse);
+  const areaCount = { All: 0 };
   let shownRepos = 0, shownItems = 0, html = "";
   for (const area of D.areas) {
-    if (state.area !== "All" && state.area !== area) continue;
     const repos = D.repos.filter(r => r.area === area).sort((a, b) => b.mrs - a.mrs);
+    const visible = state.area === "All" || state.area === area;
     let block = "", areaMrs = 0;
     for (const r of repos) {
       const repoHit = q && r.name.toLowerCase().includes(q.toLowerCase());
-      let items = r.items.filter(i => (!state.onlyWait || i.waiting) && (!state.hideHouse || !i.house) && (!state.epic || (i.epics || []).includes(state.epic)));
+      let items = r.items.filter(i => (!state.onlyWait || i.waiting) && (!state.hideHouse || !i.house) && inEpic(i));
       if (q && !repoHit) items = items.filter(i => matches(r, i, q));
       if (!items.length) continue;
-      shownRepos++; shownItems += items.length; areaMrs += r.mrs;
-      const n = r.prodEnv ? 0 : r.mrs;
+      // Counts follow the filter, so a filtered view never shows the repo's full totals.
+      const mrs = items.reduce((s, i) => s + i.mrs.length, 0);
+      const waiting = items.reduce((s, i) => s + (i.waiting ? i.mrs.length : 0), 0);
+      const inProd = r.prodEnv ? mrs - waiting : 0;
+      areaMrs += mrs;
+      if (!visible) continue;
+      shownRepos++; shownItems += items.length;
       const pills = r.prodEnv
-        ? `<span class="pill p">${r.inProd} in prod</span>${r.waiting ? `<span class="pill w">${r.waiting} not in prod</span>` : ""}`
+        ? `${inProd ? `<span class="pill p">${inProd} in prod</span>` : ""}${waiting ? `<span class="pill w">${waiting} not in prod</span>` : ""}`
         : `<span class="pill n">no prod env</span>`;
+      const mrLabel = mrs < r.mrs ? `${mrs} of ${r.mrs} MRs` : `${mrs} MR${mrs > 1 ? "s" : ""}`;
       const isOpen = open.has(r.name) || (q && !repoHit) || state.onlyWait || state.epic || D.repos.length === 1;
       block += `<details class="repo" id="${slug(r.name)}" data-name="${r.name}"${isOpen ? " open" : ""}>
         <summary><span class="rname">${fmt(r.name, q)}</span>
-          <div class="pills"><div class="pillrow"><span class="pill mr">${r.mrs} MR${r.mrs > 1 ? "s" : ""}</span>${pills}</div>${bar(r.inProd || 0, r.waiting, n, r.mrs, "mini")}</div>
+          <div class="pills"><div class="pillrow"><span class="pill mr">${mrLabel}</span>${pills}</div>${bar(inProd, waiting, r.prodEnv ? 0 : mrs, mrs, "mini")}</div>
           <p class="tldr">${fmt(r.tldr)}</p></summary>
         <ul class="items">${items.map(i => itemHTML(i, q)).join("")}</ul></details>`;
     }
+    areaCount[area] = areaMrs; areaCount.All += areaMrs;
     if (block) html += `<div class="area"><h2>${area} <small class="num">${areaMrs} MRs</small></h2>${block}</div>`;
   }
   document.getElementById("list").innerHTML = html || `<p class="empty">Nothing matches. Clear the search or the filters.</p>`;
-  const ep = state.epic && (state.epic === "unplanned" ? "Unplanned work" : state.epic);
-  document.getElementById("activeEpic").innerHTML = ep ? `<span class="active">Epic: ${esc(ep)}<button id="clearEpic" aria-label="Clear epic filter">&times;</button></span>` : "";
+  document.querySelectorAll("[data-area]").forEach(b => { b.querySelector(".acount").textContent = areaCount[b.dataset.area] || 0; b.disabled = filtered && !areaCount[b.dataset.area] });
   document.getElementById("count").textContent = `${shownRepos} ${D.mode === "repo" ? "groups" : "repos"}, ${shownItems} lines`;
 }
 
 function syncButtons() {
   document.getElementById("onlyWait").setAttribute("aria-pressed", state.onlyWait);
   document.getElementById("hideHouse").setAttribute("aria-pressed", state.hideHouse);
+  document.getElementById("onlyUnplanned").setAttribute("aria-pressed", state.epic === "unplanned");
+  document.getElementById("epicSel").value = state.epic;
   document.querySelectorAll("[data-area]").forEach(b => b.setAttribute("aria-pressed", b.dataset.area === state.area));
 }
 
@@ -316,7 +351,15 @@ function jump(name) {
   el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
 }
 
-header(); syncButtons(); render();
+header();
+document.getElementById("epicSel").innerHTML = `<option value="">All epics</option><option value="planned">All planned work</option>` +
+  D.epics.map(e => `<option value="${e.key}">${e.key}: ${esc(e.summary.length > 48 ? e.summary.slice(0, 47) + "\u2026" : e.summary)}</option>`).join("") +
+  (D.unplanned.mrs ? `<option value="unplanned">Unplanned work</option>` : "");
+if (!D.unplanned.mrs) document.getElementById("onlyUnplanned").hidden = true;
+syncButtons(); render();
+const setEpic = v => { state.epic = v; if (v) state.area = "All"; syncButtons(); render() };
+document.getElementById("onlyUnplanned").onclick = () => setEpic(state.epic === "unplanned" ? "" : "unplanned");
+document.getElementById("epicSel").onchange = e => setEpic(e.target.value);
 let t;
 document.getElementById("q").addEventListener("input", e => { clearTimeout(t); t = setTimeout(() => { state.q = e.target.value; render() }, 120) });
 document.getElementById("expand").onclick = () => document.querySelectorAll("details.repo").forEach(d => d.open = true);
@@ -326,8 +369,10 @@ document.getElementById("hideHouse").onclick = () => { state.hideHouse = !state.
 document.getElementById("areaChips").onclick = e => { const b = e.target.closest("[data-area]"); if (!b) return; state.area = b.dataset.area; store.set("area", state.area); syncButtons(); render() };
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-jump]"); if (b) return jump(b.dataset.jump);
+  const ps = e.target.closest("[data-epicstat]");
+  if (ps) { state.q = ""; document.getElementById("q").value = ""; setEpic(ps.dataset.epicstat); document.querySelector(".controls").scrollIntoView({ behavior: "smooth" }); return }
   const s = e.target.closest("[data-epic]");
-  if (s) { state.epic = s.dataset.epic; state.area = "All"; state.q = ""; document.getElementById("q").value = ""; syncButtons(); render(); document.querySelector(".controls").scrollIntoView({ behavior: "smooth" }); return }
-  if (e.target.closest("#clearEpic")) { state.epic = ""; render() }
+  if (s) { state.q = ""; document.getElementById("q").value = ""; setEpic(s.dataset.epic); document.querySelector(".controls").scrollIntoView({ behavior: "smooth" }); return }
+  if (e.target.closest("#clearEpic")) setEpic("");
 });
 </script>

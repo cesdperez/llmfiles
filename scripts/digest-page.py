@@ -175,6 +175,11 @@ def build(message, notes, no_prod_check=False):
         "mode": mode, "team": team, "range": period, "repos": repos, "areas": areas,
         "total": total, "prod": prod, "waiting": waiting,
         "noProd": total - prod - waiting, "repoCount": len(repos),
+        "plan": {
+            "planned": sum(len(i["mrs"]) for r in repos for i in r["items"] if i.get("epics", ["unplanned"]) != ["unplanned"]),
+            "unplanned": sum(len(i["mrs"]) for r in repos for i in r["items"] if i.get("epics") == ["unplanned"]),
+            "housekeeping": sum(len(i["mrs"]) for r in repos for i in r["items"] if i["house"]),
+        },
     }
 
 
