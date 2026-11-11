@@ -103,6 +103,10 @@ reasoning. Effort is the dial within each model, and it is re-tuned on every rel
 name does not mean the same amount of thinking across models (Sonnet `medium` is not Opus
 `medium`), so pick a level from an effort sweep on your own tasks, not from its name.
 
+`codex-worker` and `codex-reviewer` run `sonnet` at `low` because they only forward the task to
+`codex exec`, which does the work on the ChatGPT plan. Codex follows the matching
+`worker.md` or `reviewer.md` body, and the `codex` CLI must be logged in.
+
 ```markdown
 ---
 name: agent-name

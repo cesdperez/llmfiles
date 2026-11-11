@@ -1,5 +1,5 @@
 ---
-description: Research the latest Anthropic models (docs, benchmarks, user reports), then propose which model and effort each agent and the session in this repo should run. Adversarially reviewed. Outputs a today-vs-proposed table.
+description: Research the latest Anthropic models and the OpenAI models Codex runs (docs, benchmarks, user reports), then propose which model and effort each agent and the session in this repo should run, and which workloads belong on Codex. Adversarially reviewed. Outputs a today-vs-proposed table.
 argument-hint: [optional focus, e.g. a model name or "only the agents"]
 disable-model-invocation: true
 ---
@@ -17,14 +17,16 @@ Do this inline, it is cheap:
 - `~/.claude/settings.json`: `model`, `effortLevel`, `modelSettings` (per-model effort overrides), and `env.CLAUDE_CODE_SUBAGENT_MODEL`.
 - Which commands dispatch to which agent (`grep -rn` for the agent names in `~/llmfiles/commands` and `~/llmfiles/shared`), so each row has a concrete workload behind it.
 - The model rationale in `~/llmfiles/README.md` under "Agents".
+- In each `codex-*` agent, the frontmatter pins only the Claude forwarder. The work runs on the `--model` and `model_reasoning_effort` in its `codex exec` command, so read those too.
+- The ChatGPT plan behind Codex (`codex login status`), since its usage limits cap how much work can move there.
 
-Each of these becomes one row of the final table.
+Each of these becomes one row of the final table. A `codex-*` agent gets two rows: its forwarder and its Codex model.
 
 ## 2. Research in parallel
 
-Spawn three `worker` agents in one message. Give each the list of Anthropic models to cover: the current Fable, Opus, Sonnet and Haiku, plus any model released in the last six months. Each one returns, per model, claims with source URL and publish date. Each one also marks whether a claim is about the current version or an older one.
+Spawn three `worker` agents in one message. Give each the list of models to cover: the current Anthropic Fable, Opus, Sonnet and Haiku, the OpenAI models Codex offers on the ChatGPT plan, and any model from either vendor released in the last six months. Each one returns, per model, claims with source URL and publish date. Each one also marks whether a claim is about the current version or an older one.
 
-- **official**: Anthropic model docs, model cards, release posts, pricing, the Claude Code changelog. Cover what each effort level means per model, since a level name does not mean the same amount of thinking across models.
+- **official**: Anthropic and OpenAI model docs, model cards, release posts, pricing, the Claude Code and Codex changelogs, and the Codex usage limits per model on the ChatGPT plan. Cover what each effort level means per model, since a level name does not mean the same amount of thinking across models.
 - **benchmarks**: independent results on agentic coding and tool use (SWE-bench Verified/Pro, Terminal-Bench, Aider, LMArena, and similar), with cost and latency where they are published. Vendor numbers count only when an independent result confirms them.
 - **field reports**: practitioner reports from Hacker News, Reddit, X, and engineering blogs on coding, reviews, research and long agentic runs. Cover regressions, laziness, over-eagerness, and rate limits. Weight reports from after the first week over launch-day reactions.
 
@@ -37,6 +39,8 @@ For each row, pick model and effort against that row's workload. Reason from:
 - cost and latency, which matter more for high-volume rows (`Explore`, `worker-fast`) than for rare ones;
 - effort being re-tuned per release, so compare by the thinking the level buys, not by its name;
 - aliases (`opus`, `sonnet`, `fable`, `haiku`) already following the newest model of a family. Propose a pinned ID only when a specific version is the point.
+- the Codex rows taking explicit OpenAI model IDs, which do not follow new releases on their own. Check each against the newest model Codex offers.
+- moving a Claude row's workload to `codex-worker` or `codex-reviewer` when Codex matches its quality on that kind of task. Codex runs on the ChatGPT plan instead of Anthropic usage, but that plan's limits are tighter, so a high-volume row can exhaust it.
 
 "Keep" is a valid proposal and needs a reason too.
 
@@ -54,10 +58,10 @@ A table, one row per thing from step 1:
 
 | Thing | Used for | Today | Proposed |
 |---|---|---|---|
-| `<agent>` | <workload> | <model> / <effort> | <model> / <effort>, or no change |
+| `<agent>` | <workload> | <model> / <effort> | <model> / <effort>, move to `codex-*`, or no change |
 
 Write `Today` and `Proposed` as `model / effort`.
 
 Then one short paragraph per changed row under the table. Each paragraph gives why, the strongest counter-argument, and why it lost. Then one line naming the evidence that would reverse the call, so the next run knows what to check.
 
-End by offering to apply the changes, including the README "Agents" rationale when it no longer matches.
+End by offering to apply the changes, including the `codex exec` command in each changed `codex-*` agent and the README "Agents" rationale when it no longer matches.
