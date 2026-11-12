@@ -3,8 +3,9 @@
 This repo is to LLM coding assistants what [dotfiles](https://wiki.archlinux.org/title/Dotfiles) are to your shell, a single place to manage your configuration, symlinked wherever tools expect it. The name comes from there.
 
 Manages Claude Code skills, commands, agents, and global instructions in one place.
-Claude Code is the primary setup. Codex adaptations live under `codex/` and reuse the
-existing command bodies, agent instructions, skills, and shared protocols.
+Claude Code is the primary setup. Codex adaptations live under `codex/` and opencode
+adaptations under `opencode/`. Both reuse the existing command bodies, agent instructions,
+skills, and shared protocols.
 
 [Agentic CLI registry](shared/agentic-clis.md) tracks CLI and companion-skill
 upgrade recipes. Ask "upgrade all my CLIs" to run its maintenance procedure.
@@ -50,6 +51,11 @@ llmfiles/
 │       └── <command-name>/
 │           ├── SKILL.md
 │           └── agents/openai.yaml
+├── opencode/
+│   ├── opencode.json
+│   ├── compatibility.md
+│   └── agents/
+│       └── <agent-name>.md
 ├── CLAUDE.md
 └── README.md
 ```
@@ -175,8 +181,8 @@ any finding:
 - `ruff check`, configured in `ruff.toml`.
 - `check-repo.py`, for what the agent CLIs load but no linter sees: frontmatter that parses as
   YAML, required keys, skill and agent names that match their file, model aliases and effort
-  levels, Codex agent TOML, example JSON, and every `~/llmfiles/` path and relative Markdown
-  link pointing at a file that exists.
+  levels, Codex agent TOML, opencode agents and config, example JSON, and every `~/llmfiles/`
+  path and relative Markdown link pointing at a file that exists.
 
 ### Claude Code hooks (`claude-hooks/`)
 
@@ -350,3 +356,59 @@ Adaptation boundaries:
 - Claude's `PushNotification`, Workflow, agent-team settings, and
   `claude-hooks/` are not installed as Codex features. The adapters use available Codex capabilities and report
   missing coverage where it affects the result.
+
+### opencode
+
+opencode reads `~/.config/opencode/`. Its `claude-agent` provider runs the local Claude Code on
+the Claude subscription, and its `openai` provider runs on the ChatGPT plan; `opencode auth list`
+shows both once logged in. `opencode/opencode.json` defaults to `claude-agent/opus` and loads
+`shared/CLAUDE.md` and `opencode/compatibility.md` as instructions on every model.
+
+Commands link as one directory, since opencode accepts their Claude frontmatter. Agents link
+one by one, so other agent files there stay. Move an existing `opencode.json` or `commands`
+aside first.
+
+```bash
+mkdir -p ~/.config/opencode/agents
+ln -sf ~/llmfiles/opencode/opencode.json ~/.config/opencode/opencode.json
+ln -sfn ~/llmfiles/commands ~/.config/opencode/commands
+for agent in ~/llmfiles/opencode/agents/*.md; do
+  ln -sf "$agent" ~/.config/opencode/agents/
+done
+opencode service restart
+```
+
+`opencode reload` picks up config and agent changes. A new command file needs
+`opencode service restart`. Skills need no links: opencode discovers `~/.claude/skills` and
+`~/.agents/skills`. The Codex adapters in `~/.agents/skills` are hidden by the `skill` deny rules in
+`opencode.json`, because the linked commands cover them; add a rule when adding an adapter.
+
+Run a command as `/name` in the TUI. `opencode run "/name"` sends the text as a plain message, so
+script a command with `opencode api POST /api/session/<id>/command -d '{"name": "<name>", "text": "<arguments>"}'`.
+
+Each `opencode/agents/<name>.md` loads the body of `agents/<name>.md`. `explore` is Claude's
+`Explore`, and `codex-worker` and `codex-reviewer` load the `worker` and `reviewer` bodies and run
+them on GPT directly, with no `codex exec` step. The `#variant` in a model ID is its effort level:
+
+| Agent | Model |
+| --- | --- |
+| `worker`, `reviewer-fast` | `claude-agent/opus#medium` |
+| `reviewer`, `general-purpose` | `claude-agent/opus#high` |
+| `worker-fast`, `gitlab` | `openai/gpt-6.1-terra#medium` |
+| `explore` | `openai/gpt-6-luna#medium` |
+| `codex-worker`, `codex-reviewer` | `openai/gpt-6.1-sol#high` |
+
+`opencode models` lists model IDs, and `opencode api GET /api/model` lists each model's variants.
+Read-only agents deny the `edit` permission, which removes the write, edit and patch tools. The
+shell tool stays, so read-only shell use is instructed, as with Claude's `disallowedTools`.
+
+Adaptation boundaries:
+
+- `opencode/compatibility.md` maps Claude tools to opencode's. `Workflow`, `Artifact`,
+  `PushNotification` and forks have no equivalent, and it names the substitute for each.
+- A subagent cannot start its own subagents (`subagent_depth` defaults to 1), so every fan-out
+  runs from the main session.
+- GitLab comments are signed `_Comment made by opencode <model> (<effort>)_`.
+- `claude-hooks/subagent-context-budget.py` is not covered. A plugin could port it, since the
+  server reports token counts per session.
+- `/dailyworkrecap` reads Claude transcripts only. opencode sessions are not collected.
