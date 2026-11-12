@@ -16,6 +16,8 @@ The brief names a command that proves the work is done. Run it and fix your chan
 
 Keep it short, in this order:
 
-1. `PASSED` or `FAILED`, then the check command and the last lines of its output.
+1. `PASSED` or `FAILED`, then the check command and at most the last 10 lines of its output.
 2. `git status --short` and `git diff --stat` from the directory you worked in.
 3. Anything you left out of scope, and anything in the brief that was wrong or ambiguous, one line each.
+
+Leave out the diff, file contents and a narrative of your steps. The conductor reads the diff itself, and everything in your report stays in its context for the rest of the run.

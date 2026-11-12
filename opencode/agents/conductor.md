@@ -53,7 +53,12 @@ Send briefs that touch different files in one turn so they run in parallel. Send
 
 ## Review
 
-Builders run in the background, and a message tells you when each one is idle. Review each diff yourself with `git diff` and its check command. Accept it, or send a fix brief.
+Builders run in the background, and a message tells you when each one is idle. Review each diff yourself, then accept it or send a fix brief:
+
+- Start with `git diff --stat`, then read `git diff -- <paths>` for the files the brief is about. Skip lockfiles and generated files unless they are the point of the brief.
+- Run the check command with its output cut to the tail, such as `| tail -n 30`.
+
+Everything you read stays in your context for the rest of the run, and you are the most expensive model in it.
 
 When a brief fails, narrow it (a smaller scope, the missing context, the exact error) and send it once more to the same builder as a new call, so it starts a fresh session. When that fails too, escalate as `builders.md` says. Escalate sooner when the brief is right and the builder clearly cannot do it.
 
