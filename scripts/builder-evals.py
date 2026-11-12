@@ -39,7 +39,9 @@ def session(session_id):
         data = json.loads(result.stdout)["data"]
     except (json.JSONDecodeError, KeyError, TypeError):
         sys.exit(f"cannot read opencode session {session_id}: {result.stdout or result.stderr}".strip())
-    model, time = data["model"], data["time"]
+    model, time = data.get("model"), data.get("time")
+    if not model or not time:
+        sys.exit(f"session {session_id} has no model or timing; pass a builder's session ID")
     # A busy session has no idle time yet, so its last update is the best end mark.
     end = time.get("idle") or time["updated"]
     return {

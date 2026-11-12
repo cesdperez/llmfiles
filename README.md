@@ -431,11 +431,11 @@ target split between providers, names the escalation targets, and holds the meas
 each choice. `builder-luna`, `builder-terra` and `builder-sonnet` share
 [`opencode/builder-contract.md`](opencode/builder-contract.md). Retry, escalation and the A/B
 procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). Say "ab" or
-"a/b" in the message to A/B a brief.
+"a/b" in the message to A/B a brief. `ab-judge` scores the two diffs without knowing which builder made them.
 
-A global `subagent` deny on `builder-*` in `opencode.json` keeps `build`, `plan` and `general`
-from calling builders. The conductor allows them again, plus `worker`, `codex-worker` and
-`explore`, and nothing else.
+A global `subagent` deny on `builder-*` and `ab-judge` in `opencode.json` keeps `build`, `plan`
+and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`
+and `explore`, and nothing else.
 
 Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
 (`LLMFILES_BUILDER_EVALS` overrides the path). To tune `builders.md`, read
@@ -449,6 +449,7 @@ Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
   signal. Run an A/B on a kind before moving it.
 
 `check-repo.py` checks that each builder reads the contract, that `builders.md` and the builder
-files name the same builders, and that the global deny rule is in place. `/whichmodels` does not
+files name the same builders, that every agent the conductor allows or `builders.md` escalates to
+exists, and that the global deny rules are in place. `/whichmodels` does not
 cover the conductor or the builders. The commands (`/fullsend`, `/fleet`, `/bugbounty`, the
 review commands and the rest) are not adapted to the conductor: run them from `build`.

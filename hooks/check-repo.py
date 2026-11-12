@@ -3,6 +3,7 @@
 frontmatter keys, Codex agent TOML, opencode agents and config, example JSON, and ~/llmfiles
 paths named in prose."""
 
+import fnmatch
 import json
 import re
 import subprocess
@@ -15,7 +16,9 @@ MODELS = {"opus", "sonnet", "fable", "haiku", "inherit"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 OPENCODE_MODEL = re.compile(rf"^[\w-]+/[\w.-]+(#({'|'.join(sorted(EFFORTS | {'none'}))}))?$")
 OPENCODE_MODES = {"subagent", "primary", "all"}
-OPENCODE_ONLY_AGENTS = {"conductor"}
+OPENCODE_ONLY_AGENTS = {"conductor", "ab-judge"}
+# Only the conductor allows these again, so build, plan and general never pick one.
+CONDUCTOR_ONLY_SUBAGENTS = ("builder-*", "ab-judge")
 BUILDER_CONTRACT = "~/llmfiles/opencode/builder-contract.md"
 SKILL_DESCRIPTION_LIMIT = 1024
 FRONTMATTER_YAMLLINT = "{extends: default, rules: {line-length: disable, document-start: disable}}"
@@ -141,11 +144,28 @@ def check_builders():
         if BUILDER_CONTRACT not in path.read_text():
             fail(path, f"must tell the builder to read {BUILDER_CONTRACT}")
     routing = ROOT / "opencode" / "builders.md"
-    routed = {name for path in tracked("opencode/builders.md") for name in re.findall(r"`(builder-[\w-]+)`", path.read_text())}
+    text = "".join(path.read_text() for path in tracked("opencode/builders.md"))
+    routed = set(re.findall(r"`(builder-[\w-]+)`", text))
     for name in sorted(builders.keys() - routed):
         fail(routing, f"does not route to `{name}`")
-    for name in sorted(routed - builders.keys()):
-        fail(routing, f"routes to `{name}`, which has no opencode/agents/{name}.md")
+    agents = {path.stem for path in tracked("opencode/agents/*.md")}
+    escalation = text.split("## Escalation", 1)[1].split("\n## ", 1)[0] if "## Escalation" in text else ""
+    named = routed | set(re.findall(r"`([a-z][a-z-]*)`", escalation))
+    for name in sorted(named - agents):
+        fail(routing, f"names `{name}`, which has no opencode/agents/{name}.md")
+
+
+def check_conductor_subagents():
+    path = ROOT / "opencode" / "agents" / "conductor.md"
+    if not tracked("opencode/agents/conductor.md"):
+        return
+    agents = {agent.stem for agent in tracked("opencode/agents/*.md")}
+    allowed = re.findall(
+        r"action: subagent\s+resource: \"?([\w*-]+)\"?\s+effect: allow", path.read_text(),
+    )
+    for pattern in allowed:
+        if not fnmatch.filter(agents, pattern):
+            fail(path, f"allows subagent `{pattern}`, which matches no opencode/agents/*.md")
 
 
 def check_opencode_config():
@@ -183,10 +203,10 @@ def check_adapter_skill_denies(path, permissions):
 
 
 def check_builder_deny(path, permissions):
-    # Only the conductor allows builders again, so build, plan and general never pick one.
-    rule = {"action": "subagent", "resource": "builder-*", "effect": "deny"}
-    if not isinstance(permissions, list) or rule not in permissions:
-        fail(path, f"needs the global rule {json.dumps(rule)}")
+    for resource in CONDUCTOR_ONLY_SUBAGENTS:
+        rule = {"action": "subagent", "resource": resource, "effect": "deny"}
+        if not isinstance(permissions, list) or rule not in permissions:
+            fail(path, f"needs the global rule {json.dumps(rule)}")
 
 
 def check_json():
@@ -224,6 +244,7 @@ if __name__ == "__main__":
     check_codex_agents()
     check_opencode_agents()
     check_builders()
+    check_conductor_subagents()
     check_opencode_config()
     check_json()
     check_references()
