@@ -15,6 +15,8 @@ MODELS = {"opus", "sonnet", "fable", "haiku", "inherit"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 OPENCODE_MODEL = re.compile(rf"^[\w-]+/[\w.-]+(#({'|'.join(sorted(EFFORTS | {'none'}))}))?$")
 OPENCODE_MODES = {"subagent", "primary", "all"}
+OPENCODE_ONLY_AGENTS = {"conductor"}
+BUILDER_CONTRACT = "~/llmfiles/opencode/builder-contract.md"
 SKILL_DESCRIPTION_LIMIT = 1024
 FRONTMATTER_YAMLLINT = "{extends: default, rules: {line-length: disable, document-start: disable}}"
 
@@ -121,12 +123,29 @@ def check_opencode_agents():
             continue
         require(path, keys, "description", "mode", "model")
         # Commands name agents by their Claude name, so each wrapper needs a Claude counterpart.
-        if path.stem.lower() not in claude_agents:
+        if path.stem.lower() not in claude_agents and not opencode_only(path.stem):
             fail(path, f"has no Claude agent `agents/{path.stem}.md` of the same name")
         if keys.get("mode") and keys["mode"] not in OPENCODE_MODES:
             fail(path, f"mode `{keys['mode']}` is not one of {sorted(OPENCODE_MODES)}")
         if keys.get("model") and not OPENCODE_MODEL.match(keys["model"]):
             fail(path, f"model `{keys['model']}` is not provider/model#variant")
+
+
+def opencode_only(name):
+    return name in OPENCODE_ONLY_AGENTS or name.startswith("builder-")
+
+
+def check_builders():
+    builders = {path.stem: path for path in tracked("opencode/agents/builder-*.md")}
+    for path in builders.values():
+        if BUILDER_CONTRACT not in path.read_text():
+            fail(path, f"must tell the builder to read {BUILDER_CONTRACT}")
+    routing = ROOT / "opencode" / "builders.md"
+    routed = {name for path in tracked("opencode/builders.md") for name in re.findall(r"`(builder-[\w-]+)`", path.read_text())}
+    for name in sorted(builders.keys() - routed):
+        fail(routing, f"does not route to `{name}`")
+    for name in sorted(routed - builders.keys()):
+        fail(routing, f"routes to `{name}`, which has no opencode/agents/{name}.md")
 
 
 def check_opencode_config():
@@ -146,6 +165,7 @@ def check_opencode_config():
     if not isinstance(instructions, list) or not all(isinstance(i, str) for i in instructions):
         fail(path, "`instructions` must be a list of paths")
     check_adapter_skill_denies(path, config.get("permissions"))
+    check_builder_deny(path, config.get("permissions"))
 
 
 def check_adapter_skill_denies(path, permissions):
@@ -160,6 +180,13 @@ def check_adapter_skill_denies(path, permissions):
         fail(path, f"needs a `skill` deny rule for the Codex adapter `{name}`")
     for name in sorted(denied - adapters):
         fail(path, f"denies skill `{name}`, which is not a Codex adapter in codex/skills/")
+
+
+def check_builder_deny(path, permissions):
+    # Only the conductor allows builders again, so build, plan and general never pick one.
+    rule = {"action": "subagent", "resource": "builder-*", "effect": "deny"}
+    if not isinstance(permissions, list) or rule not in permissions:
+        fail(path, f"needs the global rule {json.dumps(rule)}")
 
 
 def check_json():
@@ -196,6 +223,7 @@ if __name__ == "__main__":
     check_commands()
     check_codex_agents()
     check_opencode_agents()
+    check_builders()
     check_opencode_config()
     check_json()
     check_references()

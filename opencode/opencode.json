@@ -6,6 +6,7 @@
     "~/llmfiles/opencode/compatibility.md"
   ],
   "permissions": [
+    { "action": "subagent", "resource": "builder-*", "effect": "deny" },
     { "action": "skill", "resource": "bugbounty", "effect": "deny" },
     { "action": "skill", "resource": "dailyworkrecap", "effect": "deny" },
     { "action": "skill", "resource": "fleet", "effect": "deny" },
