@@ -1,7 +1,7 @@
 ---
 description: Blind judge for a conductor A/B. Scores two anonymous diffs, A and B, for the same brief and picks a winner. Only the conductor calls it.
 mode: subagent
-model: claude-agent/claude-fable-5-2#high
+model: claude-agent/opus#medium
 permissions:
   - action: edit
     resource: "*"

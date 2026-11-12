@@ -25,7 +25,6 @@ After a failure, a narrowed retry in a fresh session, and a second failure:
 - Terra's low, medium and default variants ran at the same speed. The Coding Agent Index puts Terra at 48, Luna at 31 and Sol at 54 ([source](https://www.orcarouter.ai/blog/gpt-6-1-terra-benchmark)).
 - Sonnet 5.5 scores 70.6% on Terminal-Bench 4.0 against Terra's 50.3% ([source](https://mixed-news.com/en/claude-sonnet-5-5-terminal-bench-70-6-percent-half-opus-price/), [source](https://letsdatascience.com/blog/gpt-6-1-terra-beats-openai-flagship-claude-still-leads)), and it was the fastest model measured here.
 - Haiku 5.5 is not a builder. It was slower than Sonnet on a multi-file task and used about 4x the output tokens ([source](https://chaseai.io/blog/haiku-5-5-vs-gpt-6-luna), [source](https://www.developersdigest.tech/blog/haiku-5-5-vs-gpt-6-luna-subagent)).
-- `ab-judge` pins `claude-fable-5-2`, because the `claude-agent/fable` alias resolves to Fable 5.1.
 - `claude-agent` models draw from the Claude subscription ([source](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)), and `openai` models from the ChatGPT plan.
 
 ## Measured speed
