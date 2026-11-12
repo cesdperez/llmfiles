@@ -54,34 +54,39 @@ python3 ~/llmfiles/scripts/builder-evals.py append run --kind <kind> --builder <
   --session <first> [--session <retry>] --passed yes|no --escalated yes|no
 ```
 
-At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary`. Keep `provider_split` near 4 in 5 runs on `openai`. When `claude-agent` runs above 1 in 5, send borderline briefs to an OpenAI builder.
+At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary` and compare its `provider_split` with the target in `builders.md`. While it is off target, send borderline briefs to the side that is under.
 
 ## A/B
 
 Run an A/B only when the user's message says "ab" or "a/b", and only on the briefs it names (every brief when it names none). Briefs without an A/B follow the normal flow.
 
-1. Make two worktrees from the same state. The staged baseline keeps each builder's diff apart from your uncommitted changes. Copy any untracked files the brief needs into both.
+1. Make two worktrees from the same state. Replace `<untracked paths>` with the untracked files the brief needs, relative to the repo root, or drop that line when there are none. They go in before the staged baseline, so the winner's diff leaves them out.
 
    ```bash
+   root=$(git rev-parse --show-toplevel)
    ab=$(mktemp -d -t ab)
    for side in a b; do
      git worktree add --detach "$ab/$side" HEAD
-     git diff HEAD --binary | git -C "$ab/$side" apply --allow-empty
+     git -C "$root" diff HEAD --binary | git -C "$ab/$side" apply --allow-empty
+     tar -C "$root" -cf - <untracked paths> | tar -C "$ab/$side" -xf -
      git -C "$ab/$side" add -A
    done
-   git status --short > "$ab/before"
+   git -C "$root" status --short > "$ab/before"
+   echo "root=$root ab=$ab"
    ```
 
+   Each shell call starts fresh, so `$root` and `$ab` are gone after this one. Write the printed absolute paths into the briefs and the later steps.
+
 2. Pick two different builders at random, and A and B at random: `python3 -c 'import random; print(*random.sample(["builder-luna", "builder-terra", "builder-sonnet"], 2))'`. The first is A.
-3. Send both the same brief in one turn. The only difference is the directory: `$ab/a` or `$ab/b`.
-4. When both are idle, compare `git status --short` with `$ab/before`. Any change in the real checkout is a builder that left its worktree, so stop and report it.
-5. Review each side's diff (`git -C "$ab/<side>" add -N . && git -C "$ab/<side>" diff`) and score it before you look at which builder made it: check passed, files changed outside the brief's scope, brief rewrites or escalation needed, and a correctness and fit score from 1 to 10 with one line why. Pick the winner on correctness and fit, or `none` when neither is acceptable.
-6. Apply the winner to the real checkout, then remove both worktrees:
+3. Send both the same brief in one turn. The only difference is the directory: `<ab>/a` or `<ab>/b`.
+4. When both are idle, compare `git -C <root> status --short` with `<ab>/before`. Any change in the real checkout is a builder that left its worktree, so stop and report it.
+5. Review each side's diff (`git -C <ab>/<side> add -N . && git -C <ab>/<side> diff`) and score it before you look at which builder made it: check passed, files changed outside the brief's scope, brief rewrites or escalation needed, and a correctness and fit score from 1 to 10 with one line why. Pick the winner on correctness and fit, or `none` when neither is acceptable.
+6. Apply the winner from the repo root, because `git apply` in a subdirectory skips paths outside it and still exits 0. Check that `git -C <root> status --short` shows the winner's files, then remove both worktrees:
 
    ```bash
-   git -C "$ab/<winner>" add -N .
-   git -C "$ab/<winner>" diff --binary | git apply
-   git worktree remove --force "$ab/a"; git worktree remove --force "$ab/b"
+   git -C <ab>/<winner> add -N .
+   git -C <ab>/<winner> diff --binary | git -C <root> apply
+   git worktree remove --force <ab>/a; git worktree remove --force <ab>/b
    ```
 
 7. Log one row, A first. Each entrant is `{"session", "builder", "check_passed", "files_outside_scope", "rewrites", "escalated", "score", "why"}`:

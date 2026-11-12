@@ -426,26 +426,23 @@ narrow briefs, sends each to a builder subagent, and reviews every diff. Its edi
 denied, so builders make every change. Its shell still runs tests, git and worktrees, and can
 write files, so that part is instructed, not enforced.
 
-- `opencode/builders.md` routes each task kind to a builder and names the escalation target,
-  with the measurements and sources behind each choice. It aims for about 4 briefs in 5 on the
-  ChatGPT plan and 1 in 5 on the Claude subscription.
-- `builder-luna`, `builder-terra` and `builder-sonnet` all read `opencode/builder-contract.md`:
-  do only the brief, run its check, and report the result, the diff and anything out of scope.
-- A failed brief is narrowed and retried once in a fresh session, then escalates to
-  `codex-worker` (OpenAI builders) or `worker` (Sonnet).
-- A global `subagent` deny on `builder-*` in `opencode.json` keeps `build`, `plan` and
-  `general` from calling builders. The conductor allows them again, plus `worker`,
-  `codex-worker` and `explore`, and nothing else.
-- Say "ab" or "a/b" in the message to A/B a brief. The conductor runs it in two git worktrees
-  from the same state with two random builders, scores both blind as A and B, applies the
-  winner's diff to the checkout, and removes the worktrees.
+[`opencode/builders.md`](opencode/builders.md) routes each task kind to a builder, sets the
+target split between providers, names the escalation targets, and holds the measurements behind
+each choice. `builder-luna`, `builder-terra` and `builder-sonnet` share
+[`opencode/builder-contract.md`](opencode/builder-contract.md). Retry, escalation and the A/B
+procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). Say "ab" or
+"a/b" in the message to A/B a brief.
+
+A global `subagent` deny on `builder-*` in `opencode.json` keeps `build`, `plan` and `general`
+from calling builders. The conductor allows them again, plus `worker`, `codex-worker` and
+`explore`, and nothing else.
 
 Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
 (`LLMFILES_BUILDER_EVALS` overrides the path). To tune `builders.md`, read
 `python3 ~/llmfiles/scripts/builder-evals.py summary`:
 
 - `provider_split` is the real split of runs. Move task kinds between builders when it drifts
-  from 4 in 5 on `openai`.
+  from the target in `builders.md`.
 - Per model and `by_kind`: a low `pass_rate` or a high `escalation_rate` means that builder is
   wrong for that kind. Compare `avg_wall_s` only between builders that pass.
 - `ab_win_rate` and `ab_avg_score` compare builders on the same brief, so they are the fairest

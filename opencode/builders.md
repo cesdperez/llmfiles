@@ -1,6 +1,6 @@
 # Builders
 
-Which builder takes a brief, by task kind. The conductor reads this before routing. Aim for about 4 briefs in 5 on OpenAI and 1 in 5 on Sonnet, and check the split with `python3 ~/llmfiles/scripts/builder-evals.py summary`.
+Which builder takes a brief, by task kind. The target split is about 4 briefs in 5 on OpenAI and 1 in 5 on Sonnet, checked with `python3 ~/llmfiles/scripts/builder-evals.py summary`.
 
 ## Routing
 
