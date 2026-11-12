@@ -54,6 +54,8 @@ llmfiles/
 ├── opencode/
 │   ├── opencode.json
 │   ├── compatibility.md
+│   ├── builders.md
+│   ├── builder-contract.md
 │   └── agents/
 │       └── <agent-name>.md
 ├── CLAUDE.md
@@ -151,6 +153,8 @@ is needed.
   registered repo that contains it, used by `/fleet` and `/fullsend`. The CLI cannot move a
   repo into a group, so it calls the app's `projectGroup.moveProject` through the CLI's
   client library, and an Orca update can break that call.
+- `builder-evals.py`, the ledger of the opencode conductor's builder runs and A/B comparisons
+  (see [Conductor](#conductor)). It reads model and wall time from the opencode session API.
 
 ### Local org settings (`local/`)
 
@@ -387,7 +391,7 @@ step with `codex/skills/`.
 Run a command as `/name` in the TUI. `opencode run "/name"` sends the text as a plain message, so
 script a command with `opencode api POST /api/session/<id>/command -d '{"name": "<name>", "text": "<arguments>"}'`.
 
-Each `opencode/agents/<name>.md` loads the body of `agents/<name>.md`. `explore` is Claude's
+Each `opencode/agents/<name>.md`, except the [conductor](#conductor) and its builders, loads the body of `agents/<name>.md`. `explore` is Claude's
 `Explore`, and `codex-worker` and `codex-reviewer` load the `worker` and `reviewer` bodies and run
 them on GPT directly, with no `codex exec` step. The `#variant` in a model ID is its effort level:
 
@@ -413,3 +417,41 @@ Adaptation boundaries:
 - `claude-hooks/subagent-context-budget.py` is not covered. A plugin could port it, since the
   server reports token counts per session.
 - `/dailyworkrecap` reads Claude transcripts only. opencode sessions are not collected.
+
+#### Conductor
+
+`conductor` is an opencode-only primary agent on `claude-agent/claude-fable-5-2#high`. Switch to
+it with Tab in the TUI, or run `opencode run --agent conductor "<task>"`. It splits a task into
+narrow briefs, sends each to a builder subagent, and reviews every diff. Its edit tools are
+denied, so builders make every change. Its shell still runs tests, git and worktrees, and can
+write files, so that part is instructed, not enforced.
+
+- `opencode/builders.md` routes each task kind to a builder and names the escalation target,
+  with the measurements and sources behind each choice. It aims for about 4 briefs in 5 on the
+  ChatGPT plan and 1 in 5 on the Claude subscription.
+- `builder-luna`, `builder-terra` and `builder-sonnet` all read `opencode/builder-contract.md`:
+  do only the brief, run its check, and report the result, the diff and anything out of scope.
+- A failed brief is narrowed and retried once in a fresh session, then escalates to
+  `codex-worker` (OpenAI builders) or `worker` (Sonnet).
+- A global `subagent` deny on `builder-*` in `opencode.json` keeps `build`, `plan` and
+  `general` from calling builders. The conductor allows them again, plus `worker`,
+  `codex-worker` and `explore`, and nothing else.
+- Say "ab" or "a/b" in the message to A/B a brief. The conductor runs it in two git worktrees
+  from the same state with two random builders, scores both blind as A and B, applies the
+  winner's diff to the checkout, and removes the worktrees.
+
+Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
+(`LLMFILES_BUILDER_EVALS` overrides the path). To tune `builders.md`, read
+`python3 ~/llmfiles/scripts/builder-evals.py summary`:
+
+- `provider_split` is the real split of runs. Move task kinds between builders when it drifts
+  from 4 in 5 on `openai`.
+- Per model and `by_kind`: a low `pass_rate` or a high `escalation_rate` means that builder is
+  wrong for that kind. Compare `avg_wall_s` only between builders that pass.
+- `ab_win_rate` and `ab_avg_score` compare builders on the same brief, so they are the fairest
+  signal. Run an A/B on a kind before moving it.
+
+`check-repo.py` checks that each builder reads the contract, that `builders.md` and the builder
+files name the same builders, and that the global deny rule is in place. `/whichmodels` does not
+cover the conductor or the builders. The commands (`/fullsend`, `/fleet`, `/bugbounty`, the
+review commands and the rest) are not adapted to the conductor: run them from `build`.
