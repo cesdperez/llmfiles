@@ -17,6 +17,7 @@ EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 OPENCODE_MODEL = re.compile(rf"^[\w-]+/[\w.-]+(#({'|'.join(sorted(EFFORTS | {'none'}))}))?$")
 OPENCODE_MODES = {"subagent", "primary", "all"}
 OPENCODE_ONLY_AGENTS = {"conductor", "ab-judge"}
+OPENCODE_BUILTIN_AGENTS = {"build", "plan", "general", "explore"}
 # Only the conductor allows these again, so build, plan and general never pick one.
 CONDUCTOR_ONLY_SUBAGENTS = ("builder-*", "ab-judge")
 BUILDER_CONTRACT = "~/llmfiles/opencode/builder-contract.md"
@@ -186,6 +187,25 @@ def check_opencode_config():
         fail(path, "`instructions` must be a list of paths")
     check_adapter_skill_denies(path, config.get("permissions"))
     check_builder_deny(path, config.get("permissions"))
+    check_opencode_commands(path, config.get("commands", {}))
+
+
+def check_opencode_commands(path, commands):
+    if not isinstance(commands, dict):
+        fail(path, "`commands` must be an object")
+        return
+    agents = OPENCODE_BUILTIN_AGENTS | {agent.stem for agent in tracked("opencode/agents/*.md")}
+    # commands/ is linked into opencode too, so a same-named entry would replace the Claude command.
+    claude_commands = {command.stem for command in tracked("commands/*.md")}
+    for name, command in commands.items():
+        if not isinstance(command, dict) or not isinstance(command.get("template"), str):
+            fail(path, f"command `{name}` needs a string `template`")
+            continue
+        if name in claude_commands:
+            fail(path, f"command `{name}` would shadow commands/{name}.md")
+        agent = command.get("agent")
+        if agent is not None and agent not in agents:
+            fail(path, f"command `{name}` runs on agent `{agent}`, which has no opencode/agents/{agent}.md")
 
 
 def check_adapter_skill_denies(path, permissions):
