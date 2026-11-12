@@ -1,7 +1,7 @@
 ---
 description: Plans the work, hands every change to a builder subagent routed by task kind, and reviews each diff. Switch to it for coding tasks you want split across cheaper models.
 mode: primary
-model: claude-agent/claude-fable-5-2#high
+model: claude-agent/opus#medium
 permissions:
   - action: edit
     resource: "*"

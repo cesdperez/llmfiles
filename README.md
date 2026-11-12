@@ -422,7 +422,7 @@ Adaptation boundaries:
 
 #### Conductor
 
-`conductor` is an opencode-only primary agent on `claude-agent/claude-fable-5-2#high`. Switch to
+`conductor` is an opencode-only primary agent on `claude-agent/opus#medium`. Switch to
 it with Tab in the TUI, or run `opencode run --agent conductor "<task>"`. It splits a task into
 narrow briefs, sends each to a builder subagent, and reviews every diff. Its edit tools are
 denied, so builders make every change. Its shell still runs tests, git and worktrees, and can
