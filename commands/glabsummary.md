@@ -23,6 +23,7 @@ Deliberately out of scope:
 - **Merge conflicts.** GitLab blocks the merge regardless, so assume the author will rebase. Do not report `has_conflicts` or `need_rebase` and never downgrade quality for it.
 - **Stale MRs**, measured on `updated_at`, not `created_at`. An MR opened months ago but discussed this week is live work and stays in the report; one nobody has touched in a month is dead weight and drops out. Do not substitute creation date for this.
 - MRs I authored.
+- `newhabitz/specs` MRs. They are RFCs I review by reading, so the script drops them (`EXCLUDED_PROJECTS`).
 
 ## Step 1: Build the queue
 
@@ -32,11 +33,11 @@ python3 ~/llmfiles/scripts/glab-review-queue.py
 
 Pass `--max-idle-days N` to widen or tighten the staleness window (`0` disables it) when I ask for a full sweep or a tighter one.
 
-Emits JSON: `{user, max_idle_days, total_assigned, skipped: {draft, idle, already_approved_by_me}, stale: [...], queue: [...]}`. Each queue entry carries `iid`, `project`, `title`, `url`, `author`, `created`, `updated`, `branch`, `description`, `approvals` ("given/required"), `approved_by`, `merge_status`, `pipeline`, `diff` (file count, +/-, per-path breakdown sorted by churn), `open_threads`, and `local_repo` (absolute path to the local clone, or `null`).
+Emits JSON: `{user, max_idle_days, total_assigned, skipped: {excluded_project, draft, idle, already_approved_by_me}, stale: [...], queue: [...]}`. Each queue entry carries `iid`, `project`, `title`, `url`, `author`, `created`, `updated`, `branch`, `description`, `approvals` ("given/required"), `approved_by`, `merge_status`, `pipeline`, `diff` (file count, +/-, per-path breakdown sorted by churn), `open_threads`, and `local_repo` (absolute path to the local clone, or `null`).
 
 The script already applies every scope rule above, so **do not re-filter**. If `queue` is empty, report the empty queue with the skip counts and stop.
 
-The `skipped` counts are non-overlapping and applied in order (draft → idle → already approved), so an MR that is both stale and already approved counts only as idle. That makes `already_approved_by_me` shift when the window changes; it is not a bug.
+The `skipped` counts are non-overlapping and applied in order (excluded project → draft → idle → already approved), so an MR that is both stale and already approved counts only as idle. That makes `already_approved_by_me` shift when the window changes; it is not a bug.
 
 If an entry has a non-null `degraded`, an API call failed and that MR is in the queue with unverified approval state. Surface it in the report rather than presenting the numbers as solid.
 
@@ -130,7 +131,7 @@ Then, only when they exist, one line each:
 - **Threads waiting on me** (`waiting_on_me` true means the last reply is not mine): `author` on `file:line`, quoted gist. An MR whose only blocker is such a thread is a "resolve or reply" action, not a review.
 - **Hidden as stale**: name the MRs with idle days, e.g. *"Hidden as stale: `infra/base-images!1` (322d idle). Re-run with `--max-idle-days 0` to include."* Never analyse them.
 
-Close with a one-line footer: total assigned, drafts skipped, idle skipped, already-approved skipped.
+Close with a one-line footer: total assigned, excluded-project skipped, drafts skipped, idle skipped, already-approved skipped.
 
 After posting the report here, send a push notification via the `PushNotification` tool without asking: one line, under 200 characters, counting outcomes, e.g. `5 MRs: posted 6 comments, 1 lensed review, 2 approvable, 1 thread on you.` Skip it when the queue is empty.
 

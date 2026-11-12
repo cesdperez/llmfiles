@@ -28,6 +28,9 @@ MY_USERNAME = ""  # set in main() once /user resolves
 # ago but discussed today is still live work, while a quiet one is dead weight.
 DEFAULT_MAX_IDLE_DAYS = 30
 
+# Specs MRs are RFC discussions, reviewed by reading them, not by a code review pass.
+EXCLUDED_PROJECTS = ("goodhabitz/newhabitz/specs",)
+
 
 def parse_ts(s):
     return datetime.strptime(s[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
@@ -181,8 +184,10 @@ def main():
     if mrs is None:
         sys.exit("failed to list merge requests")
 
-    drafts = [m for m in mrs if m.get("draft") or m.get("work_in_progress")]
-    live = [m for m in mrs if m not in drafts]
+    excluded = [m for m in mrs if m["references"]["full"].split("!")[0] in EXCLUDED_PROJECTS]
+    mrs_in_scope = [m for m in mrs if m not in excluded]
+    drafts = [m for m in mrs_in_scope if m.get("draft") or m.get("work_in_progress")]
+    live = [m for m in mrs_in_scope if m not in drafts]
 
     # Filter on staleness before enrichment: saves 3 API calls per dropped MR.
     stale = []
@@ -216,6 +221,7 @@ def main():
             "user": me["username"],
             "max_idle_days": args.max_idle_days,
             "skipped": {
+                "excluded_project": len(excluded),
                 "draft": len(drafts),
                 "idle": len(stale),
                 "already_approved_by_me": sum(1 for r in results if "skip" in r),
