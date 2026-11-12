@@ -7,6 +7,9 @@ These adaptations take precedence over the Claude-specific instructions in `~/ll
 - `Agent` is the `subagent` tool, and `SendMessage` is the same tool with the child's `sessionID`. To run agents in parallel, call `subagent` several times in one turn and wait for every report before the next step.
 - Claude's `Explore` is the `explore` agent. Every other agent name is the same.
 - `Bash` is `shell`. `Read`, `Edit`, `Write`, `Glob`, `Grep`, `WebFetch`, `WebSearch` and `Skill` are their lower-case opencode tools. A command's `allowed-tools`, `background` and `maxTurns` configure Claude only.
+- `isolation: "worktree"` has no equivalent. Create the worktree with `git worktree add` and give the subagent its absolute path.
+- `AskUserQuestion` is the `question` tool.
+- `Monitor` is a `shell` call with `background: true` running a loop that exits when the condition holds. The session is notified when it ends.
 - A fork has no equivalent. Brief a `worker` with the context it needs instead.
 - `Workflow` has no equivalent. Run the same fan-out with parallel subagents.
 - `Artifact` has no equivalent. Write the page to a file in the scratch directory and give its path.
