@@ -382,8 +382,8 @@ done
 opencode service restart
 ```
 
-`opencode reload` picks up config and agent changes. A new command file needs
-`opencode service restart`. Skills need no links: opencode discovers `~/.claude/skills` and
+`opencode reload` picks up config changes. A new or relinked agent or command file needs
+`opencode service restart`, because per-directory agent lists stay cached until then. Skills need no links: opencode discovers `~/.claude/skills` and
 `~/.agents/skills`. The Codex adapters in `~/.agents/skills` are hidden by the `skill` deny rules in
 `opencode.json`, because the linked commands cover them. `check-repo.py` keeps the rules in
 step with `codex/skills/`.
