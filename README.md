@@ -56,6 +56,7 @@ llmfiles/
 │   ├── compatibility.md
 │   ├── builders.md
 │   ├── builder-contract.md
+│   ├── fullconduct.md
 │   └── agents/
 │       └── <agent-name>.md
 ├── CLAUDE.md
@@ -410,7 +411,8 @@ shell tool stays, so read-only shell use is instructed, as with Claude's `disall
 Adaptation boundaries:
 
 - `opencode/compatibility.md` maps Claude tools to opencode's. `Workflow`, `Artifact`,
-  `PushNotification` and forks have no equivalent, and it names the substitute for each.
+  `PushNotification`, `Monitor`, worktree isolation and forks have no equivalent, and it names
+  the substitute for each.
 - A subagent cannot start its own subagents (`subagent_depth` defaults to 1), so every fan-out
   runs from the main session.
 - GitLab comments are signed `_Comment made by opencode <model> (<effort>)_`.
@@ -434,8 +436,14 @@ procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md)
 "a/b" in the message to A/B a brief. `ab-judge` scores the two diffs without knowing which builder made them.
 
 A global `subagent` deny on `builder-*` and `ab-judge` in `opencode.json` keeps `build`, `plan`
-and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`
-and `explore`, and nothing else.
+and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`,
+`explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else.
+
+`/fullconduct` is `/fullsend` on the conductor. It is defined under `commands` in
+`opencode.json`, not in `commands/`, so Claude Code never sees it. It loads `commands/fullsend.md`
+unchanged with [`opencode/fullconduct.md`](opencode/fullconduct.md), which holds what differs:
+builders implement and fix, and the conductor runs the review lenses itself. `/fullsend` stays as
+it is in both tools.
 
 Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
 (`LLMFILES_BUILDER_EVALS` overrides the path). To tune `builders.md`, read
@@ -450,6 +458,7 @@ Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
 
 `check-repo.py` checks that each builder reads the contract, that `builders.md` and the builder
 files name the same builders, that every agent the conductor allows or `builders.md` escalates to
-exists, and that the global deny rules are in place. `/whichmodels` does not
-cover the conductor or the builders. The commands (`/fullsend`, `/fleet`, `/bugbounty`, the
-review commands and the rest) are not adapted to the conductor: run them from `build`.
+exists, that the global deny rules are in place, and that each `opencode.json` command runs on an
+existing agent and shadows no file in `commands/`. `/whichmodels` does not cover the conductor or
+the builders. The other commands (`/fleet`, `/bugbounty`, the review commands and the rest) are not
+adapted to the conductor: run them from `build`.
