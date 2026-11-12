@@ -4,7 +4,7 @@ These adaptations take precedence over the Claude-specific instructions in `~/ll
 
 ## Tools
 
-- `Agent` is the `subagent` tool, and `SendMessage` is the same tool with the child's `sessionID`. To run agents in parallel, call `subagent` several times in one turn and wait for every report before the next step. Background mode suits only work that can run while you continue elsewhere.
+- `Agent` is the `subagent` tool, and `SendMessage` is the same tool with the child's `sessionID`. To run agents in parallel, call `subagent` several times in one turn and wait for every report before the next step.
 - Claude's `Explore` is the `explore` agent. Every other agent name is the same.
 - `Bash` is `shell`. `Read`, `Edit`, `Write`, `Glob`, `Grep`, `WebFetch`, `WebSearch` and `Skill` are their lower-case opencode tools. A command's `allowed-tools`, `background` and `maxTurns` configure Claude only.
 - A fork has no equivalent. Brief a `worker` with the context it needs instead.
@@ -18,7 +18,7 @@ These adaptations take precedence over the Claude-specific instructions in `~/ll
 - `worker`, `reviewer`, `reviewer-fast` and `general-purpose` run on Claude. `worker-fast`, `gitlab`, `explore`, `codex-worker` and `codex-reviewer` run on ChatGPT models.
 - `codex-worker` and `codex-reviewer` run their task on the GPT model themselves. There is no `codex exec` step, and they have network access.
 - A subagent cannot start its own subagents.
-- When a subagent fails on a usage or rate limit, rerun the same brief on the other provider: `worker` and `general-purpose` with `codex-worker`, `reviewer` and `reviewer-fast` with `codex-reviewer`, and the ChatGPT agents with `worker`, or `reviewer` for the read-only ones.
+- Usage-limit fallback pairs, in place of the shared rule's: `worker` and `general-purpose` go to `codex-worker`, `reviewer` and `reviewer-fast` to `codex-reviewer`, and the ChatGPT agents to `worker`, or `reviewer` when read-only.
 
 ## GitLab
 

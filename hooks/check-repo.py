@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MODELS = {"opus", "sonnet", "fable", "haiku", "inherit"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
-OPENCODE_MODEL = re.compile(r"^[\w-]+/[\w.-]+(#(none|low|medium|high|xhigh|max))?$")
+OPENCODE_MODEL = re.compile(rf"^[\w-]+/[\w.-]+(#({'|'.join(sorted(EFFORTS | {'none'}))}))?$")
 OPENCODE_MODES = {"subagent", "primary", "all"}
 SKILL_DESCRIPTION_LIMIT = 1024
 FRONTMATTER_YAMLLINT = "{extends: default, rules: {line-length: disable, document-start: disable}}"
@@ -136,11 +136,30 @@ def check_opencode_config():
     except (OSError, json.JSONDecodeError) as error:
         fail(path, f"unreadable: {error}")
         return
-    if not OPENCODE_MODEL.match(config.get("model", "")):
+    if not isinstance(config, dict):
+        fail(path, "must be a JSON object")
+        return
+    model = config.get("model")
+    if not isinstance(model, str) or not OPENCODE_MODEL.match(model):
         fail(path, "needs a `model` in provider/model#variant form")
     instructions = config.get("instructions")
     if not isinstance(instructions, list) or not all(isinstance(i, str) for i in instructions):
         fail(path, "`instructions` must be a list of paths")
+    check_adapter_skill_denies(path, config.get("permissions"))
+
+
+def check_adapter_skill_denies(path, permissions):
+    # The Codex adapters in ~/.agents/skills would shadow the linked commands in opencode.
+    rules = permissions if isinstance(permissions, list) else []
+    denied = {
+        rule.get("resource") for rule in rules
+        if isinstance(rule, dict) and rule.get("action") == "skill" and rule.get("effect") == "deny"
+    }
+    adapters = {skill.parent.name for skill in tracked("codex/skills/*/SKILL.md")}
+    for name in sorted(adapters - denied):
+        fail(path, f"needs a `skill` deny rule for the Codex adapter `{name}`")
+    for name in sorted(denied - adapters):
+        fail(path, f"denies skill `{name}`, which is not a Codex adapter in codex/skills/")
 
 
 def check_json():

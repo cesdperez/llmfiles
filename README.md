@@ -381,7 +381,8 @@ opencode service restart
 `opencode reload` picks up config and agent changes. A new command file needs
 `opencode service restart`. Skills need no links: opencode discovers `~/.claude/skills` and
 `~/.agents/skills`. The Codex adapters in `~/.agents/skills` are hidden by the `skill` deny rules in
-`opencode.json`, because the linked commands cover them; add a rule when adding an adapter.
+`opencode.json`, because the linked commands cover them. `check-repo.py` keeps the rules in
+step with `codex/skills/`.
 
 Run a command as `/name` in the TUI. `opencode run "/name"` sends the text as a plain message, so
 script a command with `opencode api POST /api/session/<id>/command -d '{"name": "<name>", "text": "<arguments>"}'`.
