@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validates what the agent CLIs load from this repo, which a syntax linter cannot see:
-frontmatter keys, Codex agent TOML, example JSON, and ~/llmfiles paths named in prose."""
+frontmatter keys, Codex agent TOML, opencode agents and config, example JSON, and ~/llmfiles
+paths named in prose."""
 
 import json
 import re
@@ -12,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MODELS = {"opus", "sonnet", "fable", "haiku", "inherit"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+OPENCODE_MODEL = re.compile(r"^[\w-]+/[\w.-]+(#(none|low|medium|high|xhigh|max))?$")
+OPENCODE_MODES = {"subagent", "primary", "all"}
 SKILL_DESCRIPTION_LIMIT = 1024
 FRONTMATTER_YAMLLINT = "{extends: default, rules: {line-length: disable, document-start: disable}}"
 
@@ -110,6 +113,36 @@ def check_codex_agents():
             fail(path, f"name `{agent['name']}` must match the file name `{path.stem}`")
 
 
+def check_opencode_agents():
+    claude_agents = {path.stem.lower() for path in tracked("agents/*.md")}
+    for path in tracked("opencode/agents/*.md"):
+        keys = frontmatter(path)
+        if keys is None:
+            continue
+        require(path, keys, "description", "mode", "model")
+        # Commands name agents by their Claude name, so each wrapper needs a Claude counterpart.
+        if path.stem.lower() not in claude_agents:
+            fail(path, f"has no Claude agent `agents/{path.stem}.md` of the same name")
+        if keys.get("mode") and keys["mode"] not in OPENCODE_MODES:
+            fail(path, f"mode `{keys['mode']}` is not one of {sorted(OPENCODE_MODES)}")
+        if keys.get("model") and not OPENCODE_MODEL.match(keys["model"]):
+            fail(path, f"model `{keys['model']}` is not provider/model#variant")
+
+
+def check_opencode_config():
+    path = ROOT / "opencode" / "opencode.json"
+    try:
+        config = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        fail(path, f"unreadable: {error}")
+        return
+    if not OPENCODE_MODEL.match(config.get("model", "")):
+        fail(path, "needs a `model` in provider/model#variant form")
+    instructions = config.get("instructions")
+    if not isinstance(instructions, list) or not all(isinstance(i, str) for i in instructions):
+        fail(path, "`instructions` must be a list of paths")
+
+
 def check_json():
     for path in tracked("*.json"):
         try:
@@ -119,7 +152,7 @@ def check_json():
 
 
 def check_references():
-    for path in tracked("*.md", "*.toml", "*.yaml", "*.py", "*.sh", "hooks/*"):
+    for path in tracked("*.md", "*.toml", "*.yaml", "*.json", "*.py", "*.sh", "hooks/*"):
         text = path.read_text()
         # The match stops at `<` and `*`, so placeholders and globs check their parent directory.
         for ref in set(re.findall(r"~/llmfiles/([\w./-]+)", text)):
@@ -143,6 +176,8 @@ if __name__ == "__main__":
     check_agents()
     check_commands()
     check_codex_agents()
+    check_opencode_agents()
+    check_opencode_config()
     check_json()
     check_references()
     if errors:

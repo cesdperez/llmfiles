@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "claude-agent/opus",
+  "instructions": [
+    "~/llmfiles/shared/CLAUDE.md",
+    "~/llmfiles/opencode/compatibility.md"
+  ],
+  "permissions": [
+    { "action": "skill", "resource": "bugbounty", "effect": "deny" },
+    { "action": "skill", "resource": "dailyworkrecap", "effect": "deny" },
+    { "action": "skill", "resource": "fleet", "effect": "deny" },
+    { "action": "skill", "resource": "fullsend", "effect": "deny" },
+    { "action": "skill", "resource": "glablensedreview", "effect": "deny" },
+    { "action": "skill", "resource": "glabsummary", "effect": "deny" },
+    { "action": "skill", "resource": "locallensedreview", "effect": "deny" },
+    { "action": "skill", "resource": "skillbuilder", "effect": "deny" },
+    { "action": "skill", "resource": "waitwhat", "effect": "deny" },
+    { "action": "skill", "resource": "whichagents", "effect": "deny" },
+    { "action": "skill", "resource": "whichmodels", "effect": "deny" }
+  ]
+}
