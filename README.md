@@ -41,8 +41,6 @@ llmfiles/
 │   ├── meta-hub.md
 │   ├── orca-fleet.md
 │   └── review-lenses.md
-├── statusline/
-│   └── statusline-command.sh
 ├── codex/
 │   ├── AGENTS.md
 │   ├── compatibility.md
@@ -188,11 +186,6 @@ session passes 120k, it tells it once to hand the remaining reading and editing 
 Neither can see its own token count, so the delegation rule in `shared/CLAUDE.md` needs this to
 hold. `SUBAGENT_CONTEXT_WARN_TOKENS` and `MAIN_CONTEXT_WARN_TOKENS` override the limits.
 
-### Status line (`statusline/statusline-command.sh`)
-
-Claude Code status line: path, git branch, model and effort, context window usage. It reads
-the session JSON on stdin and needs `jq`.
-
 ### Global instructions (`shared/CLAUDE.md`)
 
 User-level instructions for every Claude Code session, linked to `~/.claude/CLAUDE.md`.
@@ -222,8 +215,8 @@ git clone git@github.com:cesdperez/llmfiles.git ~/llmfiles
 ```
 
 Prerequisites: `python3` (3.11 or later) for the scripts and hooks, `yamllint`, `shellcheck` and
-`ruff` for the git hook (`brew install yamllint shellcheck ruff`), `jq` for the status line, and an
-authenticated `glab` for the GitLab commands. The GitLab and recap commands also need
+`ruff` for the git hook (`brew install yamllint shellcheck ruff`), `jq` for the GitLab and
+Orca commands, and an authenticated `glab` for the GitLab commands. The GitLab and recap commands also need
 `local/work.json` (see [Local org settings](#local-org-settings-local)), and the review
 commands expect the GitLab group cloned under its `repo_root`. Other CLIs with companion skills are
 listed in the [Agentic CLI registry](shared/agentic-clis.md).
@@ -255,16 +248,6 @@ Git hooks, once per clone:
 
 ```bash
 git -C ~/llmfiles config core.hooksPath hooks
-```
-
-The status line is a file symlink, referenced from `~/.claude/settings.json`:
-
-```bash
-ln -sf ~/llmfiles/statusline/statusline-command.sh ~/.claude/statusline-command.sh
-```
-
-```json
-"statusLine": { "type": "command", "command": "bash ~/.claude/statusline-command.sh" }
 ```
 
 Claude Code hooks are referenced by absolute path from the `hooks` block of
@@ -364,6 +347,6 @@ Adaptation boundaries:
   the parent session's permissions and schedule within its available concurrency limit.
 - `$dailyworkrecap` reads the existing collector's Claude transcripts. Codex session
   history is not collected. Slack coverage depends on available connected tools.
-- Claude's `PushNotification`, Workflow, agent-team settings, status line, and
+- Claude's `PushNotification`, Workflow, agent-team settings, and
   `claude-hooks/` are not installed as Codex features. The adapters use available Codex capabilities and report
   missing coverage where it affects the result.
