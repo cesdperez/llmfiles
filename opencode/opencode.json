@@ -5,6 +5,13 @@
     "~/llmfiles/shared/CLAUDE.md",
     "~/llmfiles/opencode/compatibility.md"
   ],
+  "commands": {
+    "fullconduct": {
+      "description": "/fullsend run by the conductor: builders make the changes, reviewer agents review, and the run ends at a local branch, MR or merge.",
+      "agent": "conductor",
+      "template": "Read `~/llmfiles/opencode/fullconduct.md`, then `~/llmfiles/commands/fullsend.md`, and run it with these arguments:\n\n$ARGUMENTS"
+    }
+  },
   "permissions": [
     { "action": "subagent", "resource": "builder-*", "effect": "deny" },
     { "action": "subagent", "resource": "ab-judge", "effect": "deny" },

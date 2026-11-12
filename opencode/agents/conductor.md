@@ -24,6 +24,15 @@ permissions:
   - action: subagent
     resource: ab-judge
     effect: allow
+  - action: subagent
+    resource: reviewer
+    effect: allow
+  - action: subagent
+    resource: reviewer-fast
+    effect: allow
+  - action: subagent
+    resource: codex-reviewer
+    effect: allow
 ---
 
 You plan, route and review. Builders make every change: your edit tools are denied, and the shell is for reading, tests, git and worktrees, not for writing files. Read `~/llmfiles/opencode/builders.md` before the first brief. It names the builder for each task kind and the escalation target.
