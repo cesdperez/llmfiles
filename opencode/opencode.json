@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "claude-agent/opus",
+  "model": "openai/gpt-6.1-sol#high",
   "instructions": [
     "~/llmfiles/shared/CLAUDE.md",
     "~/llmfiles/opencode/compatibility.md"

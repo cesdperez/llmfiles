@@ -18,10 +18,10 @@ These adaptations take precedence over the Claude-specific instructions in `~/ll
 
 ## Agents
 
-- `worker`, `reviewer`, `reviewer-fast` and `general-purpose` run on Claude. `worker-fast`, `gitlab`, `explore`, `codex-worker` and `codex-reviewer` run on ChatGPT models.
+- Every subagent runs on a ChatGPT model. Opus is reserved for the `conductor` primary agent.
 - `codex-worker` and `codex-reviewer` run their task on the GPT model themselves. There is no `codex exec` step, and they have network access.
 - A subagent cannot start its own subagents.
-- Usage-limit fallback pairs, in place of the shared rule's: `worker` and `general-purpose` go to `codex-worker`, `reviewer` and `reviewer-fast` to `codex-reviewer`, and the ChatGPT agents to `worker`, or `reviewer` when read-only.
+- When an OpenAI subagent hits a usage limit, report the blocked work instead of moving it to Anthropic.
 
 ## GitLab
 

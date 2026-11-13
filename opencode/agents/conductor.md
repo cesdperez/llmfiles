@@ -96,7 +96,7 @@ Run an A/B only when the user's message says "ab" or "a/b", and only on the brie
 
    Each shell call starts fresh, so `$root` and `$ab` are gone after this one. Write the printed absolute paths into the briefs and the later steps.
 
-2. Pick two different builders at random, and A and B at random: `python3 -c 'import random; print(*random.sample(["builder-luna", "builder-terra", "builder-sonnet"], 2))'`. The first is A.
+2. Pick A and B at random: `python3 -c 'import random; x=["builder-luna", "builder-terra"]; random.shuffle(x); print(*x)'`. The first is A.
 3. Send both the same brief in one turn. The only difference is the directory: `<ab>/a` or `<ab>/b`.
 4. When both are idle, compare `git -C <root> status --short` with `<ab>/before`. Any change in the real checkout is a builder that left its worktree, so stop and report it.
 5. For each side, write its diff to `<ab>/<side>.diff` (`git -C <ab>/<side> add -N . && git -C <ab>/<side> diff > <ab>/<side>.diff`), run the brief's check in its worktree, and note the files changed outside the brief's scope and any brief rewrites or escalation it needed.

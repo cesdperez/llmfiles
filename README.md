@@ -366,7 +366,7 @@ Adaptation boundaries:
 
 opencode reads `~/.config/opencode/`. Its `claude-agent` provider runs the local Claude Code on
 the Claude subscription, and its `openai` provider runs on the ChatGPT plan; `opencode auth list`
-shows both once logged in. `opencode/opencode.json` defaults to `claude-agent/opus` and loads
+shows both once logged in. `opencode/opencode.json` defaults to `openai/gpt-6.1-sol#high` and loads
 `shared/CLAUDE.md` and `opencode/compatibility.md` as instructions on every model.
 
 Commands link as one directory, since opencode accepts their Claude frontmatter. Agents link
@@ -398,8 +398,8 @@ them on GPT directly, with no `codex exec` step. The `#variant` in a model ID is
 
 | Agent | Model |
 | --- | --- |
-| `worker`, `reviewer-fast` | `claude-agent/opus#medium` |
-| `reviewer`, `general-purpose` | `claude-agent/opus#high` |
+| `worker`, `reviewer`, `general-purpose` | `openai/gpt-6.1-sol#high` |
+| `reviewer-fast` | `openai/gpt-6.1-sol#medium` |
 | `worker-fast`, `gitlab` | `openai/gpt-6.1-terra#medium` |
 | `explore` | `openai/gpt-6-luna#medium` |
 | `codex-worker`, `codex-reviewer` | `openai/gpt-6.1-sol#high` |
@@ -428,16 +428,16 @@ narrow briefs, sends each to a builder subagent, and reviews every diff. Its edi
 denied, so builders make every change. Its shell still runs tests, git and worktrees, and can
 write files, so that part is instructed, not enforced.
 
-[`opencode/builders.md`](opencode/builders.md) routes each task kind to a builder, sets the
-target split between providers, names the escalation targets, and holds the measurements behind
-each choice. `builder-luna`, `builder-terra` and `builder-sonnet` share
+[`opencode/builders.md`](opencode/builders.md) routes each task kind to a builder, names the
+escalation target, and holds the measurements behind each choice. `builder-luna` and `builder-terra` share
 [`opencode/builder-contract.md`](opencode/builder-contract.md). Retry, escalation and the A/B
 procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). Say "ab" or
 "a/b" in the message to A/B a brief. `ab-judge` scores the two diffs without knowing which builder made them.
 
 A global `subagent` deny on `builder-*` and `ab-judge` in `opencode.json` keeps `build`, `plan`
 and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`,
-`explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else.
+`explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else. All of those
+subagents run on OpenAI; Opus is reserved for the conductor.
 
 `/fullconduct` is `/fullsend` on the conductor. It is defined under `commands` in
 `opencode.json`, not in `commands/`, so Claude Code never sees it. It loads `commands/fullsend.md`
