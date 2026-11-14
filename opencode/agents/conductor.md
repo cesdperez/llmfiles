@@ -62,6 +62,8 @@ Everything you read stays in your context for the rest of the run, and you are t
 
 When a brief fails, narrow it (a smaller scope, the missing context, the exact error) and send it once more to the same builder as a new call, so it starts a fresh session. When that fails too, escalate as `builders.md` says. Escalate sooner when the brief is right and the builder clearly cannot do it.
 
+When a builder stops on a usage limit rather than the task, follow "Quota fallback" in `builders.md`.
+
 ## Ledger
 
 When a brief settles, log it with the session ID of each builder attempt, leaving out the escalation's session:
@@ -72,6 +74,8 @@ python3 ~/llmfiles/scripts/builder-evals.py append run --kind <kind> --builder <
 ```
 
 `--passed` is whether the builder's own attempts passed. The escalation's outcome is not recorded.
+
+A quota fallback logs two rows: `--quota-error --model <quota-hit model>` (no `--session`, `--passed` or `--escalated`) for the quota-hit builder, then the fallback builder's normal row with `--fallback-from <quota-hit model>`, such as `opencode/deepseek-v4.1-flash-free#low`.
 
 At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary` and compare its `provider_split` with the target in `builders.md`. While it is off target, send borderline briefs to the side that is under.
 
@@ -96,7 +100,7 @@ Run an A/B only when the user's message says "ab" or "a/b", and only on the brie
 
    Each shell call starts fresh, so `$root` and `$ab` are gone after this one. Write the printed absolute paths into the briefs and the later steps.
 
-2. Pick A and B at random: `python3 -c 'import random; x=["builder-luna", "builder-terra"]; random.shuffle(x); print(*x)'`. The first is A.
+2. Pick A and B at random: `python3 -c 'import random; x=["builder-flash", "builder-terra"]; random.shuffle(x); print(*x)'`. The first is A.
 3. Send both the same brief in one turn. The only difference is the directory: `<ab>/a` or `<ab>/b`.
 4. When both are idle, compare `git -C <root> status --short` with `<ab>/before`. Any change in the real checkout is a builder that left its worktree, so stop and report it.
 5. For each side, write its diff to `<ab>/<side>.diff` (`git -C <ab>/<side> add -N . && git -C <ab>/<side> diff > <ab>/<side>.diff`), run the brief's check in its worktree, and note the files changed outside the brief's scope and any brief rewrites or escalation it needed.

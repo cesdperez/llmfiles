@@ -429,15 +429,16 @@ denied, so builders make every change. Its shell still runs tests, git and workt
 write files, so that part is instructed, not enforced.
 
 [`opencode/builders.md`](opencode/builders.md) routes each task kind to a builder, names the
-escalation target, and holds the measurements behind each choice. `builder-luna` and `builder-terra` share
-[`opencode/builder-contract.md`](opencode/builder-contract.md). Retry, escalation and the A/B
+escalation target, and holds the measurements behind each choice. `builder-flash`, `builder-luna` and
+`builder-terra` share [`opencode/builder-contract.md`](opencode/builder-contract.md). `builder-flash` runs on
+the free DeepSeek Flash on OpenCode Zen, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry, escalation and the A/B
 procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). Say "ab" or
 "a/b" in the message to A/B a brief. `ab-judge` scores the two diffs without knowing which builder made them.
 
 A global `subagent` deny on `builder-*` and `ab-judge` in `opencode.json` keeps `build`, `plan`
 and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`,
 `explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else. All of those
-subagents run on OpenAI; Opus is reserved for the conductor.
+subagents except `builder-flash` run on OpenAI; Opus is reserved for the conductor.
 
 `/fullconduct` is `/fullsend` on the conductor. It is defined under `commands` in
 `opencode.json`, not in `commands/`, so Claude Code never sees it. It loads `commands/fullsend.md`
@@ -453,6 +454,8 @@ Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
   from the target in `builders.md`.
 - Per model and `by_kind`: a low `pass_rate` or a high `escalation_rate` means that builder is
   wrong for that kind. Compare `avg_wall_s` only between builders that pass.
+- `quota_errors` and `quota_error_rate` count briefs a builder dropped on a usage limit. They stay
+  out of `pass_rate`, `escalation_rate` and `provider_split`.
 - `ab_win_rate` and `ab_avg_score` compare builders on the same brief, so they are the fairest
   signal. Run an A/B on a kind before moving it.
 

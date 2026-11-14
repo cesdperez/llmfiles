@@ -3,11 +3,16 @@
 
 Usage:
   builder-evals.py append run --kind KIND --builder NAME --session ID [--session ID]
-                              --passed yes|no --escalated yes|no [--repo PATH]
+                              --passed yes|no --escalated yes|no [--fallback-from MODEL] [--repo PATH]
+  builder-evals.py append run --kind KIND --builder NAME --quota-error --model MODEL [--repo PATH]
   builder-evals.py append ab --kind KIND --winner a|b|none --entrant JSON --entrant JSON [--repo PATH]
   builder-evals.py summary
 
 A run row covers one brief: one --session per attempt, so a narrowed retry adds a session.
+--quota-error marks a builder that hit its provider's usage limit, which says nothing about the
+builder, so `summary` keeps it out of pass and escalation rates. It takes --model instead of
+sessions, because a session cut off by a quota error may have no model or timing. The builder that
+took the brief over logs its own row with --fallback-from set to the quota-hit model.
 Each A/B entrant is {"session", "builder", "check_passed", "files_outside_scope", "rewrites",
 "escalated", "score", "why"}. Model, provider and wall time come from the opencode session API.
 
@@ -69,18 +74,31 @@ def entrant(text):
     return value
 
 
+def quota_row(args):
+    return {
+        "type": "run", "kind": args.kind, "builder": args.builder,
+        "model": args.model, "provider": args.model.split("/", 1)[0],
+        "passed": False, "retries": 0, "escalated": False, "wall_s": 0, "cost": 0, "quota_error": True,
+    }
+
+
 def run_row(args):
+    if args.quota_error:
+        return quota_row(args)
     attempts = [session(session_id) for session_id in args.session]
     models = {attempt["model"] for attempt in attempts}
     if len(models) > 1:
         sys.exit(f"sessions ran on different models {sorted(models)}; pass only the builder's own sessions and mark a handoff with --escalated yes")
-    return {
+    row = {
         "type": "run", "kind": args.kind, "builder": args.builder,
         "model": attempts[0]["model"], "provider": attempts[0]["provider"],
         "passed": args.passed, "retries": len(attempts) - 1, "escalated": args.escalated,
         "wall_s": round(sum(attempt["wall_s"] for attempt in attempts), 1),
         "cost": sum(attempt["cost"] for attempt in attempts),
     }
+    if args.fallback_from:
+        row["fallback_from"] = args.fallback_from
+    return row
 
 
 def ab_row(args):
@@ -100,7 +118,9 @@ def append(args):
     print(json.dumps(row))
 
 
-def stats(runs, entries):
+def stats(rows, entries):
+    runs = [row for row in rows if not row.get("quota_error")]
+    quota_errors = len(rows) - len(runs)
     passed = [run for run in runs if run["passed"]]
     scores = [entry["score"] for entry, _ in entries if isinstance(entry.get("score"), (int, float))]
     wins = [entry for entry, won in entries if won]
@@ -110,6 +130,8 @@ def stats(runs, entries):
         "avg_retries": average([run["retries"] for run in runs]),
         "escalation_rate": ratio(sum(run["escalated"] for run in runs), len(runs)),
         "avg_wall_s": average([run["wall_s"] for run in runs]),
+        "quota_errors": quota_errors,
+        "quota_error_rate": ratio(quota_errors, len(rows)),
         "ab_entries": len(entries),
         "ab_win_rate": ratio(len(wins), len(entries)),
         "ab_avg_score": average(scores),
@@ -146,7 +168,8 @@ def summary(_args):
     providers = defaultdict(int)
     for run_rows in runs.values():
         for run in run_rows:
-            providers[run["provider"]] += 1
+            if not run.get("quota_error"):
+                providers[run["provider"]] += 1
     total = sum(providers.values())
     print(json.dumps({
         "ledger": str(path),
@@ -162,9 +185,12 @@ def main():
     rows = commands.add_parser("append").add_subparsers(dest="row", required=True)
     run = rows.add_parser("run")
     run.add_argument("--builder", required=True)
-    run.add_argument("--session", action="append", required=True)
-    run.add_argument("--passed", type=yes, required=True)
-    run.add_argument("--escalated", type=yes, required=True)
+    run.add_argument("--session", action="append")
+    run.add_argument("--passed", type=yes)
+    run.add_argument("--escalated", type=yes)
+    run.add_argument("--quota-error", action="store_true")
+    run.add_argument("--model")
+    run.add_argument("--fallback-from")
     ab = rows.add_parser("ab")
     ab.add_argument("--winner", choices=["a", "b", "none"], required=True)
     ab.add_argument("--entrant", type=entrant, action="append", required=True)
@@ -173,7 +199,21 @@ def main():
         row.add_argument("--repo", default=os.getcwd())
         row.set_defaults(func=append)
     args = parser.parse_args()
+    if args.command == "append" and args.row == "run":
+        check_outcome(parser, args)
     args.func(args)
+
+
+def check_outcome(parser, args):
+    if args.quota_error:
+        if args.model is None or "/" not in args.model:
+            parser.error("--quota-error needs --model provider/model")
+        if args.session or args.passed is not None or args.escalated is not None or args.fallback_from:
+            parser.error("--quota-error takes --model in place of --session, --passed, --escalated and --fallback-from")
+    elif args.model is not None:
+        parser.error("--model goes with --quota-error; other rows read the model from --session")
+    elif not args.session or args.passed is None or args.escalated is None:
+        parser.error("a run row needs --session, --passed and --escalated, or --quota-error with --model")
 
 
 if __name__ == "__main__":

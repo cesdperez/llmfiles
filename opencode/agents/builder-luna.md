@@ -1,5 +1,5 @@
 ---
-description: Conductor builder for mechanical briefs (renames, boilerplate, config, test scaffolding, docs), on GPT Luna.
+description: Conductor builder that takes mechanical briefs when builder-flash hits its usage limit, on GPT Luna.
 mode: subagent
 model: openai/gpt-6-luna#low
 ---
