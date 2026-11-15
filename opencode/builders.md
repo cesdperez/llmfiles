@@ -6,7 +6,7 @@ Which builder takes a brief, by task kind. Check how each one does with `python3
 
 | Task kind | Builder | Model |
 | --- | --- | --- |
-| `mechanical`: renames, boilerplate, config, test scaffolding, docs | `builder-flash` | `opencode/deepseek-v4.1-flash-free#low` |
+| `mechanical`: renames, boilerplate, config, test scaffolding, docs | `builder-flash` | `opencode-go/deepseek-v4.1-flash#low` |
 | `feature`, `bugfix`, `refactor`, `frontend-logic`, `frontend`, `infra`, `long-context`: normal features and bug fixes, refactors, UI work, browser debugging, shell-heavy debugging, and reading big files or logs | `builder-terra` | `openai/gpt-6.1-terra#low` |
 
 Use the task kind names above in briefs and ledger rows. When a brief fits no row, send it to `builder-terra`.
@@ -15,7 +15,7 @@ A/Bs of `builder-flash` against `builder-terra` on `feature` and `refactor` brie
 
 ## Quota fallback
 
-When `builder-flash` stops on a usage or rate limit instead of failing the task (a 429, "Free usage limit reached", `provider.free-limit`, `provider.rate-limit`, `provider.quota`, or any other error about usage or limits), send the same brief unchanged to `builder-luna` at once. This is not a retry or an escalation. A task failure on Flash follows the normal retry and escalation path.
+When `builder-flash` stops on a usage or rate limit instead of failing the task (a 429, `provider.free-limit`, `provider.rate-limit`, `provider.quota`, or any other error about usage or limits), send the same brief unchanged to `builder-luna` at once. This is not a retry or an escalation. A task failure on Flash follows the normal retry and escalation path.
 
 ## Escalation
 
@@ -25,7 +25,8 @@ After a failure, a narrowed retry in a fresh session, and a second failure:
 
 ## Why
 
-- Flash is free on OpenCode Zen, its provider keeps no data, and it was the fastest builder on the fixture. The free tier is for a limited time, publishes no quota, and can stop for hours, so Luna stays as its fallback and Flash may disappear.
+- Flash runs on the OpenCode Go plan, which gives it a $100 monthly allowance at $0.15/$0.60 per 1M tokens (double at peak hours), capped at 20% in any 5 hours and 50% in any week. Go's agreement with DeepSeek keeps no data. It was the fastest builder on the fixture. Luna takes its briefs once a cap is hit.
+- Flash needs Global regions enabled in the OpenCode console privacy settings, since DeepSeek hosts it outside Europe and the US.
 - Luna costs a tenth of Terra on the API ($0.10/$0.50 against $1/$5 per 1M tokens). Its `-fast` tier saved little time and draws 2.5x of the plan allowance.
 - Terra passed every measured brief and the 3-file refactor in the same time as a small task, so it takes all work that is not mechanical.
 - Terra's low, medium and default variants ran at the same speed. The Coding Agent Index puts Terra at 48, Luna at 31 and Sol at 54 ([source](https://www.orcarouter.ai/blog/gpt-6-1-terra-benchmark)).
@@ -39,7 +40,7 @@ After a failure, a narrowed retry in a fresh session, and a second failure:
 
 | Model | Small task | 3-file refactor |
 | --- | --- | --- |
-| `deepseek-v4.1-flash-free` | 12.6, 7.6 | 16.7, 17.8 |
+| `deepseek-v4.1-flash` (free tier) | 12.6, 7.6 | 16.7, 17.8 |
 | `gpt-6-luna#low` | 21, 17 | 34, 26 |
 | `gpt-6.1-terra#low` | 16, 16 | 26, 27 |
 | `sonnet#low` | 9, 9 | 9, 9 |

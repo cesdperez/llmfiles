@@ -1,7 +1,7 @@
 ---
-description: Conductor builder for mechanical briefs (renames, boilerplate, config, test scaffolding, docs), on the free DeepSeek Flash.
+description: Conductor builder for mechanical briefs (renames, boilerplate, config, test scaffolding, docs), on DeepSeek Flash through OpenCode Go.
 mode: subagent
-model: opencode/deepseek-v4.1-flash-free#low
+model: opencode-go/deepseek-v4.1-flash#low
 ---
 
 Read `~/llmfiles/opencode/builder-contract.md` and follow it. The conductor's brief is your task.

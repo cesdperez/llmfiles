@@ -75,7 +75,7 @@ python3 ~/llmfiles/scripts/builder-evals.py append run --kind <kind> --builder <
 
 `--passed` is whether the builder's own attempts passed. The escalation's outcome is not recorded.
 
-A quota fallback logs two rows: `--quota-error --model <quota-hit model>` (no `--session`, `--passed` or `--escalated`) for the quota-hit builder, then the fallback builder's normal row with `--fallback-from <quota-hit model>`, such as `opencode/deepseek-v4.1-flash-free#low`.
+A quota fallback logs two rows: `--quota-error --model <quota-hit model>` (no `--session`, `--passed` or `--escalated`) for the quota-hit builder, then the fallback builder's normal row with `--fallback-from <quota-hit model>`, such as `opencode-go/deepseek-v4.1-flash#low`.
 
 At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary` and compare its `provider_split` with the target in `builders.md`. While it is off target, send borderline briefs to the side that is under.
 

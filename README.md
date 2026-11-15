@@ -431,7 +431,7 @@ write files, so that part is instructed, not enforced.
 [`opencode/builders.md`](opencode/builders.md) routes each task kind to a builder, names the
 escalation target, and holds the measurements behind each choice. `builder-flash`, `builder-luna` and
 `builder-terra` share [`opencode/builder-contract.md`](opencode/builder-contract.md). `builder-flash` runs on
-the free DeepSeek Flash on OpenCode Zen, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry, escalation and the A/B
+DeepSeek Flash through the OpenCode Go plan, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry, escalation and the A/B
 procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). Say "ab" or
 "a/b" in the message to A/B a brief. `ab-judge` scores the two diffs without knowing which builder made them.
 
