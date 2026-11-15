@@ -11,17 +11,18 @@ Which builder takes a brief, by task kind. Check how each one does with `python3
 
 Use the task kind names above in briefs and ledger rows. When a brief fits no row, send it to `builder-terra`.
 
-The conductor A/Bs `builder-flash` against `builder-terra` on a quarter of the briefs that are not `mechanical`. After about 15 A/Bs of a kind, route it to Flash when Flash wins at least half, and back to Terra when Flash wins under 40%.
+Move a kind by its real runs in the summary's `by_kind`. A kind stays on Flash while Flash holds a `pass_rate` of at least 0.95 and an `escalation_rate` of at most 0.03 over at least 20 runs, and goes back to Terra when it misses either. To try a Terra kind on Flash, move it and judge it by the same bar after 20 runs. Move nothing to Flash while its `quota_error_rate` is above 0.1, since each quota hit costs a second builder run. The conductor A/Bs `builder-flash` against `builder-terra` only when the user asks for it, and an A/B result settles a kind that sits on the bar.
 
 ## Other conductor roles on Flash
 
 - The rule-lens bundle of a review runs as `reviewer-flash`. The `reviewer` lenses (correctness, security) stay on Sol.
 - Browser checks and other verify steps the conductor's shell cannot prove run as `worker-flash`.
+- Broad code searches run as `explore-flash`. A search only reads and returns paths, so a miss costs one more search.
 - `ab-judge` and the escalation target stay on Sol, so a Flash diff is never judged or rescued by Flash.
 
 ## Quota fallback
 
-When a Flash agent stops on a usage or rate limit instead of failing the task (a 429, `provider.free-limit`, `provider.rate-limit`, `provider.quota`, or any other error about usage or limits), send the same brief unchanged to its fallback at once: `builder-flash` to `builder-luna`, `reviewer-flash` to `reviewer-fast`, `worker-flash` to `worker`. This is not a retry or an escalation. A task failure on Flash follows the normal retry and escalation path.
+When a Flash agent stops on a usage or rate limit instead of failing the task (a 429, `provider.free-limit`, `provider.rate-limit`, `provider.quota`, or any other error about usage or limits), send the same brief unchanged to its fallback at once: `builder-flash` to `builder-luna`, `reviewer-flash` to `reviewer-fast`, `worker-flash` to `worker`, `explore-flash` to `explore`. This is not a retry or an escalation. A task failure on Flash follows the normal retry and escalation path.
 
 ## Escalation
 

@@ -39,6 +39,9 @@ permissions:
   - action: subagent
     resource: worker-flash
     effect: allow
+  - action: subagent
+    resource: explore-flash
+    effect: allow
 ---
 
 You plan, route and review. Builders make every change: your edit tools are denied, and the shell is for reading, tests, git and worktrees, not for writing files. Read `~/llmfiles/opencode/builders.md` before the first brief. It names the builder for each task kind and the escalation target.
@@ -53,7 +56,7 @@ Split the task into briefs a builder can finish without asking. Each brief gives
 - the context the builder cannot see: decisions made, the code it must match, the errors seen
 - one command that proves the brief is done
 
-Builders read `~/llmfiles/opencode/builder-contract.md`, so the brief does not repeat how to report. Reading code to write a brief is your job; use `explore` only for a broad search across many files.
+Builders read `~/llmfiles/opencode/builder-contract.md`, so the brief does not repeat how to report. Reading code to write a brief is your job; use `explore-flash` only for a broad search across many files.
 
 Send briefs that touch different files in one turn so they run in parallel. Send a brief that depends on another after that one is reviewed.
 
@@ -68,7 +71,7 @@ Everything you read stays in your context for the rest of the run, and you are t
 
 When a brief fails, narrow it (a smaller scope, the missing context, the exact error) and send it once more to the same builder as a new call, so it starts a fresh session. When that fails too, escalate as `builders.md` says. Escalate sooner when the brief is right and the builder clearly cannot do it.
 
-When a builder, `reviewer-flash` or `worker-flash` stops on a usage limit rather than the task, follow "Quota fallback" in `builders.md`.
+When a builder, `reviewer-flash`, `worker-flash` or `explore-flash` stops on a usage limit rather than the task, follow "Quota fallback" in `builders.md`.
 
 ## Ledger
 
@@ -87,10 +90,7 @@ At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summ
 
 ## A/B
 
-Run an A/B on a brief when either holds:
-
-- The user's message says "ab" or "a/b". It covers the briefs it names, or every brief when it names none.
-- The brief's kind is not `mechanical`, and `python3 -c 'import random; print(random.random() < 0.25)'` prints `True`. Run it once per brief, before sending it.
+Run an A/B only when the user's message says "ab", "a/b" or "a/b test". It covers the briefs it names, or every brief when it names none.
 
 Briefs without an A/B follow the normal flow.
 

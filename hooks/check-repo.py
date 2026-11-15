@@ -16,10 +16,10 @@ MODELS = {"opus", "sonnet", "fable", "haiku", "inherit"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 OPENCODE_MODEL = re.compile(rf"^[\w-]+/[\w.-]+(#({'|'.join(sorted(EFFORTS | {'none'}))}))?$")
 OPENCODE_MODES = {"subagent", "primary", "all"}
-OPENCODE_ONLY_AGENTS = {"conductor", "ab-judge", "reviewer-flash", "worker-flash"}
+OPENCODE_ONLY_AGENTS = {"conductor", "ab-judge", "reviewer-flash", "worker-flash", "explore-flash"}
 OPENCODE_BUILTIN_AGENTS = {"build", "plan", "general", "explore"}
 # Only the conductor allows these again, so build, plan and general never pick one.
-CONDUCTOR_ONLY_SUBAGENTS = ("builder-*", "ab-judge", "reviewer-flash", "worker-flash")
+CONDUCTOR_ONLY_SUBAGENTS = ("builder-*", "ab-judge", "reviewer-flash", "worker-flash", "explore-flash")
 BUILDER_CONTRACT = "~/llmfiles/opencode/builder-contract.md"
 SKILL_DESCRIPTION_LIMIT = 1024
 FRONTMATTER_YAMLLINT = "{extends: default, rules: {line-length: disable, document-start: disable}}"

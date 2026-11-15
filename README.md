@@ -432,12 +432,12 @@ write files, so that part is instructed, not enforced.
 escalation target, and holds the measurements behind each choice. `builder-flash`, `builder-luna` and
 `builder-terra` share [`opencode/builder-contract.md`](opencode/builder-contract.md). `builder-flash` runs on
 DeepSeek Flash through the OpenCode Go plan, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry, escalation and the A/B
-procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). The conductor A/Bs a quarter of
-the briefs that are not `mechanical` on its own; say "ab" or "a/b" in the message to A/B more. `ab-judge` scores the two diffs without knowing which builder made them.
+procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). The conductor A/Bs only when
+the message says "ab" or "a/b". `ab-judge` scores the two diffs without knowing which builder made them.
 
-`reviewer-flash` runs the review's rule-lens bundle and `worker-flash` the browser checks, both on Flash.
+`reviewer-flash` runs the review's rule-lens bundle, `worker-flash` the browser checks and `explore-flash` the code searches, all on Flash.
 
-A global `subagent` deny on `builder-*`, `ab-judge`, `reviewer-flash` and `worker-flash` in `opencode.json` keeps `build`, `plan`
+A global `subagent` deny on `builder-*`, `ab-judge`, `reviewer-flash`, `worker-flash` and `explore-flash` in `opencode.json` keeps `build`, `plan`
 and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`,
 `explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else. The Flash agents run on
 OpenCode Go and the rest on OpenAI; Opus is reserved for the conductor.
@@ -455,11 +455,11 @@ Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
 - `provider_split` is the real split of runs. Move task kinds between builders when it drifts
   from the target in `builders.md`.
 - Per model and `by_kind`: a low `pass_rate` or a high `escalation_rate` means that builder is
-  wrong for that kind. Compare `avg_wall_s` only between builders that pass.
+  wrong for that kind. `builders.md` sets the bar that moves a kind. Compare `avg_wall_s` only between builders that pass.
 - `quota_errors` and `quota_error_rate` count briefs a builder dropped on a usage limit. They stay
   out of `pass_rate`, `escalation_rate` and `provider_split`.
 - `ab_win_rate` and `ab_avg_score` compare builders on the same brief, so they are the fairest
-  signal. Run an A/B on a kind before moving it.
+  signal. A/Bs run only on request, so use them to settle a kind that sits on the bar.
 
 `check-repo.py` checks that each builder reads the contract, that `builders.md` and the builder
 files name the same builders, that every agent the conductor allows or `builders.md` escalates to

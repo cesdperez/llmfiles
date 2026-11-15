@@ -17,6 +17,7 @@
     { "action": "subagent", "resource": "ab-judge", "effect": "deny" },
     { "action": "subagent", "resource": "reviewer-flash", "effect": "deny" },
     { "action": "subagent", "resource": "worker-flash", "effect": "deny" },
+    { "action": "subagent", "resource": "explore-flash", "effect": "deny" },
     { "action": "skill", "resource": "bugbounty", "effect": "deny" },
     { "action": "skill", "resource": "dailyworkrecap", "effect": "deny" },
     { "action": "skill", "resource": "fleet", "effect": "deny" },
