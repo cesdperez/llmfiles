@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Ledger of conductor builder runs and A/B comparisons, used to tune opencode/builders.md.
+"""Ledger of conductor builder runs and finished tasks, used to tune opencode/builders.md.
 
 Usage:
   builder-evals.py append run --kind KIND --builder NAME --session ID [--session ID]
                               --passed yes|no --escalated yes|no [--fallback-from MODEL] [--repo PATH]
   builder-evals.py append run --kind KIND --builder NAME --quota-error --model MODEL [--repo PATH]
-  builder-evals.py append ab --kind KIND --winner a|b|none --entrant JSON --entrant JSON [--repo PATH]
   builder-evals.py append task --task TITLE --briefs N --fix-briefs N --escalations N --findings N
                                --green yes|no [--repo PATH]
   builder-evals.py summary [--since 7d|24h|YYYY-MM-DD]
@@ -16,8 +15,7 @@ A run row covers one brief: one --session per attempt, so a narrowed retry adds 
 builder, so `summary` keeps it out of pass and escalation rates. It takes --model instead of
 sessions, because a session cut off by a quota error may have no model or timing. The builder that
 took the brief over logs its own row with --fallback-from set to the quota-hit model.
-Each A/B entrant is {"session", "builder", "check_passed", "files_outside_scope", "rewrites",
-"escalated", "score", "why"}. Model, provider and wall time come from the opencode session API.
+Model, provider and wall time come from the opencode session API.
 
 A task row covers one user task from start to finish: briefs sent, fix briefs after review,
 escalations, review findings scoring 7 or more, and whether the final check or pipeline went green.
@@ -44,7 +42,6 @@ BAR_MIN_RUNS = 20
 BAR_PASS_RATE = 0.95
 BAR_ESCALATION_RATE = 0.03
 BAR_QUOTA_ERROR_RATE = 0.1
-AB_ENTRANT_KEYS = ("session", "builder", "check_passed", "files_outside_scope", "rewrites", "escalated", "score", "why")
 
 
 def ledger_path():
@@ -103,17 +100,6 @@ def yes(value):
     return value == "yes"
 
 
-def entrant(text):
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError as error:
-        raise argparse.ArgumentTypeError(f"invalid JSON: {error}") from error
-    missing = [key for key in AB_ENTRANT_KEYS if key not in value]
-    if missing:
-        raise argparse.ArgumentTypeError(f"entrant lacks: {', '.join(missing)}")
-    return value
-
-
 def quota_row(args):
     return {
         "type": "run", "kind": args.kind, "builder": args.builder,
@@ -141,13 +127,6 @@ def run_row(args):
     return row
 
 
-def ab_row(args):
-    if len(args.entrant) != 2:
-        sys.exit("an A/B row needs exactly two --entrant values, A first")
-    entrants = [{**value, **session(value["session"])} for value in args.entrant]
-    return {"type": "ab", "kind": args.kind, "winner": args.winner, "entrants": entrants}
-
-
 def task_row(args):
     return {
         "type": "task", "task": args.task, "briefs": args.briefs, "fix_briefs": args.fix_briefs,
@@ -156,7 +135,7 @@ def task_row(args):
 
 
 def append(args):
-    row = {"run": run_row, "ab": ab_row, "task": task_row}[args.row](args)
+    row = {"run": run_row, "task": task_row}[args.row](args)
     row = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "repo": args.repo, **row}
     path = ledger_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -165,12 +144,10 @@ def append(args):
     print(json.dumps(row))
 
 
-def stats(rows, entries):
+def stats(rows):
     runs = [row for row in rows if not row.get("quota_error")]
     quota_errors = len(rows) - len(runs)
     passed = [run for run in runs if run["passed"]]
-    scores = [entry["score"] for entry, _ in entries if isinstance(entry.get("score"), (int, float))]
-    wins = [entry for entry, won in entries if won]
     return {
         "runs": len(runs),
         "pass_rate": ratio(len(passed), len(runs)),
@@ -179,9 +156,6 @@ def stats(rows, entries):
         "avg_wall_s": average([run["wall_s"] for run in runs]),
         "quota_errors": quota_errors,
         "quota_error_rate": ratio(quota_errors, len(rows)),
-        "ab_entries": len(entries),
-        "ab_win_rate": ratio(len(wins), len(entries)),
-        "ab_avg_score": average(scores),
     }
 
 
@@ -221,23 +195,19 @@ def summary(args):
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
     if args.since:
         rows = [row for row in rows if datetime.fromisoformat(row["ts"]) >= args.since]
-    runs, entries, tasks = defaultdict(list), defaultdict(list), []
+    runs, tasks = defaultdict(list), []
+    # A ledger can hold rows of retired types, such as "ab", which the summary skips.
     for row in rows:
         if row["type"] == "run":
             runs[(row["model"], row["kind"])].append(row)
         elif row["type"] == "task":
             tasks.append(row)
-        else:
-            for index, value in enumerate(row["entrants"]):
-                entries[(value["model"], row["kind"])].append((value, row["winner"] == "ab"[index]))
     models = {}
-    for model in sorted({model for model, _ in runs.keys() | entries.keys()}):
-        kinds = sorted({kind for m, kind in runs.keys() | entries.keys() if m == model})
-        model_runs = [run for kind in kinds for run in runs[(model, kind)]]
-        model_entries = [entry for kind in kinds for entry in entries[(model, kind)]]
+    for model in sorted({model for model, _ in runs}):
+        kinds = sorted({kind for m, kind in runs if m == model})
         models[model] = {
-            **stats(model_runs, model_entries),
-            "by_kind": {kind: stats(runs[(model, kind)], entries[(model, kind)]) for kind in kinds},
+            **stats([run for kind in kinds for run in runs[(model, kind)]]),
+            "by_kind": {kind: stats(runs[(model, kind)]) for kind in kinds},
         }
     providers = defaultdict(int)
     for run_rows in runs.values():
@@ -314,17 +284,13 @@ def main():
     run.add_argument("--quota-error", action="store_true")
     run.add_argument("--model")
     run.add_argument("--fallback-from")
-    ab = rows.add_parser("ab")
-    ab.add_argument("--winner", choices=["a", "b", "none"], required=True)
-    ab.add_argument("--entrant", type=entrant, action="append", required=True)
     task = rows.add_parser("task")
     task.add_argument("--task", required=True)
     for key in ("--briefs", "--fix-briefs", "--escalations", "--findings"):
         task.add_argument(key, type=count, required=True)
     task.add_argument("--green", type=yes, required=True)
-    for row in (run, ab):
-        row.add_argument("--kind", required=True)
-    for row in (run, ab, task):
+    run.add_argument("--kind", required=True)
+    for row in (run, task):
         row.add_argument("--repo", default=os.getcwd())
         row.set_defaults(func=append)
     args = parser.parse_args()

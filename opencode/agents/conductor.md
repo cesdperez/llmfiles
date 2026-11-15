@@ -22,9 +22,6 @@ permissions:
     resource: explore
     effect: allow
   - action: subagent
-    resource: ab-judge
-    effect: allow
-  - action: subagent
     resource: reviewer
     effect: allow
   - action: subagent
@@ -94,52 +91,6 @@ python3 ~/llmfiles/scripts/builder-evals.py append task --task "<short title>" -
 ```
 
 At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary --since 7d`. Compare its `provider_split` with the target in `builders.md`, and while it is off target, send borderline briefs to the side that is under. Name any `flags` to the user, since each one means a kind should move.
-
-## A/B
-
-Run an A/B only when the user's message says "ab", "a/b" or "a/b test". It covers the briefs it names, or every brief when it names none.
-
-Briefs without an A/B follow the normal flow.
-
-1. Make two worktrees from the same state. Replace `<untracked paths>` with the untracked files the brief needs, relative to the repo root, or drop that line when there are none. They go in before the staged baseline, so the winner's diff leaves them out.
-
-   ```bash
-   root=$(git rev-parse --show-toplevel)
-   ab=$(mktemp -d -t ab)
-   for side in a b; do
-     git worktree add --detach "$ab/$side" HEAD
-     git -C "$root" diff HEAD --binary | git -C "$ab/$side" apply --allow-empty
-     tar -C "$root" -cf - <untracked paths> | tar -C "$ab/$side" -xf -
-     git -C "$ab/$side" add -A
-   done
-   git -C "$root" status --short > "$ab/before"
-   echo "root=$root ab=$ab"
-   ```
-
-   Each shell call starts fresh, so `$root` and `$ab` are gone after this one. Write the printed absolute paths into the briefs and the later steps.
-
-2. Pick A and B at random: `python3 -c 'import random; x=["builder-flash", "builder-terra"]; random.shuffle(x); print(*x)'`. The first is A.
-3. Send both the same brief in one turn. The only difference is the directory: `<ab>/a` or `<ab>/b`.
-4. When both are idle, compare `git -C <root> status --short` with `<ab>/before`. Any change in the real checkout is a builder that left its worktree, so stop and report it.
-5. For each side, write its diff to `<ab>/<side>.diff` (`git -C <ab>/<side> add -N . && git -C <ab>/<side> diff > <ab>/<side>.diff`), run the brief's check in its worktree, and note the files changed outside the brief's scope and any brief rewrites or escalation it needed.
-6. Send `ab-judge` the brief, each side's check result and files outside scope, and the two diff paths, labelled only A and B. You know which builder made which side, so the score and the winner come from the judge, not from you.
-7. Apply the judge's winner from the repo root, because `git apply` in a subdirectory skips paths outside it and still exits 0. With `none`, apply neither. Check that `git -C <root> status --short` shows the winner's files, then remove both worktrees and the temp directory:
-
-   ```bash
-   git -C <ab>/<winner> add -N .
-   git -C <ab>/<winner> diff --binary | git -C <root> apply
-   git worktree remove --force <ab>/a; git worktree remove --force <ab>/b
-   rm -rf <ab>
-   ```
-
-8. Log one row, A first, with the judge's score and why. Each entrant is `{"session", "builder", "check_passed", "files_outside_scope", "rewrites", "escalated", "score", "why"}`:
-
-   ```bash
-   python3 ~/llmfiles/scripts/builder-evals.py append ab --kind <kind> --winner a|b|none \
-     --entrant '<A json>' --entrant '<B json>'
-   ```
-
-Name the winner and both scores in your report.
 
 ## Report
 

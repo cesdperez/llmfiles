@@ -154,8 +154,8 @@ is needed.
   registered repo that contains it, used by `/fleet` and `/fullsend`. The CLI cannot move a
   repo into a group, so it calls the app's `projectGroup.moveProject` through the CLI's
   client library, and an Orca update can break that call.
-- `builder-evals.py`, the ledger of the opencode conductor's builder runs, finished tasks and A/B
-  comparisons (see [Conductor](#conductor)). It reads model and wall time from the opencode session API.
+- `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks
+  (see [Conductor](#conductor)), plus a usage report from opencode's sessions. It reads model and wall time from the opencode session API.
 
 ### Local org settings (`local/`)
 
@@ -431,13 +431,12 @@ write files, so that part is instructed, not enforced.
 [`opencode/builders.md`](opencode/builders.md) routes each task kind to a builder, names the
 escalation target, and holds the measurements behind each choice. `builder-flash`, `builder-luna` and
 `builder-terra` share [`opencode/builder-contract.md`](opencode/builder-contract.md). `builder-flash` runs on
-DeepSeek Flash through the OpenCode Go plan, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry, escalation and the A/B
-procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). The conductor A/Bs only when
-the message says "ab" or "a/b". `ab-judge` scores the two diffs without knowing which builder made them.
+DeepSeek Flash through the OpenCode Go plan, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry and escalation
+live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md).
 
 `reviewer-flash` runs the review's rule-lens bundle, `worker-flash` the browser checks and `explore-flash` the code searches, all on Flash.
 
-A global `subagent` deny on `builder-*`, `ab-judge`, `reviewer-flash`, `worker-flash` and `explore-flash` in `opencode.json` keeps `build`, `plan`
+A global `subagent` deny on `builder-*`, `reviewer-flash`, `worker-flash` and `explore-flash` in `opencode.json` keeps `build`, `plan`
 and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`,
 `explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else. The Flash agents run on
 OpenCode Go and the rest on OpenAI; Opus is reserved for the conductor.
@@ -448,7 +447,7 @@ unchanged with [`opencode/fullconduct.md`](opencode/fullconduct.md), which holds
 builders implement and fix, and the conductor runs the review lenses itself. `/fullsend` stays as
 it is in both tools.
 
-Every settled brief, every finished task and every A/B adds a row to `local/builder-evals.jsonl`
+Every settled brief and every finished task adds a row to `local/builder-evals.jsonl`
 (`LLMFILES_BUILDER_EVALS` overrides the path). To check how the setup is doing, run both reports.
 Each takes `--since` (`7d`, `24h` or an ISO date); `summary` covers all time without it, and `usage` covers the last 7 days.
 
@@ -465,8 +464,9 @@ Each takes `--since` (`7d`, `24h` or an ISO date); `summary` covers all time wit
   wrong for that kind. `builders.md` sets the bar that moves a kind. Compare `avg_wall_s` only between builders that pass.
 - `quota_errors` and `quota_error_rate` count briefs a builder dropped on a usage limit. They stay
   out of `pass_rate`, `escalation_rate` and `provider_split`.
-- `ab_win_rate` and `ab_avg_score` compare builders on the same brief, so they are the fairest
-  signal. A/Bs run only on request, so use them to settle a kind that sits on the bar.
+
+Judge a model switch before and after by comparing `summary --since <switch date>` with the window
+before it. Comparing candidate models on the same tasks is a job for offline evals.
 
 `python3 ~/llmfiles/scripts/builder-evals.py usage` reads opencode's own sessions, so it covers
 every agent, including the conductor, reviewers, workers and `explore-flash`, at no runtime cost:
