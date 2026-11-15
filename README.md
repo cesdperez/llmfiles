@@ -154,8 +154,8 @@ is needed.
   registered repo that contains it, used by `/fleet` and `/fullsend`. The CLI cannot move a
   repo into a group, so it calls the app's `projectGroup.moveProject` through the CLI's
   client library, and an Orca update can break that call.
-- `builder-evals.py`, the ledger of the opencode conductor's builder runs and A/B comparisons
-  (see [Conductor](#conductor)). It reads model and wall time from the opencode session API.
+- `builder-evals.py`, the ledger of the opencode conductor's builder runs, finished tasks and A/B
+  comparisons (see [Conductor](#conductor)). It reads model and wall time from the opencode session API.
 
 ### Local org settings (`local/`)
 
@@ -448,9 +448,16 @@ unchanged with [`opencode/fullconduct.md`](opencode/fullconduct.md), which holds
 builders implement and fix, and the conductor runs the review lenses itself. `/fullsend` stays as
 it is in both tools.
 
-Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
-(`LLMFILES_BUILDER_EVALS` overrides the path). To tune `builders.md`, read
-`python3 ~/llmfiles/scripts/builder-evals.py summary`:
+Every settled brief, every finished task and every A/B adds a row to `local/builder-evals.jsonl`
+(`LLMFILES_BUILDER_EVALS` overrides the path). To check how the setup is doing, run both reports.
+Each takes `--since` (`7d`, `24h` or an ISO date); `summary` covers all time without it, and `usage` covers the last 7 days.
+
+`python3 ~/llmfiles/scripts/builder-evals.py summary` reads the ledger:
+
+- `flags` lists each model and kind that misses the routing bar in `builders.md`, and each model
+  whose quota errors pass 10%. An empty list means nothing needs to move.
+- `tasks` is the end-to-end view: `green_rate`, and the average briefs, fix briefs, escalations
+  and review findings per task. More fix briefs or findings per task means builders return weaker work.
 
 - `provider_split` is the real split of runs. Move task kinds between builders when it drifts
   from the target in `builders.md`.
@@ -460,6 +467,14 @@ Every settled brief and every A/B adds a row to `local/builder-evals.jsonl`
   out of `pass_rate`, `escalation_rate` and `provider_split`.
 - `ab_win_rate` and `ab_avg_score` compare builders on the same brief, so they are the fairest
   signal. A/Bs run only on request, so use them to settle a kind that sits on the bar.
+
+`python3 ~/llmfiles/scripts/builder-evals.py usage` reads opencode's own sessions, so it covers
+every agent, including the conductor, reviewers, workers and `explore-flash`, at no runtime cost:
+
+- Per agent and model: sessions, `failed` and `interrupted` counts, fresh `tokens` (input, output and
+  reasoning), `cache_read` and `avg_wall_s`. A rise in `failed` on a Flash agent is usually its quota.
+- `provider_token_split` is each plan's share of fresh tokens. The ledger's `cost` stays 0 on
+  subscription plans, so tokens are the load measure.
 
 `check-repo.py` checks that each builder reads the contract, that `builders.md` and the builder
 files name the same builders, that every agent the conductor allows or `builders.md` escalates to

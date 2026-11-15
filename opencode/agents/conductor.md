@@ -86,7 +86,14 @@ python3 ~/llmfiles/scripts/builder-evals.py append run --kind <kind> --builder <
 
 A quota fallback logs two rows: `--quota-error --model <quota-hit model>` (no `--session`, `--passed` or `--escalated`) for the quota-hit builder, then the fallback builder's normal row with `--fallback-from <quota-hit model>`, such as `opencode-go/deepseek-v4.1-flash#low`.
 
-At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary` and compare its `provider_split` with the target in `builders.md`. While it is off target, send borderline briefs to the side that is under.
+When the user's task ends, done or given up, log one task row. Count every brief you sent, the fix briefs among them, escalations, and review findings that scored 7 or more. `--green` is whether the final check or pipeline passed.
+
+```bash
+python3 ~/llmfiles/scripts/builder-evals.py append task --task "<short title>" --briefs <n> \
+  --fix-briefs <n> --escalations <n> --findings <n> --green yes|no
+```
+
+At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary --since 7d`. Compare its `provider_split` with the target in `builders.md`, and while it is off target, send borderline briefs to the side that is under. Name any `flags` to the user, since each one means a kind should move.
 
 ## A/B
 

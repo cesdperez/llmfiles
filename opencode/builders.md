@@ -11,7 +11,7 @@ Which builder takes a brief, by task kind. Check how each one does with `python3
 
 Use the task kind names above in briefs and ledger rows. When a brief fits no row, send it to `builder-terra`.
 
-Move a kind by its real runs in the summary's `by_kind`. A kind stays on Flash while Flash holds a `pass_rate` of at least 0.95 and an `escalation_rate` of at most 0.03 over at least 20 runs, and goes back to Terra when it misses either. To try a Terra kind on Flash, move it and judge it by the same bar after 20 runs. Move nothing to Flash while its `quota_error_rate` is above 0.1, since each quota hit costs a second builder run. The conductor A/Bs `builder-flash` against `builder-terra` only when the user asks for it, and an A/B result settles a kind that sits on the bar.
+Move a kind by its real runs in the summary's `by_kind`. The summary's `flags` list every kind that misses this bar, and `BAR_*` in `scripts/builder-evals.py` must match it. A kind stays on Flash while Flash holds a `pass_rate` of at least 0.95 and an `escalation_rate` of at most 0.03 over at least 20 runs, and goes back to Terra when it misses either. To try a Terra kind on Flash, move it and judge it by the same bar after 20 runs. Move nothing to Flash while its `quota_error_rate` is above 0.1, since each quota hit costs a second builder run. The conductor A/Bs `builder-flash` against `builder-terra` only when the user asks for it, and an A/B result settles a kind that sits on the bar.
 
 ## Other conductor roles on Flash
 
