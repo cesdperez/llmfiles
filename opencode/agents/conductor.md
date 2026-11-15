@@ -90,7 +90,7 @@ python3 ~/llmfiles/scripts/builder-evals.py append task --task "<short title>" -
   --fix-briefs <n> --escalations <n> --findings <n> --green yes|no
 ```
 
-At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary --since 7d`. Compare its `provider_split` with the target in `builders.md`, and while it is off target, send borderline briefs to the side that is under. Name any `flags` to the user, since each one means a kind should move.
+At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summary --since 7d` and name any `flags` to the user, since each one means a kind should move.
 
 ## Report
 

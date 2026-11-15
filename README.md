@@ -457,9 +457,7 @@ Each takes `--since` (`7d`, `24h` or an ISO date); `summary` covers all time wit
   whose quota errors pass 10%. An empty list means nothing needs to move.
 - `tasks` is the end-to-end view: `green_rate`, and the average briefs, fix briefs, escalations
   and review findings per task. More fix briefs or findings per task means builders return weaker work.
-
-- `provider_split` is the real split of runs. Move task kinds between builders when it drifts
-  from the target in `builders.md`.
+- `provider_split` is the real split of runs across plans.
 - Per model and `by_kind`: a low `pass_rate` or a high `escalation_rate` means that builder is
   wrong for that kind. `builders.md` sets the bar that moves a kind. Compare `avg_wall_s` only between builders that pass.
 - `quota_errors` and `quota_error_rate` count briefs a builder dropped on a usage limit. They stay

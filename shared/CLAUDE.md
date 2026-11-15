@@ -28,8 +28,7 @@ Skills are stored in `~/llmfiles/skills/<name>/SKILL.md`. When using a skill, up
 Before updating a skill, prompt the user with what you want to change and why. Wait for approval.
 
 ### Writing skills, commands, and CLAUDE.md
-- Every line must change behaviour versus the model default. A line the model already obeys pays context on every turn to say nothing. When a line fails that test, delete the whole sentence rather than trim words from it. Settle a disagreement about what the default is by running the document, not by arguing about it.
-- Prompt the positive. Steering by prohibition makes the forbidden behaviour more available, not less, so name the target behaviour and the banned one never gets spoken. A prohibition earns its place only as a hard guardrail no positive phrasing covers, and even then it carries the target beside it.
+- Read `~/llmfiles/shared/agent-docs-bar.md` first. It is the bar for every line.
 
 ## Delegation
 Keep a step in this session when it builds on the details of the step before it: a chain of edits over the same files, or a fix that follows its own investigation. A handoff passes only a summary, and the next step loses the details. Delegate a piece when it is independent and only its conclusion comes back, when pieces run in parallel, or when this session's context is filling up.
