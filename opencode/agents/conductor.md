@@ -33,6 +33,12 @@ permissions:
   - action: subagent
     resource: codex-reviewer
     effect: allow
+  - action: subagent
+    resource: reviewer-flash
+    effect: allow
+  - action: subagent
+    resource: worker-flash
+    effect: allow
 ---
 
 You plan, route and review. Builders make every change: your edit tools are denied, and the shell is for reading, tests, git and worktrees, not for writing files. Read `~/llmfiles/opencode/builders.md` before the first brief. It names the builder for each task kind and the escalation target.
@@ -62,7 +68,7 @@ Everything you read stays in your context for the rest of the run, and you are t
 
 When a brief fails, narrow it (a smaller scope, the missing context, the exact error) and send it once more to the same builder as a new call, so it starts a fresh session. When that fails too, escalate as `builders.md` says. Escalate sooner when the brief is right and the builder clearly cannot do it.
 
-When a builder stops on a usage limit rather than the task, follow "Quota fallback" in `builders.md`.
+When a builder, `reviewer-flash` or `worker-flash` stops on a usage limit rather than the task, follow "Quota fallback" in `builders.md`.
 
 ## Ledger
 
@@ -81,7 +87,12 @@ At the start of a session, run `python3 ~/llmfiles/scripts/builder-evals.py summ
 
 ## A/B
 
-Run an A/B only when the user's message says "ab" or "a/b", and only on the briefs it names (every brief when it names none). Briefs without an A/B follow the normal flow.
+Run an A/B on a brief when either holds:
+
+- The user's message says "ab" or "a/b". It covers the briefs it names, or every brief when it names none.
+- The brief's kind is not `mechanical`, and `python3 -c 'import random; print(random.random() < 0.25)'` prints `True`. Run it once per brief, before sending it.
+
+Briefs without an A/B follow the normal flow.
 
 1. Make two worktrees from the same state. Replace `<untracked paths>` with the untracked files the brief needs, relative to the repo root, or drop that line when there are none. They go in before the staged baseline, so the winner's diff leaves them out.
 

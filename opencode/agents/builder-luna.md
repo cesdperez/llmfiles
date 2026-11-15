@@ -1,5 +1,5 @@
 ---
-description: Conductor builder that takes mechanical briefs when builder-flash hits its usage limit, on GPT Luna.
+description: Conductor builder that takes builder-flash's briefs when Flash hits its usage limit, on GPT Luna.
 mode: subagent
 model: openai/gpt-6-luna#low
 ---

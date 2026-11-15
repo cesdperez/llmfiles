@@ -432,13 +432,15 @@ write files, so that part is instructed, not enforced.
 escalation target, and holds the measurements behind each choice. `builder-flash`, `builder-luna` and
 `builder-terra` share [`opencode/builder-contract.md`](opencode/builder-contract.md). `builder-flash` runs on
 DeepSeek Flash through the OpenCode Go plan, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry, escalation and the A/B
-procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). Say "ab" or
-"a/b" in the message to A/B a brief. `ab-judge` scores the two diffs without knowing which builder made them.
+procedure live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md). The conductor A/Bs a quarter of
+the briefs that are not `mechanical` on its own; say "ab" or "a/b" in the message to A/B more. `ab-judge` scores the two diffs without knowing which builder made them.
 
-A global `subagent` deny on `builder-*` and `ab-judge` in `opencode.json` keeps `build`, `plan`
+`reviewer-flash` runs the review's rule-lens bundle and `worker-flash` the browser checks, both on Flash.
+
+A global `subagent` deny on `builder-*`, `ab-judge`, `reviewer-flash` and `worker-flash` in `opencode.json` keeps `build`, `plan`
 and `general` from calling them. The conductor allows them again, plus `worker`, `codex-worker`,
-`explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else. All of those
-subagents except `builder-flash` run on OpenAI; Opus is reserved for the conductor.
+`explore`, `reviewer`, `reviewer-fast` and `codex-reviewer`, and nothing else. The Flash agents run on
+OpenCode Go and the rest on OpenAI; Opus is reserved for the conductor.
 
 `/fullconduct` is `/fullsend` on the conductor. It is defined under `commands` in
 `opencode.json`, not in `commands/`, so Claude Code never sees it. It loads `commands/fullsend.md`

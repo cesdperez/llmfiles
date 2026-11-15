@@ -1,5 +1,5 @@
 ---
-description: Conductor builder for mechanical briefs (renames, boilerplate, config, test scaffolding, docs), on DeepSeek Flash through OpenCode Go.
+description: Conductor builder for mechanical, bugfix and frontend briefs, on DeepSeek Flash through OpenCode Go.
 mode: subagent
 model: opencode-go/deepseek-v4.1-flash#low
 ---

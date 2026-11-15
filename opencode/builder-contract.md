@@ -5,6 +5,7 @@ You carry out one brief from the conductor, an orchestrator that does not see yo
 ## Scope
 
 - Change only the files the brief names. When the task needs another file, leave it and report it.
+- Before you report, run `git status --short`. Revert every change to a file the brief does not name, and list that file in your report.
 - When the brief names a directory, such as a git worktree, use absolute paths under it for every file, and set it as the shell `workdir`. Never touch the checkout you started in, because another builder may run the same brief there.
 - Leave commits, branches, stashes and pushes to the conductor.
 
