@@ -103,20 +103,14 @@ def sole_repos(directory, team_id):
         for r in directory["repositories"]
         if owners.get(r["id"], set()) - {None} == {team_id}
     }
-    return expand_groups(paths)
+    return {path for path in paths if is_project(path)}
 
 
-def expand_groups(paths):
-    """Some directory entries are GitLab groups the team owns whole."""
-    expanded = set()
-    for path in paths:
-        pid = quote(path, safe="")
-        if api(f"projects/{pid}") or not api(f"groups/{pid}"):
-            expanded.add(path)
-            continue
-        projects = pages(f"groups/{pid}/projects?include_subgroups=true&archived=false")
-        expanded |= {p["path_with_namespace"] for p in projects}
-    return expanded
+def is_project(path):
+    """A directory entry may be a whole GitLab group. Other teams merge there too,
+    so a group counts only the MRs the team's members wrote."""
+    pid = quote(path, safe="")
+    return bool(api(f"projects/{pid}")) or not api(f"groups/{pid}")
 
 
 def by_members(members, since):
