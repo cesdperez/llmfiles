@@ -42,6 +42,7 @@ BAR_MIN_RUNS = 20
 BAR_PASS_RATE = 0.95
 BAR_ESCALATION_RATE = 0.03
 BAR_QUOTA_ERROR_RATE = 0.1
+BAR_CONFIDENCE_Z = 1.96
 
 
 def ledger_path():
@@ -147,12 +148,15 @@ def append(args):
 def stats(rows):
     runs = [row for row in rows if not row.get("quota_error")]
     quota_errors = len(rows) - len(runs)
-    passed = [run for run in runs if run["passed"]]
+    passes = sum(run["passed"] for run in runs)
+    escalations = sum(run["escalated"] for run in runs)
     return {
         "runs": len(runs),
-        "pass_rate": ratio(len(passed), len(runs)),
+        "passes": passes,
+        "pass_rate": ratio(passes, len(runs)),
         "avg_retries": average([run["retries"] for run in runs]),
-        "escalation_rate": ratio(sum(run["escalated"] for run in runs), len(runs)),
+        "escalations": escalations,
+        "escalation_rate": ratio(escalations, len(runs)),
         "avg_wall_s": average([run["wall_s"] for run in runs]),
         "quota_errors": quota_errors,
         "quota_error_rate": ratio(quota_errors, len(rows)),
@@ -175,6 +179,14 @@ def task_stats(tasks):
     }
 
 
+def wilson(part, whole):
+    z = BAR_CONFIDENCE_Z
+    rate = part / whole
+    center = (rate + z * z / (2 * whole)) / (1 + z * z / whole)
+    spread = z * (rate * (1 - rate) / whole + z * z / (4 * whole * whole)) ** 0.5 / (1 + z * z / whole)
+    return round(center - spread, 2), round(center + spread, 2)
+
+
 def flags(models):
     found = []
     for model, model_stats in models.items():
@@ -183,10 +195,13 @@ def flags(models):
         for kind, kind_stats in model_stats["by_kind"].items():
             if kind_stats["runs"] < BAR_MIN_RUNS:
                 continue
-            if kind_stats["pass_rate"] < BAR_PASS_RATE:
-                found.append(f"{model} {kind}: pass_rate {kind_stats['pass_rate']} is below {BAR_PASS_RATE}")
-            if kind_stats["escalation_rate"] > BAR_ESCALATION_RATE:
-                found.append(f"{model} {kind}: escalation_rate {kind_stats['escalation_rate']} is above {BAR_ESCALATION_RATE}")
+            # A rate past the bar is noise until its confidence bound is past it too.
+            _, pass_high = wilson(kind_stats["passes"], kind_stats["runs"])
+            if pass_high < BAR_PASS_RATE:
+                found.append(f"{model} {kind}: pass_rate {kind_stats['pass_rate']} (upper bound {pass_high}) is below {BAR_PASS_RATE}")
+            escalation_low, _ = wilson(kind_stats["escalations"], kind_stats["runs"])
+            if escalation_low > BAR_ESCALATION_RATE:
+                found.append(f"{model} {kind}: escalation_rate {kind_stats['escalation_rate']} (lower bound {escalation_low}) is above {BAR_ESCALATION_RATE}")
     return found
 
 
@@ -309,6 +324,8 @@ def check_outcome(parser, args):
         parser.error("--model goes with --quota-error; other rows read the model from --session")
     elif not args.session or args.passed is None or args.escalated is None:
         parser.error("a run row needs --session, --passed and --escalated, or --quota-error with --model")
+    elif len(args.session) == 1 and not args.passed and not args.escalated:
+        parser.error("a failed brief gets a narrowed retry or an escalation before it settles; log it once, after that")
 
 
 if __name__ == "__main__":

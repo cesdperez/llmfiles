@@ -1,5 +1,5 @@
 ---
-description: Conductor builder for normal feature and bug-fix briefs, on GPT Terra.
+description: Conductor builder for infra and long-context briefs, and briefs that fit no other builder, on GPT Terra.
 mode: subagent
 model: openai/gpt-6.1-terra#low
 ---

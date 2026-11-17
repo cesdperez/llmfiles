@@ -429,8 +429,8 @@ denied, so builders make every change. Its shell still runs tests, git and workt
 write files, so that part is instructed, not enforced.
 
 [`opencode/builders.md`](opencode/builders.md) routes each task kind to a builder, names the
-escalation target, and holds the measurements behind each choice. `builder-flash`, `builder-luna` and
-`builder-terra` share [`opencode/builder-contract.md`](opencode/builder-contract.md). `builder-flash` runs on
+escalation target, and holds the measurements behind each choice. `builder-flash`, `builder-luna`,
+`builder-terra` and `builder-terra-medium` share [`opencode/builder-contract.md`](opencode/builder-contract.md). `builder-flash` runs on
 DeepSeek Flash through the OpenCode Go plan, and `builder-luna` takes its briefs when Flash hits its usage limit. Retry and escalation
 live in [`opencode/agents/conductor.md`](opencode/agents/conductor.md).
 
@@ -453,8 +453,8 @@ Each takes `--since` (`7d`, `24h` or an ISO date); `summary` covers all time wit
 
 `python3 ~/llmfiles/scripts/builder-evals.py summary` reads the ledger:
 
-- `flags` lists each model and kind that misses the routing bar in `builders.md`, and each model
-  whose quota errors pass 10%. An empty list means nothing needs to move.
+- `flags` lists each model and kind whose 95% confidence bound misses the routing bar in `builders.md`,
+  and each model whose quota errors pass 10%. An empty list means nothing needs to move.
 - `tasks` is the end-to-end view: `green_rate`, and the average briefs, fix briefs, escalations
   and review findings per task. More fix briefs or findings per task means builders return weaker work.
 - `provider_split` is the real split of runs across plans.
