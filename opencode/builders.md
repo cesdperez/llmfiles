@@ -6,8 +6,8 @@ Which builder takes a brief, by task kind. Check how each one does with `python3
 
 | Task kind | Builder | Model |
 | --- | --- | --- |
-| `mechanical`, `bugfix`, `frontend`: renames, boilerplate, config, test scaffolding, docs, bug fixes, UI work | `builder-flash` | `opencode-go/deepseek-v4.1-flash#low` |
-| `feature`, `refactor`, `frontend-logic`, `infra`, `long-context`: normal features, refactors, UI logic and browser debugging, shell-heavy debugging, and reading big files or logs | `builder-terra` | `openai/gpt-6.1-terra#low` |
+| `mechanical`, `bugfix`, `frontend`, `frontend-logic`: renames, boilerplate, config, test scaffolding, docs, bug fixes, UI work, UI logic and browser debugging | `builder-flash` | `opencode-go/deepseek-v4.1-flash#low` |
+| `feature`, `refactor`, `infra`, `long-context`: normal features, refactors, shell-heavy debugging, and reading big files or logs | `builder-terra` | `openai/gpt-6.1-terra#low` |
 
 Use the task kind names above in briefs and ledger rows. When a brief fits no row, send it to `builder-terra`.
 
@@ -33,10 +33,13 @@ After a failure, a narrowed retry in a fresh session, and a second failure:
 ## Why
 
 - Flash runs on the OpenCode Go plan, which gives it a $100 monthly allowance at $0.15/$0.60 per 1M tokens (double at peak hours), capped at 20% in any 5 hours and 50% in any week. Go's agreement with DeepSeek keeps no data. It was the fastest builder on the fixture. Luna takes its briefs once a cap is hit.
-- In the first 14 A/Bs on a real project, Flash won 8, Terra 5, with 1 no winner. Flash won `bugfix` 4 to 3 and `frontend` 2 to 0, lost `feature` 1 to 2, and took 1.7 to 2.7 times Terra's wall time. Moving builders and the rule lenses to Flash cuts the conductor's OpenAI use by about half, and the Opus conductor stays at about half of all tokens.
+- In the first 14 A/Bs on a real project, Flash won 8, Terra 5, with 1 no winner. Flash won `bugfix` 4 to 3 and `frontend` 2 to 0, lost `feature` 1 to 2, and took 1.7 to 2.7 times Terra's wall time.
+- `frontend-logic` moved to Flash on trial after Flash passed all 30 `frontend` runs, while Terra passed 0.97 of 36 `frontend-logic` runs with a 0.03 escalation rate. Judge it by the bar after 20 Flash runs. Moving builders and the rule lenses to Flash cuts the conductor's OpenAI use by about half, and the Opus conductor stays at about half of all tokens.
 - Flash needs Global regions enabled in the OpenCode console privacy settings, since DeepSeek hosts it outside Europe and the US.
 - Luna costs a tenth of Terra on the API ($0.10/$0.50 against $1/$5 per 1M tokens). Its `-fast` tier saved little time and draws 2.5x of the plan allowance.
 - Terra passed every measured brief and the 3-file refactor in the same time as a small task, so it takes the kinds Flash did not win in those A/Bs.
+- On `refactor` and `feature` briefs that failed on Terra, DeepSeek V4 Pro and Flash took 19 to 38 minutes each, against Terra's 2 to 11, so those kinds stay on Terra.
+- `reviewer-flash` caught 12 of 12 seeded rule-lens defects across 4 real reviews with almost no false positives, at about 300s per review.
 - Terra's low, medium and default variants ran at the same speed. The Coding Agent Index puts Terra at 48, Luna at 31 and Sol at 54 ([source](https://www.orcarouter.ai/blog/gpt-6-1-terra-benchmark)).
 - Sonnet 5.5 was the fastest model measured here, but using Terra keeps all builder work on the ChatGPT plan.
 - Haiku 5.5 is not a builder. It was slower than Sonnet on a multi-file task and used about 4x the output tokens ([source](https://chaseai.io/blog/haiku-5-5-vs-gpt-6-luna), [source](https://www.developersdigest.tech/blog/haiku-5-5-vs-gpt-6-luna-subagent)).
