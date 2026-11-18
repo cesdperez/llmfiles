@@ -154,6 +154,12 @@ is needed.
   registered repo that contains it, used by `/fleet` and `/fullsend`. The CLI cannot move a
   repo into a group, so it calls the app's `projectGroup.moveProject` through the CLI's
   client library, and an Orca update can break that call.
+- `orca-cleanup.py`, used by `/orcacleanup`: removes what agent runs left across every repo
+  Orca knows. Merged worktrees and branches go, including squash merges found through
+  GitLab or GitHub. So do Compose projects, `llmfiles.worktree` containers and processes whose
+  checkout is gone, stale verify locks and settled Orca workers. It keeps anything it cannot
+  prove is finished, and logs every action to `~/.cache/orcacleanup/log.jsonl`. Its tests
+  are in `scripts/tests/`: `python3 -m unittest discover scripts/tests`.
 - `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks
   (see [Conductor](#conductor)), plus a usage report from opencode's sessions. It reads model and wall time from the opencode session API.
 
@@ -170,6 +176,7 @@ Employer-specific values stay out of this public repo. `local/` is gitignored, a
 - `glab-lens-bindings.md`: org-specific lens bindings for the GitLab review commands.
 - `dailyworkrecap-style.md`: the sample post and team-specific gotchas for `/dailyworkrecap`.
 - `meta-hub-verify.md`: how `/fullsend` runs the hub's shared local stack on a worktree.
+- `orcacleanup.json`: the Compose projects, paths and branch globs `/orcacleanup` never touches.
 
 ```bash
 mkdir -p ~/llmfiles/local && cp -n ~/llmfiles/local.example/* ~/llmfiles/local/

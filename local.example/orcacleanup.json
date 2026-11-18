@@ -1,0 +1,5 @@
+{
+  "keep_compose_projects": ["stack"],
+  "keep_paths": [],
+  "keep_branches": []
+}

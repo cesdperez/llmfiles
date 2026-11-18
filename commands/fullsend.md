@@ -223,7 +223,9 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
   take it. The holder removes its own lock when it is done, also on failure. Only the
   holder removes it.
 - Start the stack from this run's checkouts, so it serves this branch and not another
-  run's code.
+  run's code. Run Compose from the checkout and label every `docker run` container
+  `--label llmfiles.worktree=<checkout path>`: `/orcacleanup` finds leftovers of a crashed
+  run by the checkout they name.
 - APIs: exercise with curl. UI: call the Skill tool with "playwright-cli", then check at
   desktop (1440x900) and mobile (390x844) sizes. Run it from `$(git rev-parse --git-dir)/fullsend-qa/` of the home repo,
   because it writes logs into its working directory. Use the branch name with `/` replaced
