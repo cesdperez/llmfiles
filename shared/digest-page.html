@@ -10,7 +10,7 @@
   --accent: #2c56c9; --accent-soft: #e5ecfb;
   --prod: #1d7a55; --prod-soft: #dff2e9;
   --wait: #a8660c; --wait-soft: #fbefd9;
-  --none: #9aa1b1; --none-soft: #e9ebf0;
+  --none: #7b6cc6; --none-soft: #ebe8f7; --house: #2f8f94;
   --unplan: #b0447a;
   --display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
   --body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -22,14 +22,14 @@
   --accent: #7b9cf0; --accent-soft: #232e4d;
   --prod: #4cc08f; --prod-soft: #173328;
   --wait: #e6a646; --wait-soft: #3a2b14;
-  --none: #6b7285; --none-soft: #262a35; --unplan: #e27fb2; color-scheme: dark } }
+  --none: #a597ee; --none-soft: #29253d; --house: #5cc3c7; --unplan: #e27fb2; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #12141a; --surface: #1a1d25; --sunk: #22252f; --line: #2e323e;
   --fg: #e7e9ef; --muted: #a2a8b8; --faint: #737a8c;
   --accent: #7b9cf0; --accent-soft: #232e4d;
   --prod: #4cc08f; --prod-soft: #173328;
   --wait: #e6a646; --wait-soft: #3a2b14;
-  --none: #6b7285; --none-soft: #262a35; --unplan: #e27fb2; color-scheme: dark }
+  --none: #a597ee; --none-soft: #29253d; --house: #5cc3c7; --unplan: #e27fb2; color-scheme: dark }
 
 * { box-sizing: border-box }
 body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); padding-inline: 16px; padding-block: 0 64px }
@@ -54,12 +54,16 @@ header h1 span { color: var(--muted); font-weight: 600 }
 button.stat { font: inherit; color: inherit; text-align: left; cursor: pointer }
 button.stat:hover { border-color: var(--accent) }
 .stat.plan b { color: var(--accent) } .stat.unplan b { color: var(--unplan) }
-.bar .pl { background: var(--accent) } .bar .up { background: var(--unplan) }
+.bar .pl { background: var(--accent) } .bar .up { background: var(--unplan) } .bar .h { background: var(--house) }
+.stat.house b { color: var(--house) }
 .stat.prod b { color: var(--prod) } .stat.wait b { color: var(--wait) } .stat.none b { color: var(--none) }
 .bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--none-soft) }
 .bar i { display: block; height: 100% }
 .bar .p { background: var(--prod) } .bar .w { background: var(--wait) } .bar .n { background: var(--none) }
 .note { color: var(--muted); font-size: 13px; margin: 0 }
+.help { position: relative; display: inline-block; color: var(--accent); cursor: help; font-weight: 600 }
+.help::after { content: attr(data-tip); position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); width: max-content; max-width: min(300px, 80vw); padding: 8px 10px; border-radius: 8px; background: var(--fg); color: var(--bg); font: 400 13px/1.4 var(--body); text-align: left; white-space: normal; z-index: 10; opacity: 0; pointer-events: none; transition: opacity .12s }
+.help:hover::after, .help:focus-visible::after, .help:focus::after { opacity: 1 }
 
 section > h2 { font-size: 22px; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
 section > h2 small { font: 500 14px var(--body); color: var(--muted) }
@@ -167,7 +171,6 @@ footer { color: var(--faint); font-size: 13px }
     <div class="statgroup"><div class="eyebrow">Planned vs unplanned</div>
       <div class="stats three" id="planStats"></div>
       <div class="bar" id="planbar" role="img"></div></div>
-    <p class="note">"In prod" means the MR is in the last successful deploy to the repo's prod environment. Many of our repos (tooling, charts, packages, the local stack) have no prod environment, so they never count as in prod or waiting.</p>
   </header>
 
   <section>
@@ -205,6 +208,10 @@ const D = /*DATA*/null;
 const GL = "https://gitlab.com/goodhabitz/", JIRA = "https://goodhabitz.atlassian.net/browse/";
 
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const help = (tip, focus = true) => `<span class="help"${focus ? ' tabindex="0"' : ""} role="note" aria-label="${esc(tip)}" data-tip="${esc(tip)}">(?)</span>`;
+const PROD_TIP = "The MR is in the last successful deploy to the repo's prod environment.";
+const NOPROD_TIP = "Tooling, charts, packages and the local stack have no prod environment, so their MRs never count as in prod or not in prod.";
+const HOUSE_TIP = "The MR title starts with chore, ci, docs, test, build, refactor or style. It goes by the title alone, so a fix(deps) bump gets its own line and a chore(deps) bump does not.";
 const slug = s => "r-" + s.replace(/[^a-z0-9]+/gi, "-");
 const short = s => s.replace(/^newhabitz\/devops\/newstack\//, "newstack/");
 const fmt = (s, q) => {
@@ -244,17 +251,17 @@ function header() {
   const P = D.plan, pt = P.planned + P.unplanned + P.housekeeping || 1;
   const pc = n => Math.round(100 * n / pt) + "%";
   document.getElementById("planStats").innerHTML = [
-    ["plan", P.planned, `planned, under an epic (${pc(P.planned)})`, "planned"],
-    ["unplan", P.unplanned, `unplanned: no epic or no ticket (${pc(P.unplanned)})`, "unplanned"],
-    ["none", P.housekeeping, `housekeeping (${pc(P.housekeeping)})`, null],
+    ["plan", P.planned, `Planned (${pc(P.planned)}) ${help("Under an epic.", false)}`, "planned"],
+    ["unplan", P.unplanned, `Unplanned (${pc(P.unplanned)}) ${help("No ticket, or a ticket without an epic.", false)}`, "unplanned"],
+    ["house", P.housekeeping, `Housekeeping (${pc(P.housekeeping)}) ${help(HOUSE_TIP)}`, null],
   ].map(([c, n, l, f]) => f === null ? `<div class="stat ${c}"><b>${n}</b><small>${l}</small></div>`
       : `<button class="stat ${c}" data-epicstat="${f}" title="Filter the list"><b>${n}</b><small>${l}</small></button>`).join("");
-  document.getElementById("planbar").outerHTML = `<div class="bar" role="img" aria-label="${P.planned} planned, ${P.unplanned} unplanned, ${P.housekeeping} housekeeping"><i class="pl" style="width:${pct(P.planned, pt)}"></i><i class="up" style="width:${pct(P.unplanned, pt)}"></i><i class="n" style="width:${pct(P.housekeeping, pt)}"></i></div>`;
+  document.getElementById("planbar").outerHTML = `<div class="bar" role="img" aria-label="${P.planned} planned, ${P.unplanned} unplanned, ${P.housekeeping} housekeeping"><i class="pl" style="width:${pct(P.planned, pt)}"></i><i class="up" style="width:${pct(P.unplanned, pt)}"></i><i class="h" style="width:${pct(P.housekeeping, pt)}"></i></div>`;
   document.getElementById("stats").innerHTML = [
     ["", D.total, D.mode === "repo" ? `MRs merged in ${D.team}` : `MRs merged across ${D.repoCount} repos`],
-    ["prod", D.prod, "in prod"],
-    ["wait", D.waiting, "merged, not in prod yet"],
-    ["none", D.noProd, "in repos with no prod env"],
+    ["prod", D.prod, `In prod ${help(PROD_TIP)}`],
+    ["wait", D.waiting, `Not in prod yet ${help("Merged, but not in the last successful deploy to the repo's prod environment.")}`],
+    ["none", D.noProd, `No prod env ${help(NOPROD_TIP)}`],
   ].map(([c, n, l]) => `<div class="stat ${c}"><b>${n}</b><small>${l}</small></div>`).join("");
   const big = document.getElementById("bigbar");
   big.outerHTML = bar(D.prod, D.waiting, D.noProd, D.total).replace('class="bar bar"', 'class="bar" role="img" aria-label="' + D.prod + ' in prod, ' + D.waiting + ' waiting, ' + D.noProd + ' without a prod environment"');
@@ -278,7 +285,7 @@ function header() {
 function itemHTML(i, q) {
   const links = [...i.tickets.map(t => `<a class="chip ticket" href="${t.u}" target="_blank" rel="noopener">${t.k}</a>`),
                  ...i.mrs.map(m => `<a class="mrlink" href="${m.u}" target="_blank" rel="noopener">${m.k}</a>`)].join("");
-  if (i.house) return `<li class="house"><div class="meta">${i.waiting ? '<span class="badge w">Not in prod</span>' : ""}<span>Housekeeping (${i.mrs.length} MR${i.mrs.length > 1 ? "s" : ""})</span>${links}</div></li>`;
+  if (i.house) return `<li class="house"><div class="meta">${i.waiting ? '<span class="badge w">Not in prod</span>' : ""}<span>Housekeeping (${i.mrs.length} MR${i.mrs.length > 1 ? "s" : ""}) ${help(HOUSE_TIP)}</span>${links}</div></li>`;
   let text = i.text, brk = / Breaking change\.$/.test(text);
   if (brk) text = text.replace(/ Breaking change\.$/, "");
   return `<li><span class="itext">${fmt(text, q)}</span><div class="meta">${i.waiting ? '<span class="badge w">Not in prod</span>' : ""}${brk ? '<span class="badge brk">Breaking</span>' : ""}${links}</div></li>`;
