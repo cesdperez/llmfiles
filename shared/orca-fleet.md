@@ -69,8 +69,9 @@ orca orchestration worker-list --run <run_id> --json
   `--ack`.
 - A dependent task moves from `pending` to `ready` when its dependencies settle. Nothing
   starts it automatically.
-- Keep a worker's chat open after its `worker_done`: it is the user's record of what ran.
-  `worker-release` closes it, so release a worker only when its worktree is removed.
+- Orca closes a worker's chat on its own once its `worker_done` is accepted. The worktree
+  and its terminal tabs stay until `orca worktree rm`. To keep a chat as a record, run
+  `orca orchestration worker-keep-open --dispatch <dispatch_id>` before the worker reports.
 - `worker-start` takes `--model` and `--effort`. Pass them only when the user names a
   model. Without them, the worker uses the user's agent default.
 

@@ -129,7 +129,9 @@ An Orca push that arrives while the wait runs gets no tool call and no reply, as
   - endpoint `main`: the branch tip is an ancestor of `origin/<base>`;
   - endpoint `prod`: production serves the change;
   - endpoint `mr`: the MR is open and its pipeline is green.
-  Collect its `Open:` items, and leave its chat open.
+  Collect its `Open:` items. Then remove its worktree if the rule in [Close](#4-close)
+  allows it, without waiting for the rest of the Run: Orca has already closed the worker's
+  chat, so the worktree would stay in the sidebar with nothing to read in it.
 - **A failed task**: its dependents stay `pending`. Do not retry it, because `/fullsend`
   has its own fix loops. Report it with the tasks it held back.
 
@@ -143,8 +145,9 @@ The Run is done when every task has settled or is held back by a failed task.
 - File the items for the user as `orca-fleet.md` describes.
 - Remove a worker's worktree only when its branch is merged into the base and has no
   uncommitted changes: `worker-release` its dispatch, then
-  `orca worktree rm --worktree path:<path>`. Keep the others and their chats: they are the
-  deliverable or the evidence.
+  `orca worktree rm --worktree path:<path> --run-hooks`. Without `--run-hooks` Orca skips
+  the repo's archive hook, and what the hook frees (ports, containers) stays taken. Keep
+  the other worktrees: they are the deliverable or the evidence.
 - Send a PushNotification with the one-line summary.
 
 Then report in plain English, one line per task:
