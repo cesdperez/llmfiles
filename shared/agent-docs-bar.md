@@ -11,7 +11,7 @@ The bar targets Opus 5.5. When a new model ships, re-read the sources at the end
 - One owner per fact. Other files link to the owner. The owner lives in the repo: the user's global instructions do not count, because other tools and other people read the repo without them.
 - Two files that disagree make the model pick one at random. Resolve the conflict in the owner.
 - Every claim is true against today's code, and every path and command it names exists.
-- No dated history, migration status, personal names, handles, or personal paths. Git holds the history. A rule a past incident taught stays as a rule with its reason.
+- No dated history, migration status, personal names, handles, or personal paths. Git holds the history. A rule a past incident taught stays as a rule with its reason. A name stays when the reader needs it to act, such as the owner of a token that has to be rotated.
 
 ## Wording
 

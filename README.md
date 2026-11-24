@@ -216,7 +216,7 @@ Deliberately not skills: a skill is auto-listed with its description and can act
 
 Current protocols:
 - `agent-docs-bar.md`, the quality bar for files an agent reads, used by `/curatemds` and `/skillbuilder`, and by `/fullsend`, `/bugbounty` and the `code-standards` lens for the docs they touch. It targets Opus 5.5, so update it when a new model ships.
-- `orca-fleet.md`, the Orca orchestration commands, worker mode and shipping rules for runs that share a repo, used by `/fleet` and by `/fullsend` and `/bugbounty` when they run as its workers or with "unattended".
+- `orca-fleet.md`, the Orca orchestration commands, worker mode and shipping rules for runs that share a repo, used by `/fleet` and by `/fullsend`, `/bugbounty` and `/curatemds` when they run as its workers or with "unattended".
 - `meta-hub.md`, checkouts, task ordering and verify for runs whose session sits in a
   checkout that holds other repos, such as a `meta` repo, used by `/fleet` and `/fullsend`.
 - `review-lenses.md`, the lens catalog and parallel fan-out contract, used by `/glablensedreview`, `/locallensedreview`.
