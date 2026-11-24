@@ -377,7 +377,7 @@ class Cleanup:
         live_files = [f for f in unit["config_files"] if os.path.exists(f)]
         why = "serves a removed worktree through a missing override"
         if lock_held:
-            self.keep("compose", name, f"{why}, but the verify lock is held")
+            self.keep("compose", name, f"{why}, but the machine lock is held")
             return
         files = [arg for f in live_files for arg in ("-f", f)]
         self.act("repair", name, f"{why}: recreated from its own files",

@@ -1,5 +1,5 @@
 ---
-description: Clean up what agent runs left behind across every repo Orca knows. It removes merged worktrees and branches, Docker Compose projects and processes whose checkout is gone, stale verify locks and settled Orca workers. It runs unattended and keeps anything it cannot prove is finished. Say "dry run" to only list what it would do.
+description: Clean up what agent runs left behind across every repo Orca knows. It removes merged worktrees and branches, Docker Compose projects and processes whose checkout is gone, stale machine locks and settled Orca workers. It runs unattended and keeps anything it cannot prove is finished. Say "dry run" to only list what it would do.
 argument-hint: '[dry run]'
 allowed-tools: Bash, Read
 ---

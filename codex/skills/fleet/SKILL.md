@@ -1,6 +1,6 @@
 ---
 name: fleet
-description: Run the llmfiles Orca fleet coordinator when explicitly requested. Several tasks become supervised Orca sessions, one worktree each, run in parallel or in order, each running $fullsend or the named command to the endpoint asked.
+description: Run the llmfiles Orca fleet coordinator when explicitly requested. Several items of work become supervised Orca sessions, grouped by the code they touch into one worktree per group, run in parallel or in order, each running $fullsend or the named command to the endpoint asked.
 ---
 
 Read `~/llmfiles/codex/compatibility.md`, then `~/llmfiles/commands/fleet.md`. Execute the command body with the Codex adaptations taking precedence. Use the user's text after `$fleet` as its arguments.

@@ -124,6 +124,9 @@ go in the report's `Open:` line and are filed as in [Items for the user](#items-
   starts a server, check who is listening on its port (`lsof -nP -iTCP:<port>
   -sTCP:LISTEN`) and use a free port when the config allows. Stop only processes this
   checkout started.
+- **Heavy test runs.** Whatever command this run is, take the machine lock that
+  `~/llmfiles/commands/fullsend.md` describes before a browser suite, a full suite or a
+  flaky-test measurement.
 
 ## Items for the user
 

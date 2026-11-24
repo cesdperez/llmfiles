@@ -1,6 +1,6 @@
 ---
 description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
-argument-hint: <jira key|jira url|slack url|task text> [open a PR|ship to main|ship to prod] [unattended] [in a new worktree]
+argument-hint: <jira key|jira url|slack url|task text>... [open a PR|ship to main|ship to prod] [fix leftovers] [unattended] [in a new worktree]
 allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
 ---
 
@@ -28,8 +28,10 @@ report is a status note, so the next stage's tool call goes in the same message.
   text can say "merge" without asking for one.
 - **Source**: a Jira key or URL (call the Skill tool with "twg-jira" to read it), a Slack
   thread URL (read it in full),
-  a backlog or plan file reference, or free text.
-
+  a backlog or plan file reference, or free text. More than one source is still one run:
+  see [Several sources](#several-sources).
+- **"fix leftovers"**: an adjacent problem this run finds may be fixed in the run. Stage 2
+  says which ones.
 - **"unattended"**: nobody will answer questions. See
   [Worker mode and unattended runs](#worker-mode-and-unattended-runs).
 - **"in a new worktree"** or **"in a new Orca worktree"**: hand the run off. See
@@ -70,6 +72,22 @@ one with no remote.
   Skip Jira and reviewers. Open a PR only when the endpoint is `mr` from an explicit
   phrase. "ship to main" without "open a PR" merges the branch into its base locally, then
   pushes the base if it tracks a remote.
+
+## Several sources
+
+Several sources are one run, because a run pays for its review, verify, MR and pipeline
+whatever its size. Read every source at intake and ask their questions in one batch.
+
+- One branch and one MR per repo. Each commit delivers one source and carries that
+  source's key.
+- Wherever a stage names the Jira key in a branch, worktree or file name, use the first
+  ticket's.
+- Verify proves the acceptance criteria of every source, and the MR description links
+  every ticket.
+- Every Jira step runs for each ticket.
+- The ledger lists every source, and matches a later run that names the same ones.
+- In worker mode, an item the coordinator sends before stage 3 joins the run as one more
+  source.
 
 ## Worker mode and unattended runs
 
@@ -135,6 +153,25 @@ configured. A blocked stage keeps its status, with the comment
 `blocked: <reason>`. Add `--unread` whenever the run stops for the user. Add
 `--gitlab-mr <url>` once the MR exists.
 
+## The machine lock
+
+Every run on this machine shares its CPU and memory. Browser suites running in several
+worktrees at once starve each other, and tests that pass alone then fail. One lock,
+`~/.cache/fullsend/qa.lock`, makes the heavy commands take turns.
+
+- Heavy is: a browser or end-to-end suite, a full test suite or the repo's whole verify
+  script, a repeated run that measures a flaky test, and the local stack of stage 4. Tests
+  scoped to the change need no lock.
+- Take it at any stage, and give this section to every agent that runs tests:
+  `mkdir -p ~/.cache/fullsend && mkdir ~/.cache/fullsend/qa.lock`, then write the branch
+  name into `qa.lock/owner`. If the lock exists, wait for it with Monitor.
+- Hold it for one command, or in stage 4 from starting the stack to stopping it. Remove it
+  right after, also on failure. Only the holder removes it.
+- The holder runs `touch qa.lock/owner` at least every 30 minutes. An `owner` file not
+  modified for over an hour is from a crashed run: remove the lock and take it.
+- Count a flaky test's failures only under the lock. A failure under another run's load
+  says nothing about the test.
+
 ## Stages
 
 ### 0. Intake
@@ -183,13 +220,18 @@ card `--unread` and give one concise instruction.
 
 - Deliver the acceptance criteria at the scope asked. Adjacent problems you notice go in
   the ledger and the handoff's Open line, not in the diff.
+- With "fix leftovers", fix an adjacent problem in this run when it sits in a file the run
+  already changes and needs no new decision. It gets its own commit, made before stage 3
+  so the review covers it. Every other one still goes in the Open line.
 - Commit as you go, granularly, with the commit title format from `glab-cli`.
 - Run only the tests that cover the change. Run a full suite only when the repo's
-  instructions say it is cheap, or when the change is cross-cutting. Without a test suite,
-  the verify stage carries the proof.
+  instructions say it is cheap, or when the change is cross-cutting, and under
+  [the machine lock](#the-machine-lock). Without a test suite, the verify stage carries
+  the proof.
 - The intake `worker` implements, continued with SendMessage, and later fixes from review
-  and verify go to it too. Only a change of one or two files whose exact edit was known at
-  intake stays in this session.
+  and verify go to it too. Publish `2/7 implement` in the message that sends it the
+  implement brief, or the card shows intake for the whole implementation. Only a change of
+  one or two files whose exact edit was known at intake stays in this session.
 - Independent parts get a `worker` each, with `isolation: "worktree"`. A part whose brief is
   complete and needs no network or follow-up goes to `codex-worker` instead, with the same
   isolation. Its brief names no repo path, or Codex edits that checkout instead of the
@@ -213,15 +255,11 @@ the message that holds it also launches the stage 4 verify worker.
 ### 4. Verify
 
 Prove the acceptance criteria in the running app, not only in tests. Delegate this to a
-`worker` with the criteria, the checkouts, how to start them, and the lock rule below.
+`worker` with the criteria, the checkouts, how to start them, and
+[the machine lock](#the-machine-lock).
 
-- One shared local stack serves every run on this machine. The worker takes the lock
-  before starting it: `mkdir -p ~/.cache/fullsend && mkdir ~/.cache/fullsend/qa.lock`, then
-  writes the branch name into `qa.lock/owner`. If the lock exists, wait for it with Monitor.
-  The holder runs `touch qa.lock/owner` at least every 30 minutes while it holds the lock.
-  An `owner` file not modified for over an hour is from a crashed run: remove the lock and
-  take it. The holder removes its own lock when it is done, also on failure. Only the
-  holder removes it.
+- One shared local stack serves every run on this machine. The worker takes the machine
+  lock before starting it and holds it until the stack is stopped.
 - Start the stack from this run's checkouts, so it serves this branch and not another
   run's code. Run Compose from the checkout and label every `docker run` container
   `--label llmfiles.worktree=<checkout path>`: `/orcacleanup` finds leftovers of a crashed

@@ -157,7 +157,7 @@ is needed.
 - `orca-cleanup.py`, used by `/orcacleanup`: removes what agent runs left across every repo
   Orca knows. Merged worktrees and branches go, including squash merges found through
   GitLab or GitHub. So do Compose projects, `llmfiles.worktree` containers and processes whose
-  checkout is gone, stale verify locks and settled Orca workers. It keeps anything it cannot
+  checkout is gone, stale machine locks and settled Orca workers. It keeps anything it cannot
   prove is finished, and logs every action to `~/.cache/orcacleanup/log.jsonl`. Its tests
   are in `scripts/tests/`: `python3 -m unittest discover scripts/tests`.
 - `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks

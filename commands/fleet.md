@@ -1,6 +1,6 @@
 ---
-description: Run several tasks as supervised Orca sessions, one worktree each, in parallel or in order. Tasks come from this conversation, a list of Jira keys, GitHub issues, Slack threads or text, or a Jira or GitHub query. Each worker runs /fullsend (or the command named) to the endpoint asked, and this session answers their questions, chains what depends on what, and reports. "no supervision" hands the tasks off instead and frees this session.
-argument-hint: '[plan text | jira keys | issue urls | jql:<query> | gh:<search>] [ship to main|ship to prod|open a PR] [unattended] [no supervision]'
+description: Run several items of work as supervised Orca sessions, grouped by the code they touch into one worktree per group, in parallel or in order. Items come from this conversation, a list of Jira keys, GitHub issues, Slack threads or text, or a Jira or GitHub query. Each worker runs /fullsend (or the command named) to the endpoint asked, and this session answers their questions, chains what depends on what, and reports. "no supervision" hands the tasks off instead and frees this session.
+argument-hint: '[plan text | jira keys | issue urls | jql:<query> | gh:<search>] [ship to main|ship to prod|open a PR] [fix leftovers] [one worktree per item] [unattended] [no supervision]'
 allowed-tools: Skill, Read, Grep, Glob, Bash, AskUserQuestion, Monitor, ToolSearch, PushNotification
 ---
 
@@ -18,15 +18,18 @@ tool call.
 
 `$ARGUMENTS` can hold any mix of:
 
-- **Nothing, or plan text**: take the tasks from this conversation, ordered the way the
+- **Nothing, or plan text**: take the items from this conversation, ordered the way the
   user said ("then", "when that is done", "after X ships").
-- **Sources**: Jira keys or URLs, GitHub issue URLs, Slack thread URLs. Each one becomes a
-  task whose source is that item.
+- **Sources**: Jira keys or URLs, GitHub issue URLs, Slack thread URLs. Each one is an
+  item.
 - **A query**: `jql:<query>` (call the Skill tool with "twg-jira" to run it) or
   `gh:<search>` (`gh issue list --search "<search>" --state open`). Each result is a
-  candidate task. Read each one well enough to group them and order them.
+  candidate item. Read each one well enough to group them and order them.
 - **An endpoint phrase**, passed to every `/fullsend` task: "ship to main", "ship to prod",
   "open a PR". Without one, each `/fullsend` task uses its own default per repo kind.
+- **"fix leftovers"**, also meant by "boy scout" or "clean up what you find": passed to
+  every `/fullsend` task, and it allows the follow-up wave in [Coordinate](#3-coordinate).
+- **"one worktree per item"**: skip the grouping in [Plan](#1-plan).
 - **"unattended"**: skip the plan confirmation, and add "unattended" to every worker's
   arguments.
 - **"no supervision"**: hand the tasks off and end. See
@@ -34,22 +37,37 @@ tool call.
 
 ## 1. Plan
 
-For each task, record a slug, the source or a self-contained description, the command
-(`fullsend` by default, or the one the user named, for example `bugbounty` or
-`locallensedreview --autofix`), the repos, and the files it will likely touch. Find those
-files with a quick grep, not a full read. Read `~/llmfiles/shared/meta-hub.md` when
-this session runs in a hub as that file defines it: its ordering rules apply.
+For each item, record the source or a self-contained description, the repos, and the files
+it will likely touch. Find those files with a quick grep, not a full read. Read
+`~/llmfiles/shared/meta-hub.md` when this session runs in a hub as that file defines it:
+its ordering rules apply.
 
-- **Group** small related changes into one task. Keep each task to what one reviewer can
-  read in one sitting.
-- **Order**: a task depends on another when the user said so, or when both will touch the
-  same files. Everything else runs in parallel. Run at most 4 workers at once: each
-  `/fullsend` starts its own agents, and the verify lock serializes them anyway.
+A task is a region of code, not an item. Every worktree pays for an install, a review, a
+verify, an MR and a pipeline whatever the size of its change, so a worktree per item pays
+that many times over for small changes.
+
+- **Group** items into one task when they will touch the same files, or the same package
+  or app for the same concern. The task runs them as one `/fullsend` with several sources:
+  one worktree, one MR, a commit per item. A command that takes one target, such as
+  `bugbounty`, keeps one task per target.
+- **Small items** get no worktree of their own. One whose edit is one or two files joins
+  the task nearest its files. Those with no neighbour share one task.
+- **Split** a group only when it would pass about 800 changed lines or 5 items, or when
+  an item must be reverted on its own. Parts that share files run in order, so the later
+  one builds on the earlier.
+- **Order** the rest only as the user said. Tasks that share no files run in parallel.
+- **Cap**: run at most 3 workers at once on this machine, counted across every Run.
+  `orca orchestration worker-list --terminal-state active --json` without `--run` lists
+  them all. Each `/fullsend` starts its own agents and test runs, and more workers than
+  that wait on memory and on the machine lock instead of working.
 - **Hold back** a task that conflicts with most of the others, such as a large refactor:
   make it depend on all of them.
 
-Show the plan as a table (slug, command, depends on, files) and ask one AskUserQuestion to
-confirm it. Skip the question when there is a single task, because the conversation
+Give each task a slug and its command (`fullsend` by default, or the one the user named,
+for example `bugbounty` or `locallensedreview --autofix`).
+
+Show the plan as a table (slug, items, command, depends on, files), under one line that
+counts the items and the worktrees, and ask one AskUserQuestion to confirm it. Skip the question when there is a single task, because the conversation
 already agreed on it, or when "unattended" or "no supervision" was given.
 
 ## Handoff without supervision
@@ -65,7 +83,7 @@ For each task, run `git fetch origin`, then:
 ```bash
 orca worktree create --repo path:<repo root> --name <slug> --no-parent \
   --base-branch origin/<base> [--reference <JIRA-KEY>] --agent claude --json \
-  --prompt "/<command> <source or full task text> <endpoint phrase> unattended
+  --prompt "/<command> <sources or full task text> <endpoint phrase> [fix leftovers] unattended
 
 <the context block from the spec in Launch, without the authorization line>"
 ```
@@ -86,7 +104,7 @@ gets its worktree as `orca-fleet.md` shows.
 Each spec is self-contained, because the worker cannot see this conversation:
 
 ```
-Invoke the <command> skill with: <source or full task text> <endpoint phrase> [unattended]
+Invoke the <command> skill with: <sources or full task text> <endpoint phrase> [fix leftovers] [unattended]
 
 Context: <decisions from this conversation that the task depends on, and what the
 sibling tasks change, so the worker leaves those alone>
@@ -104,8 +122,11 @@ This chat keeps its Run while any task in it has not settled. A later `/fleet`, 
 request in this chat to launch more work, adds tasks to that Run. Find it with
 `orca orchestration run-current --json`, and do not call `run-create` while it has open tasks.
 
-Plan the new tasks against the open ones: depend on a running task whose files they touch,
-and run in parallel otherwise. Confirm only when the request is ambiguous. Create them with
+Plan the new items against the open tasks, grouped as in [Plan](#1-plan). An item in the
+region of a running task goes to that worker with `send`, while its Orca card shows stage
+2 or lower: the worker adds it as one more source. Past that stage, the item becomes a
+task that depends on it. Items in no open task's region form new tasks that run in
+parallel, within the cap. Confirm only when the request is ambiguous. Create tasks with
 `task-create --run <run_id>`, start the ready ones, and keep the same background wait.
 Under a hub, their worktrees go under the Run's existing lead.
 A "no supervision" request is a handoff, and stays outside the Run.
@@ -132,6 +153,11 @@ An Orca push that arrives while the wait runs gets no tool call and no reply, as
   Collect its `Open:` items. Then remove its worktree if the rule in [Close](#4-close)
   allows it, without waiting for the rest of the Run: Orca has already closed the worker's
   chat, so the worktree would stay in the sidebar with nothing to read in it.
+- **Leftovers**: an `Open:` item that is work, not a decision, never starts a task on its
+  own, because a worktree per leftover relearns the region each time. Without "fix
+  leftovers", it goes to the items for the user. With it, collect them until every task
+  has settled, group them as in [Plan](#1-plan), and start one follow-up wave. What that
+  wave leaves open goes to the items for the user.
 - **A failed task**: its dependents stay `pending`. Do not retry it, because `/fullsend`
   has its own fix loops. Report it with the tasks it held back.
 
