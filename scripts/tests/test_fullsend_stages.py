@@ -55,7 +55,9 @@ class StageTimings(unittest.TestCase):
         self.assertEqual(self.run_stages()["stages"]["3 review"]["n"], 2)
 
     def test_run_with_fewer_than_four_stages_is_skipped(self):
-        write_jsonl(self.root / PROJECT / "s1.jsonl", [mark("a", 100, 0, "intake"), mark("b", 90, 1, "setup")])
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 100), mark("a", 100, 0, "intake"), mark("b", 90, 1, "setup"), user("end", 80),
+        ])
         self.assertEqual(self.run_stages()["runs"], [])
 
     def test_stage_left_open_past_the_limit_is_not_counted(self):

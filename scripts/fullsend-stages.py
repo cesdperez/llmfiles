@@ -58,8 +58,8 @@ def run_of(path, root, cutoff):
         minutes = (end - start) / 60
         if minutes <= MAX_STAGE_MIN:
             stages[n] = round(minutes, 1)
-    project, session = os.path.relpath(path, root).split(os.sep)[:2]
-    return {"project": tr.project_label(project), "session": session[:-len(".jsonl")],
+    project, session = tr.session_of(path, root)
+    return {"project": tr.project_label(project), "session": session,
             "total_min": round((last - order[0][0]) / 60, 1), "stages": stages, "names": names}
 
 
