@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from transcript_fixtures import NOW, assistant, load_script, slash, subagent, tool_result, tool_use, user, write_jsonl
+from transcript_fixtures import NOW, assistant, iso, load_script, slash, subagent, tool_result, tool_use, user, write_jsonl
 
 usage = load_script("claude-usage.py")
 KNOWN = {"fullsend", "fleet"}
@@ -159,6 +159,21 @@ class CostStateCheck(unittest.TestCase):
     def test_cost_state_started_before_the_window_excludes_the_session(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [
             user("old", 8 * 24 * 60), user("hi", 60), assistant("m1", 59), cost_state(1.0, 8 * 24 * 60 + 1),
+        ])
+        self.assertEqual(self.check()["sessions"], 0)
+
+    def test_compacted_session_is_excluded(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            {"type": "system", "subtype": "compact_boundary", "timestamp": iso(60)},
+            user("summary of the earlier conversation", 60, isCompactSummary=True), assistant("m1", 59),
+            cost_state(30.0, 24 * 60),
+        ])
+        self.assertEqual(self.check()["sessions"], 0)
+
+    def test_session_with_a_compacted_subagent_is_excluded(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 60), assistant("m1", 59), cost_state(30.0, 61)])
+        subagent(self.root, PROJECT, "s1", "a1", "worker", [
+            {"type": "system", "subtype": "compact_boundary", "timestamp": iso(50)}, assistant("m2", 49),
         ])
         self.assertEqual(self.check()["sessions"], 0)
 

@@ -415,14 +415,15 @@ def agents(ctx):
     }
 
 
-def final_cost_state(t, cutoff):
+def final_cost_state(t, subs, cutoff):
     """Claude Code's own total for a session, when it covers exactly what this script counted.
 
-    A continued or resumed file carries the earlier session's spend, and some files keep one early
-    record that is never updated, so only a record started in the period, before the file's first
-    record, with no usage after it, is comparable."""
+    A continued or resumed file carries the earlier session's spend, a compacted main or subagent file
+    can drop the requests before the compaction, and some files keep one early record that is never
+    updated, so only an uncompacted session's record started in the period, before its first record,
+    with no usage after it, is comparable."""
     cs = t["cost_state"]
-    if not cs or cs["cost"] is None or t["file_first_ts"] is None:
+    if not cs or cs["cost"] is None or t["file_first_ts"] is None or any(f["compactions"] for f in [t, *subs]):
         return None
     if cs["start"] < cutoff or cs["start"] > t["file_first_ts"] or t["last_usage_pos"] > cs["pos"]:
         return None
@@ -453,7 +454,7 @@ def session_rows(ctx):
             "peak_ctx": max((r["ctx"] for r in rs), default=0), "compactions": t["compactions"],
             "cr": sum(r["cr"] for r in all_rs), "cw": sum(r["cw5"] + r["cw1"] for r in all_rs),
             "first_user": (t["first_user"] or "")[:160], "entry": t["entry"],
-            "cost_state": final_cost_state(t, ctx["cutoff"]),
+            "cost_state": final_cost_state(t, [T[s] for s in subs], ctx["cutoff"]),
             "first_ts": t["first_ts"], "requests": len(rs),
             "cost_over_200k": sum(r["cost"] or 0 for r in rs if r["ctx"] > 200_000),
         })
