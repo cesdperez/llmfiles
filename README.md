@@ -169,6 +169,10 @@ is needed.
   from its Orca stage marks. `session-friction.py` extracts human corrections, tool errors,
   subagent briefs and reports, and review findings per session, and names secrets it finds by
   session and kind only. Their tests are in `scripts/tests/`.
+- `tuning-ledger.py`, used by `/tunesetup` and `/whichmodels`, validates and appends entries
+  in the tuning ledger, lists the proposals with their candidate commits and the entries due a
+  verdict, and fills an entry's measured value and verdict from the three scripts' output.
+  Its tests are in `scripts/tests/`.
 - `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks
   (see [Conductor](#conductor)), plus a usage report from opencode's sessions. It reads model and wall time from the opencode session API.
 
@@ -186,12 +190,16 @@ Employer-specific values stay out of this public repo. `local/` is gitignored, a
 - `dailyworkrecap-style.md`: the sample post and team-specific gotchas for `/dailyworkrecap`.
 - `meta-hub-verify.md`: how `/fullsend` runs the hub's shared local stack on a worktree.
 - `orcacleanup.json`: the Compose projects, paths and branch globs `/orcacleanup` never touches.
+- `tunesetup/ledger.md`: the fields of `local/tunesetup/ledger.jsonl`, the tuning ledger.
+  `/tunesetup` and `/whichmodels` read it for why each setup change was made, the metric it
+  should move and whether it did, and append to it. It stays local because entries carry spend
+  figures and name sessions.
 
-`/tunesetup` saves each run's figures, report and proposals under `local/tunesetup/<date>/`,
-and the next run starts by comparing against them. It needs no template.
+`/tunesetup` saves each run's figures and report under `local/tunesetup/<date>/`, and the next
+run compares against them.
 
 ```bash
-mkdir -p ~/llmfiles/local && cp -n ~/llmfiles/local.example/* ~/llmfiles/local/
+mkdir -p ~/llmfiles/local && cp -Rn ~/llmfiles/local.example/. ~/llmfiles/local/
 ```
 
 ### Git hooks (`hooks/`)
