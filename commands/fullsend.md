@@ -248,14 +248,17 @@ card `--unread` and give one concise instruction.
 ### 3. Review
 
 Call the Skill tool with "locallensedreview" and args
-`--autofix --base <recorded base> --intent <ledger path>`, once per repo, from inside that
-repo's checkout. The intent is the ledger's sources, their acceptance criteria and the
-intake answers. Add the criteria to the ledger first when it lacks them. Its autofix
-commits the fixes.
+`--base <recorded base> --intent <ledger path>`, once per repo, from inside that repo's
+checkout. Leave out `--autofix`, and do not rerun it after the fixes. The intent is the
+ledger's sources, their acceptance criteria and the intake answers. Add the criteria to the
+ledger first when it lacks them.
 
-Run it once. Write any finding it leaves unfixed to the ledger, and carry it into the MR
-description if it matters to a reviewer. Its printed report ends the skill, not the run:
-the message that holds it also launches the stage 4 verify worker.
+Send the findings at its fix bar to the implementing worker with SendMessage, to fix and
+commit: the controller holds conclusions, not file contents. Write every other finding to
+the ledger, and carry it into the MR description if it matters to a reviewer. Its printed
+report ends the skill, not the run: the message that holds it also sends the fixes, or
+launches the stage 4 verify worker when there are none. Otherwise stage 4 starts when the
+worker reports the fixes committed.
 
 ### 4. Verify
 

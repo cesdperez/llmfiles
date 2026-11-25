@@ -101,7 +101,7 @@ blast-radius check on uncommitted work.
 
 A finding is fixed only at or above the threshold, and a `test-health`, `code-standards` or
 `reuse` finding only at 7 or above. The rest are reported, not fixed. The bar holds for
-`--autofix` and for a calling command that applies the fixes itself.
+`--autofix` and for a calling command that has the fixes made elsewhere.
 
 ## Output format
 
