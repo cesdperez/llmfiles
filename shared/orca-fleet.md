@@ -103,6 +103,11 @@ them as written. Then:
   escalation, then do the stages that do not depend on it.
 - **Follow-ups.** Run the preamble's `check` at each stage boundary and act on what
   arrives.
+- **Waiting.** Until `worker_done`, end a turn only while something is armed to wake the
+  session: an `ask` or escalation, whose answer Orca delivers, or a background agent,
+  background command or Monitor, which re-invoke the session when they end. A turn that
+  ends with nothing armed leaves the worker idle until the coordinator notices. A Monitor
+  that expires has not seen its event, so start it again.
 - **Publishing.** The coordinator authorizes the run's own pushes, MR or PR, and Jira
   steps. Post nothing else.
 - **Finish.** Send `worker_done` once, after the handoff. Use `--outcome succeeded` when

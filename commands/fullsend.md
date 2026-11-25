@@ -305,9 +305,10 @@ Push each branch and open one draft MR per repo (`glab mr create --draft` with t
 
 ### 6. Green
 
-Watch each MR pipeline with Monitor until it finishes. Fix failures caused by the change
-and push. A failure that is not caused by the change (flaky job, infra) gets one retry,
-then goes in the report. Stop after three fix attempts per pipeline.
+Watch each MR pipeline with Monitor until it finishes. A Monitor that expires first has not
+seen the end, so start it again. Fix failures caused by the change and push. A failure
+that is not caused by the change (flaky job, infra) gets one retry, then goes in the
+report. Stop after three fix attempts per pipeline.
 
 Endpoint `main`: mark the MR ready, merge it once the pipeline is green, and confirm the
 main pipeline passes. With MRs in several repos, merge in dependency order (provider before
