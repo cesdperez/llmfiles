@@ -222,6 +222,9 @@ port for any server its tests start (`lsof -nP -iTCP:<port> -sTCP:LISTEN`). Each
 - runs one plain command per Bash call, writes files with Write and Edit, and saves a
   script to a file before running it: the worktree guard refuses heredocs, `git -C`,
   `eval` and commands built from variables
+- stays inside its worktree, because the guard also refuses any command that leaves it:
+  paths relative to the worktree, no `cd` to the main checkout's absolute path, and
+  scratch files inside the worktree, left out of its commits
 - reports the commits, the tests, the findings it could not fix, and the problems it noticed
 
 Merge each worker branch into the bounty branch. Resolve conflicts here, since you hold
