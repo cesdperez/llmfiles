@@ -160,6 +160,15 @@ is needed.
   checkout is gone, stale machine locks and settled Orca workers. It keeps anything it cannot
   prove is finished, and logs every action to `~/.cache/orcacleanup/log.jsonl`. Its tests
   are in `scripts/tests/`: `python3 -m unittest discover scripts/tests`.
+- `claude-usage.py`, `fullsend-stages.py` and `session-friction.py`, used by `/tunesetup`, read
+  Claude Code transcripts under `~/.claude/projects` for a period in days. They stream each
+  file, because a week of transcripts runs to gigabytes, and share `transcripts.py`.
+  `claude-usage.py` reports list-price spend per model, command and agent type, deduplicated by
+  message id, plus cache misses, context size, tool results and parallelism. Its `PRICES` table
+  carries the date it was checked. `fullsend-stages.py` reports minutes per `/fullsend` stage
+  from its Orca stage marks. `session-friction.py` extracts human corrections, tool errors,
+  subagent briefs and reports, and review findings per session, and names secrets it finds by
+  session and kind only. Their tests are in `scripts/tests/`.
 - `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks
   (see [Conductor](#conductor)), plus a usage report from opencode's sessions. It reads model and wall time from the opencode session API.
 
@@ -177,6 +186,9 @@ Employer-specific values stay out of this public repo. `local/` is gitignored, a
 - `dailyworkrecap-style.md`: the sample post and team-specific gotchas for `/dailyworkrecap`.
 - `meta-hub-verify.md`: how `/fullsend` runs the hub's shared local stack on a worktree.
 - `orcacleanup.json`: the Compose projects, paths and branch globs `/orcacleanup` never touches.
+
+`/tunesetup` saves each run's figures, report and proposals under `local/tunesetup/<date>/`,
+and the next run starts by comparing against them. It needs no template.
 
 ```bash
 mkdir -p ~/llmfiles/local && cp -n ~/llmfiles/local.example/* ~/llmfiles/local/
@@ -342,7 +354,7 @@ $locallensedreview branch high
 $glablensedreview <mr-url> --dry-run
 ```
 
-All eleven command adapters are explicit-only skills. `agents/openai.yaml` sets
+Every command adapter is an explicit-only skill. `agents/openai.yaml` sets
 `allow_implicit_invocation: false`; shared knowledge skills retain their own policies.
 
 `codex/compatibility.md` owns argument handling, delegation, tool substitutions, and Codex

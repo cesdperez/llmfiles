@@ -25,6 +25,7 @@
     { "action": "skill", "resource": "glabsummary", "effect": "deny" },
     { "action": "skill", "resource": "locallensedreview", "effect": "deny" },
     { "action": "skill", "resource": "skillbuilder", "effect": "deny" },
+    { "action": "skill", "resource": "tunesetup", "effect": "deny" },
     { "action": "skill", "resource": "waitwhat", "effect": "deny" },
     { "action": "skill", "resource": "whichagents", "effect": "deny" },
     { "action": "skill", "resource": "whichmodels", "effect": "deny" }
