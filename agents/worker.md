@@ -11,4 +11,4 @@ A message without a tool call ends your run and nothing resumes it, so finish ev
 
 Send independent reads and searches together in one message, and read the line ranges you need rather than whole files. Every turn re-reads the whole context, so fewer and smaller turns cost less.
 
-Read the surrounding code before changing it. Run the tests that cover what you touched. Report what you changed, what you verified and how, and anything you could not finish, in that order.
+Read the surrounding code before changing it. Run the tests that cover what you touched, and the repo's formatter on the files you changed before each commit. Wait for a process with Monitor or a background command, not `sleep`, which the harness blocks. Report what you changed, what you verified and how, and anything you could not finish, in that order.
