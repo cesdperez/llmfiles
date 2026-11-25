@@ -16,7 +16,7 @@ Propose only. This command edits two files: the price table in `~/llmfiles/scrip
 
 `~/llmfiles/local/tunesetup/ledger.jsonl` is the one record of proposals and changes across runs, from this command, `/whichmodels` and by hand. Its fields are in `~/llmfiles/local.example/tunesetup/ledger.md`. Read and write it only through `L`, which rejects an invalid entry.
 
-- `L pending` lists, for each `proposed` entry, the commits on `main` since its date that touch its files. Read each candidate. When one makes the change, run `L set <id> status=applied 'where=["<sha>"]' date=<commit date>`. A proposal not applied yet stays `proposed` and is listed as pending.
+- `L pending` lists, for each `proposed` entry, the commits on `main` since its date that touch its files, and the settings keys it names, which no commit shows: read those settings yourself. When a commit or a setting makes the change, run `L set <id> status=applied where+=<sha> date=<date applied>`; `+=` appends, so a settings key already in `where` stays. A proposal not applied yet stays `proposed` and is listed as pending.
 - `L list --status rejected` gives the proposals I declined, with my reason in `note`. Do not propose one again unless this period brings evidence it did not have.
 - `L list --open` gives the applied entries with no verdict and a week of data since their date. Step 2 measures them.
 
@@ -36,13 +36,14 @@ If `usage.json` has `unpriced_requests`, load the `claude-api` skill, add each m
 
 `usage.json` holds `headline`, the flat metrics the next run compares, plus cost by model, command, agent type and context size, cache misses by idle gap, compactions, tool mix and result sizes, and main-session idle time while subagents run. `stages.json` holds minutes per `/fullsend` stage. `cost_state_check` compares the script's cost with Claude Code's own on the `sessions` whose totals are complete: a gap over 5% means the prices or the deduplication are off, so say so before using the dollar figures.
 
-Then settle the open entries:
+Then settle the open entries from step 1, one date at a time. A settled entry leaves the open list for good, so its figures must cover only the days after its date. For each date among them, run the three scripts again with `--days` set to the days since that date, `friction` without `--command`, into `~/llmfiles/local/tunesetup/D/since-<date>/`, then:
 
 ```bash
-L measure --usage <usage.json> --stages <stages.json> --friction <friction.json>
+R=~/llmfiles/local/tunesetup/D/since-<date>
+L measure --since <date> --usage $R/usage.json --stages $R/stages.json --friction $R/friction.json
 ```
 
-It reads each entry's metric, scales a period total to its `baseline_days`, and writes `measured`, `moved` and `verdict`. The figures must cover only days after the entry's date: when this period reaches back further, run the three scripts again with `--days` set to the days since that date, into `D/since-<date>/`, and measure from those. A `friction:` metric needs a `friction.json` run without `--command`. An entry with `hand_counted` goes to the friction worker, which counts it again the way its `note` says; record the count with `L set` as the ledger format describes. A `moved` of `against` leaves the verdict to me.
+It reads each entry's metric, scales a period total to its `baseline_days`, and writes `measured`, `moved` and `verdict`. An entry with `hand_counted` goes to the friction worker, which counts it again the way its `note` says; record the count with `L set` as the ledger format describes. A `moved` of `against` leaves the verdict to me.
 
 ## 3. Friction and outside evidence
 

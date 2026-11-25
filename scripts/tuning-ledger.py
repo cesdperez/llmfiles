@@ -7,8 +7,9 @@ Usage: tuning-ledger.py [--ledger PATH] validate
        tuning-ledger.py add '<entry json>'          (id defaults to <date>-<n>)
        tuning-ledger.py list [--status S] [--source S] [--open] [--today D]
        tuning-ledger.py pending [--repo ~/llmfiles] [--branch main]
-       tuning-ledger.py measure [--usage F] [--stages F] [--friction F] [--today D]
-       tuning-ledger.py set <id> key=value ...      (value parsed as JSON when it parses)
+       tuning-ledger.py measure [--usage F] [--stages F] [--friction F] [--since D] [--today D]
+       tuning-ledger.py set <id> key=value key+=item ...  (value parsed as JSON when it parses;
+                                                     += appends to a list such as where)
 """
 
 import argparse
@@ -120,12 +121,14 @@ def add(path, e):
     return e["id"]
 
 
-def update(path, entry_id, fields):
+def update(path, entry_id, fields, appends=None):
     entries = load(path)
     match = [e for e in entries if e["id"] == entry_id]
     if not match:
         raise KeyError(entry_id)
     changed = {**match[0], **fields}
+    for k, item in (appends or {}).items():
+        changed[k] = [*changed.get(k, []), item]
     errors = validate_entry(changed)
     if errors:
         raise ValueError("; ".join(errors))
@@ -147,11 +150,15 @@ def metric_value(metric, outputs):
     if node is None:
         return None
     days = node.get("days")
-    for seg in path.split("/"):
+    segs = path.split("/")
+    for i, seg in enumerate(segs):
         if isinstance(node, dict) and seg in node:
             node = node[seg]
         elif isinstance(node, list):
             node = next((x for x in node if isinstance(x, dict) and x.get("kind") == seg), None)
+            # session-friction lists only the kinds that occurred, so an absent kind counted zero.
+            if node is None and segs[i + 1:] == ["count"]:
+                return 0, days
         else:
             return None
     return (node, days) if is_number(node) else None
@@ -177,11 +184,14 @@ def judge(e, measured):
     return "against", None
 
 
-def measure(path, outputs, today):
-    """Fills measured, moved and verdict on each open script entry. A move against the
-    expected direction leaves the verdict to the person, who reverts or keeps it."""
+def measure(path, outputs, today, since=None):
+    """Fills measured, moved and verdict on each open script entry, or only those dated `since`,
+    whose outputs must cover just the days after it. A move against the expected direction
+    leaves the verdict to the person, who reverts or keeps it."""
     results = []
     for e in open_entries(load(path), today):
+        if since and e["date"] != since:
+            continue
         if e.get("hand_counted"):
             results.append({"id": e["id"], "metric": e["metric"], "moved": "hand_count"})
             continue
@@ -197,17 +207,24 @@ def measure(path, outputs, today):
 
 
 def pending(entries, repo, branch):
-    """Each proposal's candidate commits: on the branch since its date, touching its files."""
+    """Each proposal's candidate commits (on the branch since its date, touching its files) and
+    the settings keys it names, which no commit shows and are checked by hand."""
     out = {}
     for e in entries:
-        if e["status"] != "proposed" or not e["files"]:
+        if e["status"] != "proposed":
             continue
-        log = subprocess.run(
-            ["git", "-C", repo, "log", branch, f"--since={e['date']}T00:00:00", "--format=%h %ad %s",
-             "--date=short", "--", *e["files"]],
-            capture_output=True, text=True, check=True).stdout
-        out[e["id"]] = log.splitlines()
+        commits = []
+        if e["files"]:
+            commits = subprocess.run(
+                ["git", "-C", repo, "log", branch, f"--since={e['date']}T00:00:00", "--format=%h %ad %s",
+                 "--date=short", "--", *e["files"]],
+                capture_output=True, text=True, check=True).stdout.splitlines()
+        out[e["id"]] = {"commits": commits, "check_by_hand": e["where"]}
     return out
+
+
+def select(entries, status=None, source=None):
+    return [e for e in entries if (not status or e["status"] == status) and (not source or e["source"] == source)]
 
 
 def parse_value(raw):
@@ -215,6 +232,23 @@ def parse_value(raw):
         return json.loads(raw)
     except json.JSONDecodeError:
         return raw
+
+
+def parse_fields(pairs):
+    """`key=value` pairs to set, and `key+=item` pairs to append to a list field."""
+    fields, appends = {}, {}
+    for pair in pairs:
+        key, _, raw = pair.partition("=")
+        if key.endswith("+"):
+            appends[key[:-1]] = parse_value(raw)
+        else:
+            fields[key] = parse_value(raw)
+    return fields, appends
+
+
+def emit(data):
+    json.dump(data, sys.stdout, indent=1)
+    print()
 
 
 def read_outputs(a):
@@ -245,6 +279,7 @@ def main():
     p = sub.add_parser("measure")
     for name in OUTPUTS:
         p.add_argument(f"--{name}")
+    p.add_argument("--since", help="settle only the open entries dated this day")
     p.add_argument("--today", default=date.today().isoformat())
     p = sub.add_parser("set")
     p.add_argument("id")
@@ -260,19 +295,13 @@ def main():
             print(add(a.ledger, json.loads(a.entry)))
         elif a.cmd == "list":
             entries = open_entries(load(a.ledger), a.today) if a.open else load(a.ledger)
-            entries = [e for e in entries if (not a.status or e["status"] == a.status)
-                       and (not a.source or e["source"] == a.source)]
-            json.dump(entries, sys.stdout, indent=1)
-            print()
+            emit(select(entries, a.status, a.source))
         elif a.cmd == "pending":
-            json.dump(pending(load(a.ledger), a.repo, a.branch), sys.stdout, indent=1)
-            print()
+            emit(pending(load(a.ledger), a.repo, a.branch))
         elif a.cmd == "measure":
-            json.dump(measure(a.ledger, read_outputs(a), a.today), sys.stdout, indent=1)
-            print()
+            emit(measure(a.ledger, read_outputs(a), a.today, a.since))
         elif a.cmd == "set":
-            fields = dict(f.split("=", 1) for f in a.fields)
-            print(json.dumps(update(a.ledger, a.id, {k: parse_value(v) for k, v in fields.items()})))
+            print(json.dumps(update(a.ledger, a.id, *parse_fields(a.fields))))
     except (ValueError, KeyError) as exc:
         sys.exit(f"error: {exc}")
 

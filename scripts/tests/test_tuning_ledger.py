@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ from pathlib import Path
 from transcript_fixtures import load_script
 
 ledger = load_script("tuning-ledger.py")
+SCRIPT = Path(__file__).resolve().parent.parent / "tuning-ledger.py"
 
 
 def entry(**overrides):
@@ -112,6 +114,10 @@ class Measuring(unittest.TestCase):
         self.assertEqual(ledger.metric_value("stages:stages/3 review/median", self.outputs), (8.0, 14))
         self.assertEqual(ledger.metric_value("friction:tool_errors/Bash: permission denied/count", self.outputs), (30, 14))
 
+    def test_a_tool_error_kind_that_did_not_occur_counts_zero(self):
+        self.assertEqual(ledger.metric_value("friction:tool_errors/Bash: blocked command/count", self.outputs), (0, 14))
+        self.assertIsNone(ledger.metric_value("friction:tool_errors/Bash: blocked command/sessions", self.outputs))
+
     def test_a_missing_metric_or_output_reads_as_none(self):
         self.assertIsNone(ledger.metric_value("usage:tools/nope", self.outputs))
         self.assertIsNone(ledger.metric_value("usage:tools/calls_per_request", {}))
@@ -138,6 +144,16 @@ class Measuring(unittest.TestCase):
         self.assertEqual((saved["a"]["measured"], saved["a"]["measured_on"], saved["a"]["verdict"]), (1.4, "2026-12-09", "kept"))
         self.assertIsNone(saved["hand"]["measured"])
 
+    def test_measure_settles_only_the_entries_of_the_given_date(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "ledger.jsonl"
+            ledger.add(path, entry(id="old", date="2026-11-18"))
+            ledger.add(path, entry(id="new"))
+            results = ledger.measure(path, self.outputs, "2026-12-09", since="2026-11-25")
+            saved = {e["id"]: e for e in ledger.load(path)}
+        self.assertEqual([r["id"] for r in results], ["new"])
+        self.assertIsNone(saved["old"]["verdict"])
+
 
 class Pending(unittest.TestCase):
     def test_lists_commits_on_the_branch_since_the_date_touching_the_files(self):
@@ -157,10 +173,34 @@ class Pending(unittest.TestCase):
             (Path(d) / "b.md").write_text("1")
             git("add", "b.md")
             git("commit", "-q", "-m", "b: unrelated", date="2026-11-27T13:00:00")
-            proposals = [entry(id="p", status="proposed", where=[], files=["a.md"]), entry(id="x")]
+            proposals = [entry(id="p", status="proposed", where=[], files=["a.md"]), entry(id="x"),
+                         entry(id="s", status="proposed", files=[], where=["settings.json:effortLevel"])]
             out = ledger.pending(proposals, d, "main")
-        self.assertEqual(list(out), ["p"])
-        self.assertEqual([c.split(" ", 1)[1] for c in out["p"]], ["2026-11-27 a: the change"])
+        self.assertEqual(list(out), ["p", "s"])
+        self.assertEqual([c.split(" ", 1)[1] for c in out["p"]["commits"]], ["2026-11-27 a: the change"])
+        self.assertEqual(out["s"], {"commits": [], "check_by_hand": ["settings.json:effortLevel"]})
+
+
+class Fields(unittest.TestCase):
+    def test_values_parse_as_json_when_they_parse_and_as_text_otherwise(self):
+        self.assertEqual(ledger.parse_value('["abc"]'), ["abc"])
+        self.assertIsNone(ledger.parse_value("null"))
+        self.assertEqual(ledger.parse_value("2026-11-27"), "2026-11-27")
+        self.assertEqual(ledger.parse_value("my reason"), "my reason")
+
+    def test_plus_equals_appends_to_a_list_field(self):
+        self.assertEqual(ledger.parse_fields(["status=applied", "where+=abc1234"]),
+                         ({"status": "applied"}, {"where": "abc1234"}))
+
+    def test_set_appends_a_sha_and_keeps_the_settings_key(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "ledger.jsonl"
+            ledger.add(path, entry(status="proposed", where=["settings.json:effortLevel"]))
+            subprocess.run([sys.executable, str(SCRIPT), "--ledger", str(path), "set", "2026-11-25-1",
+                            "status=applied", "where+=abc1234", "note=my reason"], check=True, capture_output=True)
+            saved = ledger.load(path)[0]
+        self.assertEqual((saved["status"], saved["where"], saved["note"]),
+                         ("applied", ["settings.json:effortLevel", "abc1234"], "my reason"))
 
 
 if __name__ == "__main__":
