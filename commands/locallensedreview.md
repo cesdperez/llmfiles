@@ -1,6 +1,6 @@
 ---
 description: Multi-angle code audit of local changes. Fans out parallel read-only lens agents (correctness, tests, standards, reuse, and security or performance when the change calls for them), then synthesizes one scored report.
-argument-hint: '[branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix] [--base ref] [--intent file]'
+argument-hint: '[branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix] [--base ref] [--intent file] [--compact]'
 allowed-tools: Agent, Read, Grep, Glob, Bash, Edit, Write
 ---
 
@@ -33,6 +33,8 @@ Parse `$ARGUMENTS` (all optional, any order):
   Workflow step 1 resolves both.
 - **`--intent <file>`**: the caller's record of the intent: its sources, acceptance criteria
   and the decisions the user made.
+- **`--compact`**: a calling command reads the report, so print the
+  [compact output](#compact-output).
 
 Default lens set: `correctness`, `test-health`, `code-standards`, `reuse`, plus:
 
@@ -96,13 +98,14 @@ blast-radius check on uncommitted work.
    above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything
    below high confidence.
 
-6. **Report.** Group survivors by lens, most impactful first. Zero findings for a lens is a
-   valid result.
+6. **Report** in the [output format](#output-format), or the
+   [compact output](#compact-output) with `--compact`. Group survivors by lens, most
+   impactful first. Zero findings for a lens is a valid result.
 
 7. **Fix mode** (only with `--autofix`): fix every finding at the [fix bar](#fix-bar)
    **sequentially**, never in parallel, to avoid edit conflicts. If on the base or the
    default branch, create a branch first. Commit with a message summarizing what was fixed
-   by lens. Print the full report afterwards regardless, so the user sees what changed.
+   by lens. Print the report afterwards regardless, so the reader sees what changed.
 
 ## Fix bar
 
@@ -134,3 +137,9 @@ Every query is stubbed, so the test passes even when the SQL is wrong. Convert i
 
 Descriptions are two sentences maximum: what is wrong, then what to do instead. No pasted
 code, no emoji.
+
+### Compact output
+
+With `--compact`, print one line per finding in the shared finding format, most impactful
+first, then one line per lens that ran: `<lens>: <n> findings` or `<lens>: none`. No table
+and no per-finding sections.
