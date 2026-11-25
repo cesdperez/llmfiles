@@ -255,11 +255,12 @@ card `--unread` and give one concise instruction.
   and verify go to it too. Publish `2/7 implement` in the message that sends it the
   implement brief, or the card shows intake for the whole implementation. Only a change of
   one or two files whose exact edit was known at intake stays in this session.
-- Independent parts get a `worker` each, with `isolation: "worktree"`. A part whose brief is
-  complete and needs no network or follow-up goes to `codex-worker` instead, with the same
-  isolation. Its brief names no repo path, or Codex edits that checkout instead of the
-  isolated one. When the task splits into many independent units, or the user asked for a
-  workflow, run them as a Workflow.
+- Independent parts get a `worker` each, with `isolation: "worktree"`. Its brief tells it to
+  use paths relative to its worktree and keep scratch files inside it, because a command
+  that leaves the worktree is refused. A part whose brief is complete and needs no network
+  or follow-up goes to `codex-worker` instead, with the same isolation. Its brief names no
+  repo path, or Codex edits that checkout instead of the isolated one. When the task splits
+  into many independent units, or the user asked for a workflow, run them as a Workflow.
 - **Stall check.** A background agent appends each step to the output file named when it
   launches, a symlink that `find -L` follows. Beside each agent the run waits on, run this
   in the background with a 2-hour timeout. It ends at least 15 minutes after it starts, once
@@ -331,6 +332,15 @@ Push each branch and open one draft MR per repo (`glab mr create --draft` with t
   only from members with a `gitlab` handle. Rank them by MRs they merged in that repo in the
   last 90 days (`glab mr list --merged --author <handle>`). Never add anyone outside the
   roster, and never the user.
+  The roster file is YAML. `python3` often has no YAML module and Ruby has one, so list the
+  handles with Ruby:
+
+  ```bash
+  ruby -ryaml -rjson -e 'puts JSON.generate(YAML.load_file(ARGV[0]))' \
+    "$(jq -r .platform_directory ~/llmfiles/local/work.json | sed "s|^~|$HOME|")" |
+    jq -r --arg t "$(jq -r .team_id ~/llmfiles/local/work.json)" \
+      '.teams[] | select(.id == $t) | .members[] | select(.gitlab) | .gitlab'
+  ```
 - Description: call the Skill tool with "plainenglish", then follow **Writing MR Text** in
   `glab-cli`. Link the
   ticket and the sibling MRs. Add one line saying what was verified and where, for example
