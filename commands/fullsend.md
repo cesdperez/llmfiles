@@ -121,7 +121,7 @@ leave other sources' ledgers alone.
 ## Blocked stages
 
 A stage is blocked when it cannot proceed for a reason the run cannot fix: no remote, a
-denied push, a repo without CI, a second verify failure. Record the reason in the ledger,
+denied push, a repo without CI, a Fail in the verify rerun. Record the reason in the ledger,
 skip the stages that depend on it, and go to the handoff. Never discard work to get past a
 block.
 
@@ -148,10 +148,12 @@ sqlite3 -readonly "$HOME/Library/Application Support/orca/profiles/local-default
 
 If columns labelled Implement, Review, Verify, MR and Green all exist (any case), use one
 column per stage: Implement for stages 0 to 2, then the column named after stages 3 to 6,
-and `completed` when the endpoint is reached. Pass the id, not the label: ids of columns
-made in the app need not match their label. Otherwise use the defaults: `in-progress` for
-stages 0 to 4, `in-review` from stage 5, `completed` at the endpoint. Set only ids that are
-configured. A blocked stage keeps its status, with the comment
+and `completed` when the endpoint is reached. Stages 3 and 4 run together, so publish
+`3/7 review and verify` in Review, then `4/7 verify` in Verify once the review has
+reported. The fix round and its rerun stay in Verify. Pass the id, not the label: ids of
+columns made in the app need not match their label. Otherwise use the defaults:
+`in-progress` for stages 0 to 4, `in-review` from stage 5, `completed` at the endpoint.
+Set only ids that are configured. A blocked stage keeps its status, with the comment
 `blocked: <reason>`. Add `--unread` whenever the run stops for the user. Add
 `--gitlab-mr <url>` once the MR exists.
 
@@ -266,17 +268,17 @@ card `--unread` and give one concise instruction.
 
 ### 3. Review
 
-Call the Skill tool with "locallensedreview" and args
+Stages 3 and 4 start in the same message, on the same commit: neither changes the code, so
+neither waits for the other. That message launches the stage 4 verify worker in the
+background and calls the Skill tool with "locallensedreview" and args
 `--base <recorded base> --intent <ledger path> --compact`, once per repo, from inside that
 repo's checkout. Leave out `--autofix`, and do not rerun it after the fixes. The intent is
 the ledger's sources, their acceptance criteria and the intake answers.
 
-Send the findings at its fix bar to the implementing worker with SendMessage, to fix and
-commit: the controller holds conclusions, not file contents. Write every other finding to
-the ledger, and carry it into the MR description if it matters to a reviewer. The printed
-report ends the skill, not the run: the message that holds it also sends the fixes, or
-launches the stage 4 verify worker when there are none. Otherwise stage 4 starts when the
-worker reports the fixes committed.
+Write the findings at its fix bar to the ledger for the fix round in stage 4. Write every
+other finding there too, and carry it into the MR description if it matters to a
+reviewer. The printed report ends the skill, not the run: the message that holds it also
+moves the card to stage 4.
 
 ### 4. Verify
 
@@ -296,7 +298,13 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
   by `-` as the session name: playwright-cli treats `/` as a path.
 - Report Pass or Fail per criterion with one line of evidence. Save screenshots of failures
   and of the main UI change in `fullsend-qa/`.
-- On a Fail, fix it, then repeat verify once. A second Fail blocks the run.
+- **Fix round.** Once review and verify have both reported, send the review findings at the
+  fix bar and every verify Fail to the implementing worker in one SendMessage, to fix and
+  commit: the controller holds conclusions, not file contents. With neither, go to stage 5.
+- **Rerun.** After the fixes, the verify worker reruns only what they could change: the
+  tests scoped to the changed files, every criterion that failed, and every criterion whose
+  code path a fix touched. Review fixes get no other verify, so a criterion a fix might
+  reach is rerun. A Fail in the rerun blocks the run.
 - Run the [stall check](#2-implement) on the verify worker.
 
 ### 5. MR
