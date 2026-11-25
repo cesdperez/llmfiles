@@ -94,6 +94,15 @@ blast-radius check on uncommitted work.
    also asks for every finding, and the rule-lens bundle keeps its per-lens sections and
    count lines.
 
+   `correctness` runs as the built-in `/code-review high` in place of the `reviewer` lens
+   agent, because on past misses it caught bugs the lens agent dropped. Start it in the same
+   message, as a background Bash command from the checkout, so it gets a fresh context:
+   `claude -p "/code-review high" --permission-mode auto --output-format json`. It reviews
+   the branch against the default branch plus uncommitted work, unsharded. It does not see
+   the intent, so synthesis drops its findings that contradict a stated decision. When
+   `--base` names another branch, or `/code-review` is unavailable (Codex, opencode),
+   `correctness` runs as the lens agent. The `codex-reviewer` read keeps the lens brief.
+
 5. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
    above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything
    below high confidence.
