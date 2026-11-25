@@ -1,7 +1,7 @@
 ---
 description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
 argument-hint: <jira key|jira url|slack url|task text>... [open a PR|ship to main|ship to prod] [fix leftovers] [unattended] [in a new worktree]
-allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, ToolSearch
+allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, TaskStop, ToolSearch
 ---
 
 **Role:** controller of one end-to-end delivery run. You own the stage order, the ledger,
@@ -246,6 +246,20 @@ card `--unread` and give one concise instruction.
   isolation. Its brief names no repo path, or Codex edits that checkout instead of the
   isolated one. When the task splits into many independent units, or the user asked for a
   workflow, run them as a Workflow.
+- **Stall check.** A background agent appends each step to the output file named when it
+  launches, a symlink that `find -L` follows. Beside each agent the run waits on, run this
+  in the background with a 2-hour timeout. It ends at least 15 minutes after it starts, once
+  the agent has gone 15 minutes without a step:
+
+  ```bash
+  t0=$(date +%s)
+  until [ $(($(date +%s) - t0)) -ge 900 ] && [ -n "$(find -L <output file> -mmin +15)" ]; do sleep 60; done
+  ```
+
+  Then look at what the agent runs (`ps`) and whether what it waits on can still arrive.
+  When it cannot, such as an environment that is down or scaled to zero, stop the agent
+  with TaskStop and block the stage with that reason. Otherwise, or when the timeout stops
+  the check, start it again. Stop the check when the agent reports.
 - Keep docs in sync in the same commits: docs that describe the changed behaviour, and
   any trap this run hit that the repo's agent docs did not warn about, written in the file
   that owns that topic. Both follow `~/llmfiles/shared/agent-docs-bar.md`.
@@ -283,6 +297,7 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 - Report Pass or Fail per criterion with one line of evidence. Save screenshots of failures
   and of the main UI change in `fullsend-qa/`.
 - On a Fail, fix it, then repeat verify once. A second Fail blocks the run.
+- Run the [stall check](#2-implement) on the verify worker.
 
 ### 5. MR
 
