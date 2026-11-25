@@ -17,6 +17,13 @@ DEFAULT_ROOT = os.path.expanduser("~/.claude/projects")
 REPO = Path(__file__).resolve().parent.parent
 COMMAND_RE = re.compile(r"<command-name>/?([\w:-]+)</command-name>")
 DISPATCH_MARKERS = ("You are a dispatched worker", "Dispatch ID", "Dispatch id")
+AGENT_TOOLS = ("Agent", "Task")
+# CLIs whose first word alone says too little, so a command is keyed by its subcommand too.
+MULTIWORD = {"glab", "gh", "git", "npm", "pnpm", "npx", "yarn", "orca", "gcx", "twg", "aws", "docker", "dotnet",
+             "kubectl", "playwright-cli", "cf", "uv", "python3", "bun", "make", "helm", "sp", "claude", "codex"}
+SETUP_STATEMENT_RE = re.compile(r"""^(cd|source|export|set)\b|^\w+=(\$\(.*\)|"[^"]*"|'[^']*')$|^(\w+=\S*\s*)+$""")
+ENV_PREFIX_RE = re.compile(r"^(\w+=\S*\s+)+")
+SUBCOMMAND_RE = re.compile(r"^[a-z][\w:.-]*$")
 
 
 def repo_commands():
@@ -44,6 +51,15 @@ def text_of(content):
     return ""
 
 
+def tool_result_text(block):
+    content = block.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return " ".join(b.get("text", "") for b in content if isinstance(b, dict))
+    return ""
+
+
 def records(path):
     with open(path, "rb") as fh:
         for raw in fh:
@@ -62,14 +78,24 @@ def transcript_files(root, cutoff):
         yield path, "main" if depth == 2 else "sub"
 
 
+def session_of(path, root):
+    """(project directory, session id) of a main or subagent transcript."""
+    project, session = os.path.relpath(path, root).split(os.sep)[:2]
+    return project, session.removesuffix(".jsonl")
+
+
 def main_path_of(sub_path, root):
-    project, session = os.path.relpath(sub_path, root).split(os.sep)[:2]
+    project, session = session_of(sub_path, root)
     return os.path.join(root, project, session + ".jsonl")
+
+
+def subagent_paths(root, project, session):
+    return sorted(glob.glob(os.path.join(root, project, session, "subagents", "agent-*.jsonl")))
 
 
 def subagent_meta(sub_path):
     try:
-        with open(sub_path[:-len(".jsonl")] + ".meta.json") as fh:
+        with open(sub_path.removesuffix(".jsonl") + ".meta.json") as fh:
             return json.load(fh)
     except (OSError, ValueError):
         return {}
@@ -85,6 +111,22 @@ def project_label(project_dir):
     """Project directory name without the encoded home prefix, so output holds no user name."""
     home = "-" + os.path.expanduser("~").strip("/").replace("/", "-").replace(".", "-") + "-"
     return project_dir[len(home):] if project_dir.startswith(home) else project_dir
+
+
+def bash_head(cmd):
+    """The program a shell command runs, plus its subcommand for MULTIWORD CLIs.
+
+    Setup statements (cd, source, export, assignments) are skipped, so one-off values and
+    paths never become part of the key."""
+    statements = [s.strip() for s in re.split(r"&&|;|\n", cmd) if s.strip()]
+    rest = [s for s in statements if not SETUP_STATEMENT_RE.match(s)]
+    words = ENV_PREFIX_RE.sub("", rest[0]).split() if rest else []
+    if not words:
+        return "(setup only)" if statements else "(empty)"
+    head = os.path.basename(words[0])
+    if head in MULTIWORD:
+        return " ".join([head] + [w for w in words[1:3] if SUBCOMMAND_RE.match(w)][:2])
+    return head
 
 
 def commands_in(record, known):

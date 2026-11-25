@@ -27,10 +27,10 @@ import transcripts as tr  # noqa: E402
 MAX_HUMANS = 40
 MAX_SNIPPETS = 5
 NOT_HUMAN = ("<task-notification", "<system-reminder", "Another Claude session", "<agent-message",
-             "Base directory", "**Role:**", "<local-command", "Caveat", "This session is being continued",
-             "<bash-", "[Request interrupted by user for tool use]")
+             "──── From: ", "Base directory", "**Role:**", "<local-command", "Caveat",
+             "This session is being continued", "<bash-", "[Request interrupted by user for tool use]")
+SLASH_COMMAND = ("<command-name>", "<command-message>")
 INTERRUPT = "[Request interrupted"
-REVIEWERS = {"reviewer", "reviewer-fast", "codex-reviewer"}
 FINDING_RE = re.compile(r"\[\d+(?:\.\d+)?/10\]")
 TABLE_RE = re.compile(r"\|\s*#\s*\|\s*Score", re.I)
 TABLE_ROW_RE = re.compile(r"^\|\s*\d+\s*\|\s*([\d.]+)/10\s*\|\s*([\w-]+)", re.M)
@@ -40,15 +40,21 @@ PUSHBACK_RE = re.compile(
 REWORK_RE = re.compile(
     r"verify (failed|found)|pipeline (failed|is red|went red)|job [`\w:-]+ failed"
     r"|review (missed|did not catch|didn.t catch)|missed by the review|lenses? (missed|did not)", re.I)
-SECRET_RES = {
-    "anthropic key": re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"),
-    "openai key": re.compile(r"sk-proj-[A-Za-z0-9_-]{20,}"),
-    "github token": re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
-    "gitlab token": re.compile(r"glpat-[A-Za-z0-9_-]{20,}"),
-    "aws access key": re.compile(r"AKIA[0-9A-Z]{16}"),
-    "slack token": re.compile(r"xox[abprs]-[A-Za-z0-9-]{10,}"),
-    "private key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-}
+# Earlier entries win where two match at one place, so anthropic key stays ahead of openai key.
+SECRET_PATTERNS = [
+    ("anthropic key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
+    ("openai key", r"sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}"),
+    ("github token", r"gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}"),
+    ("gitlab token", r"glpat-[A-Za-z0-9_-]{20,}"),
+    ("aws access key", r"AKIA[0-9A-Z]{16}"),
+    ("slack token", r"xox[abprs]-[A-Za-z0-9-]{10,}"),
+    ("google key", r"AIza[0-9A-Za-z_-]{35}"),
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*"),
+    ("bearer token", r"Bearer\s+[A-Za-z0-9._~+/=-]{20,}"),
+    # Through the END line, or to the end of the text when the key was cut before it.
+    ("private key", r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?s:.*?-----END [A-Z ]*PRIVATE KEY-----|.*)"),
+]
+SECRET_RE = re.compile("|".join(f"(?P<s{i}>{p})" for i, (_, p) in enumerate(SECRET_PATTERNS)))
 ERROR_KINDS = [
     (r"denied by a built-in Claude Code safety check", "safety-check denial"),
     (r"permission|not allowed|denied", "permission denied"),
@@ -64,40 +70,30 @@ ERROR_KINDS = [
     (r"interrupted", "interrupted"),
     (r"too large|exceeds maximum", "output too large"),
 ]
-MULTIWORD = {"pnpm", "glab", "orca", "git", "playwright-cli", "npx", "docker", "npm", "dotnet", "gh"}
+
+
+def secret_kind(match):
+    return SECRET_PATTERNS[int(match.lastgroup[1:])][0]
 
 
 def redact(text):
-    for kind, pattern in SECRET_RES.items():
-        text = pattern.sub(f"[{kind} redacted]", text)
-    return text
+    return SECRET_RE.sub(lambda m: f"[{secret_kind(m)} redacted]", text or "")
 
 
 def clip(text, n):
-    text = redact(re.sub(r"\s+", " ", text or "")).strip()
+    text = re.sub(r"\s+", " ", redact(text)).strip()
     return text if len(text) <= n else text[:n] + "..."
 
 
-def tool_result_text(block):
-    content = block.get("content")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        return " ".join(b.get("text", "") for b in content if isinstance(b, dict))
-    return ""
-
-
-def command_head(cmd):
-    words = re.sub(r"^((cd|source|export)\s+\S+\s*(&&|;|\n)\s*)+", "", cmd.strip()).split()
-    if not words:
-        return "?"
-    return " ".join(words[:2]) if words[0] in MULTIWORD else words[0]
+def snippets(text, pattern, width=160):
+    text = redact(text)
+    return [clip(text[max(0, m.start() - width):m.end() + width], 2 * width + 40) for m in pattern.finditer(text)]
 
 
 def error_kind(tool, message, cmd):
     head = message[:400]
     if "Exit code" in head:
-        return f"{tool}: exit nonzero [{command_head(cmd)}]"
+        return f"{tool}: exit nonzero [{tr.bash_head(cmd)}]"
     for pattern, label in ERROR_KINDS:
         if re.search(pattern, head, re.I):
             return f"{tool}: {label}"
@@ -111,181 +107,213 @@ def error_message_key(message):
     return re.sub(r"[0-9a-f]{6,}|\d+", "N", re.sub(r"\s+", " ", message))[:90]
 
 
-def is_human(text):
-    return not text.lstrip().startswith(NOT_HUMAN)
+def classify_human(text):
+    """'human', 'command' for a typed slash command, or None for text no person wrote."""
+    head = text.lstrip()
+    if not head or head.startswith(NOT_HUMAN):
+        return None
+    return "command" if head.startswith(SLASH_COMMAND) else "human"
 
 
-def scan_secrets(path, found):
+def windowed(path, cutoff):
+    """Each record with its raw line and whether its timestamp falls in the period."""
     with open(path, "rb") as fh:
         for raw in fh:
-            line = raw.decode("utf-8", "replace")
-            for kind, pattern in SECRET_RES.items():
-                n = len(pattern.findall(line))
-                if n:
-                    found[kind] += n
+            try:
+                d = json.loads(raw)
+            except ValueError:
+                continue
+            ts = tr.parse_ts(d.get("timestamp"))
+            yield d, ts, raw, ts is not None and ts >= cutoff
 
 
-def scan_errors(path, errors, sink):
-    names, cmds = {}, {}
-    for d in tr.records(path):
+class FileFindings:
+    """Tool errors and secrets of one transcript, from records inside the period."""
+
+    def __init__(self):
+        self.secrets = Counter()
+        self.errors = []
+        self._tools = {}
+
+    def feed(self, d, raw):
+        for m in SECRET_RE.finditer(raw.decode("utf-8", "replace")):
+            self.secrets[secret_kind(m)] += 1
         content = (d.get("message") or {}).get("content")
-        if not isinstance(content, list):
-            continue
-        for b in content:
+        for b in content if isinstance(content, list) else []:
             if not isinstance(b, dict):
                 continue
             if b.get("type") == "tool_use":
-                names[b.get("id")] = b.get("name")
                 inp = b.get("input") if isinstance(b.get("input"), dict) else {}
-                cmds[b.get("id")] = inp.get("command", "") or ""
+                self._tools[b.get("id")] = (b.get("name"), redact(inp.get("command", "") or ""))
             elif b.get("type") == "tool_result" and b.get("is_error"):
-                message = tool_result_text(b)
-                cmd = cmds.get(b.get("tool_use_id"), "")
-                kind = error_kind(names.get(b.get("tool_use_id"), "?"), message, cmd)
-                errors[kind] += 1
-                sink.append((kind, error_message_key(message), cmd, message))
+                tool, cmd = self._tools.get(b.get("tool_use_id"), ("?", ""))
+                message = redact(tr.tool_result_text(b))
+                self.errors.append((error_kind(tool, message, cmd), error_message_key(message), cmd, message))
 
 
-def subagent_extract(path, clip_n):
-    meta = tr.subagent_meta(path)
-    brief, report, first, last = None, "", None, None
-    for d in tr.records(path):
-        ts = tr.parse_ts(d.get("timestamp"))
-        if ts:
-            first, last = first or ts, ts
+class MainExtract:
+    def __init__(self, known, clip_n):
+        self.known, self.clip_n = known, clip_n
+        self.commands, self.humans, self.tables, self.pushback, self.rework = [], [], [], [], []
+        self.interrupts, self.seen_first, self.dispatched, self.first_ts = 0, False, False, None
+
+    def feed(self, d, ts, in_window):
+        self.commands += tr.commands_in(d, self.known)
+        if not in_window:
+            return
+        self.first_ts = self.first_ts or ts
         content = (d.get("message") or {}).get("content")
-        if d.get("type") == "user" and brief is None:
-            brief = tr.text_of(content)
+        if d.get("type") == "user" and not d.get("isMeta") and not d.get("isCompactSummary"):
+            self.user_text(tr.text_of(content), d.get("timestamp") or "")
+        elif d.get("type") == "assistant" and isinstance(content, list):
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "text":
+                    self.assistant_text(b.get("text", ""))
+
+    def user_text(self, text, at):
+        self.dispatched = self.dispatched or tr.is_dispatched(text)
+        kind = classify_human(text)
+        if kind is None:
+            return
+        if kind == "human":
+            if text.lstrip().startswith(INTERRUPT):
+                self.interrupts += 1
+                text = "[interrupted]"
+            if self.seen_first and len(self.humans) < MAX_HUMANS:
+                self.humans.append({"at": at[:16], "text": clip(text, self.clip_n)})
+            self.pushback += snippets(text, PUSHBACK_RE)
+        self.seen_first = True
+
+    def assistant_text(self, text):
+        if TABLE_RE.search(text):
+            text = redact(text)
+            rows = TABLE_ROW_RE.findall(text)
+            i = text.lower().find("### summary")
+            tail = text[i:] if i >= 0 else text[-400:]
+            self.tables.append({"kept": [{"score": float(s), "lens": lens} for s, lens in rows],
+                                "summary": clip(tail, 2 * self.clip_n)})
+        self.pushback += snippets(text, PUSHBACK_RE)
+        self.rework += snippets(text, REWORK_RE)
+
+    def result(self):
+        return {"dispatched": self.dispatched, "humans": self.humans, "interrupts": self.interrupts,
+                "review_tables": self.tables, "review_pushback": self.pushback[:MAX_SNIPPETS],
+                "rework": self.rework[:MAX_SNIPPETS]}
+
+
+class SubagentExtract:
+    def __init__(self, path, clip_n):
+        self.path, self.clip_n = path, clip_n
+        self.brief, self.report, self.first, self.last = None, "", None, None
+
+    def feed(self, d, ts, in_window):
+        if not in_window:
+            return
+        self.first, self.last = self.first or ts, ts
+        content = (d.get("message") or {}).get("content")
+        if d.get("type") == "user" and self.brief is None:
+            self.brief = tr.text_of(content)
         if d.get("type") == "assistant" and isinstance(content, list):
             for b in content:
                 if not isinstance(b, dict):
                     continue
                 if b.get("type") == "text" and b.get("text", "").strip():
-                    report = b["text"]
+                    self.report = b["text"]
                 elif b.get("type") == "tool_use" and b.get("name") == "SubagentHandback":
-                    report = (b.get("input") or {}).get("message", "") or report
-    return {
-        "type": tr.subagent_type(path, meta), "description": meta.get("description"),
-        "minutes": round((last - first) / 60, 1) if first else None,
-        "brief_chars": len(brief or ""), "brief": clip(brief, clip_n),
-        "report_chars": len(report), "report": clip(report, clip_n),
-        "findings": len(FINDING_RE.findall(report)),
-    }
+                    self.report = (b.get("input") or {}).get("message", "") or self.report
+
+    def result(self):
+        meta = tr.subagent_meta(self.path)
+        return {
+            "type": tr.subagent_type(self.path, meta), "description": meta.get("description"),
+            "minutes": round((self.last - self.first) / 60, 1) if self.first else None,
+            "brief_chars": len(self.brief or ""), "brief": clip(self.brief, self.clip_n),
+            "report_chars": len(self.report), "report": clip(self.report, self.clip_n),
+            "findings": len(FINDING_RE.findall(self.report)),
+        }
 
 
-def snippets(text, pattern, width=160):
-    return [clip(text[max(0, m.start() - width):m.end() + width], 2 * width + 40) for m in pattern.finditer(text)]
-
-
-def main_extract(path, clip_n, known, cutoff):
-    humans, commands, interrupts = [], [], 0
-    seen_first, dispatched, first_ts = False, False, None
-    tables, pushback, rework = [], [], []
-    for d in tr.records(path):
-        ts = tr.parse_ts(d.get("timestamp"))
-        if ts is None or ts < cutoff:
-            continue
-        first_ts = first_ts or ts
-        commands += tr.commands_in(d, known)
-        content = (d.get("message") or {}).get("content")
-        if d.get("type") == "user" and not d.get("isMeta") and not d.get("isCompactSummary"):
-            text = tr.text_of(content)
-            dispatched = dispatched or tr.is_dispatched(text)
-            if not text.strip() or not is_human(text):
-                continue
-            if text.lstrip().startswith(INTERRUPT):
-                interrupts += 1
-                text = "[interrupted]"
-            if seen_first and len(humans) < MAX_HUMANS:
-                humans.append({"at": (d.get("timestamp") or "")[:16], "text": clip(text, clip_n)})
-            seen_first = True
-            pushback += snippets(text, PUSHBACK_RE)
-        elif d.get("type") == "assistant" and isinstance(content, list):
-            for b in content:
-                if not (isinstance(b, dict) and b.get("type") == "text"):
-                    continue
-                text = b.get("text", "")
-                if TABLE_RE.search(text):
-                    rows = TABLE_ROW_RE.findall(text)
-                    tail = text[text.lower().find("### summary"):] if "### summary" in text.lower() else text[-400:]
-                    tables.append({"kept": [{"score": float(s), "lens": lens} for s, lens in rows],
-                                   "summary": clip(tail, 2 * clip_n)})
-                pushback += snippets(text, PUSHBACK_RE)
-                rework += snippets(text, REWORK_RE)
-    return {
-        "commands": commands, "dispatched": dispatched, "first_ts": first_ts, "humans": humans,
-        "interrupts": interrupts, "review_tables": tables,
-        "review_pushback": pushback[:MAX_SNIPPETS], "rework": rework[:MAX_SNIPPETS],
-    }
+def read_file(path, cutoff, extract):
+    """One pass over a transcript, feeding its extract and its errors and secrets."""
+    findings = FileFindings()
+    for d, ts, raw, in_window in windowed(path, cutoff):
+        extract.feed(d, ts, in_window)
+        if in_window:
+            findings.feed(d, raw)
+    return findings
 
 
 def date_of(ts):
     return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d") if ts else None
 
 
-def sessions_in_scope(root, cutoff, known, wanted):
-    for path, kind in tr.transcript_files(root, cutoff):
-        if kind == "main":
-            commands = []
-            for d in tr.records(path):
-                commands += tr.commands_in(d, known)
-                if commands:
-                    break
-            if commands and commands[0] in wanted:
-                yield path, commands[0]
+class ErrorTally:
+    def __init__(self):
+        self.by_kind, self.sessions, self.messages, self.example = Counter(), defaultdict(set), defaultdict(Counter), {}
+        self.by_command = defaultdict(Counter)
+
+    def add(self, session, command, errors):
+        for kind, key, cmd, message in errors:
+            self.by_kind[kind] += 1
+            self.by_command[command][kind] += 1
+            self.sessions[kind].add(session)
+            self.messages[kind][key] += 1
+            self.example.setdefault((kind, key), (cmd, message))
+
+    def result(self):
+        return {
+            "tool_errors": [
+                {"kind": kind, "count": n, "sessions": len(self.sessions[kind]),
+                 "top": [{"message": key, "count": c, "example_cmd": clip(self.example[(kind, key)][0], 150),
+                          "example_error": clip(self.example[(kind, key)][1], 200)}
+                         for key, c in self.messages[kind].most_common(3)]}
+                for kind, n in self.by_kind.most_common()
+            ],
+            "tool_errors_by_command": {k: dict(v.most_common(10)) for k, v in self.by_command.items()},
+        }
+
+
+def session_row(path, root, cutoff, known, clip_n):
+    """A main session's extract, its subagents' extracts, and the errors and secrets across them."""
+    main = MainExtract(known, clip_n)
+    findings = [read_file(path, cutoff, main)]
+    project, session = tr.session_of(path, root)
+    agents = []
+    for sub in tr.subagent_paths(root, project, session):
+        extract = SubagentExtract(sub, clip_n)
+        findings.append(read_file(sub, cutoff, extract))
+        if extract.first:
+            agents.append(extract.result())
+    errors = [e for f in findings for e in f.errors]
+    secrets = sum((f.secrets for f in findings), Counter())
+    row = {"session": session, "project": tr.project_label(project), "date": date_of(main.first_ts),
+           "commands": main.commands, **main.result(), "tool_errors": len(errors), "agents": agents}
+    return row, errors, secrets
 
 
 def analyze(root, days, wanted=None, clip_n=300, now=None, known=None):
     known = tr.repo_commands() if known is None else known
     wanted = set(wanted or known)
     cutoff = tr.cutoff_for(days, now)
-    sessions, secrets = [], []
-    errors_by_kind, sessions_by_kind, examples = Counter(), defaultdict(set), defaultdict(Counter)
-    example_of = {}
-    by_command = defaultdict(Counter)
-    for path, command in sessions_in_scope(root, cutoff, known, wanted):
-        project, session = os.path.relpath(path, root).split(os.sep)[:2]
-        session = session[:-len(".jsonl")]
-        row = main_extract(path, clip_n, known, cutoff)
-        subs = sorted(glob.glob(os.path.join(root, project, session, "subagents", "agent-*.jsonl")))
-        found, errors, sink = Counter(), Counter(), []
-        for p in [path] + subs:
-            scan_secrets(p, found)
-            scan_errors(p, errors, sink)
-        for kind, key, cmd, message in sink:
-            sessions_by_kind[kind].add(session)
-            examples[kind][key] += 1
-            example_of.setdefault((kind, key), (cmd, message))
-        errors_by_kind.update(errors)
-        label = command + ("[fleet-worker]" if row["dispatched"] else "")
-        by_command[label].update(errors)
-        date = date_of(row.pop("first_ts"))
-        secrets += [{"session": session, "date": date, "kind": k, "count": n} for k, n in found.items()]
-        sessions.append({
-            "session": session, "project": tr.project_label(project), "date": date, "command": label,
-            **row, "tool_errors": sum(errors.values()),
-            "agents": [subagent_extract(p, clip_n) for p in subs],
-        })
-    sessions.sort(key=lambda s: (s["command"], s["date"] or ""))
-    return {
-        "days": days,
-        "sessions_by_command": dict(Counter(s["command"] for s in sessions)),
-        "tool_errors": [
-            {"kind": kind, "count": n, "sessions": len(sessions_by_kind[kind]),
-             "top": [{"message": key, "count": c, "example_cmd": clip(example_of[(kind, key)][0], 150),
-                      "example_error": clip(example_of[(kind, key)][1], 200)}
-                     for key, c in examples[kind].most_common(3)]}
-            for kind, n in errors_by_kind.most_common()
-        ],
-        "tool_errors_by_command": {k: dict(v.most_common(10)) for k, v in by_command.items()},
-        "secrets": secrets,
-        "sessions": sessions,
-    }
+    sessions, secrets, tally = [], [], ErrorTally()
+    for path, kind in tr.transcript_files(root, cutoff):
+        if kind != "main":
+            continue
+        row, errors, found = session_row(path, root, cutoff, known, clip_n)
+        if not row["commands"] or row["commands"][0] not in wanted or not row["date"]:
+            continue
+        row["command"] = row["commands"][0] + ("[fleet-worker]" if row["dispatched"] else "")
+        tally.add(row["session"], row["command"], errors)
+        secrets += [{"session": row["session"], "date": row["date"], "kind": k, "count": n} for k, n in found.items()]
+        sessions.append(row)
+    sessions.sort(key=lambda s: (s["command"], s["date"]))
+    return {"days": days, "sessions_by_command": dict(Counter(s["command"] for s in sessions)),
+            **tally.result(), "secrets": secrets, "sessions": sessions}
 
 
 def timeline(root, prefix, clip_n=300):
     """One session's events in order: human and assistant text, agent briefs and reports, errors."""
-    matches = [p for p in glob.glob(os.path.join(root, "*", prefix + "*.jsonl"))]
+    matches = glob.glob(os.path.join(root, "*", prefix + "*.jsonl"))
     if len(matches) != 1:
         return {"error": f"{len(matches)} sessions match {prefix!r}"}
     events, names, last_text = [], {}, None
@@ -301,30 +329,30 @@ def timeline(root, prefix, clip_n=300):
                 elif b.get("type") == "tool_use":
                     names[b.get("id")] = b.get("name")
                     inp = b.get("input") if isinstance(b.get("input"), dict) else {}
-                    if b.get("name") in ("Agent", "Task"):
+                    if b.get("name") in tr.AGENT_TOOLS:
                         events.append({"at": at, "kind": f"agent brief [{inp.get('subagent_type')}]",
                                        "text": clip(f"{inp.get('description')}: {inp.get('prompt', '')}", clip_n)})
                     elif b.get("name") == "Skill":
                         events.append({"at": at, "kind": "skill", "text": clip(f"{inp.get('skill')} {inp.get('args', '')}", 150)})
         elif d.get("type") == "user" and not d.get("isMeta"):
-            if isinstance(content, list):
-                for b in content:
-                    if isinstance(b, dict) and b.get("type") == "tool_result":
-                        text = tool_result_text(b)
-                        name = names.get(b.get("tool_use_id"), "?")
-                        if b.get("is_error"):
-                            events.append({"at": at, "kind": f"error [{name}]", "text": clip(text, 200)})
-                        elif name in ("Agent", "Task") and "Async agent launched" not in text:
-                            events.append({"at": at, "kind": "agent report", "text": clip(text, clip_n)})
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get("type") == "tool_result":
+                    text = tr.tool_result_text(b)
+                    name = names.get(b.get("tool_use_id"), "?")
+                    if b.get("is_error"):
+                        events.append({"at": at, "kind": f"error [{name}]", "text": clip(text, 200)})
+                    elif name in tr.AGENT_TOOLS and "Async agent launched" not in text:
+                        events.append({"at": at, "kind": "agent report", "text": clip(text, clip_n)})
             text = tr.text_of(content)
-            if text.strip() and is_human(text):
+            kind = classify_human(text)
+            if kind:
                 if last_text:
                     events.append({"at": last_text[0], "kind": "assistant", "text": clip(last_text[1], clip_n)})
                     last_text = None
-                events.append({"at": at, "kind": "human", "text": clip(text, clip_n)})
+                events.append({"at": at, "kind": kind, "text": clip(text, clip_n)})
     if last_text:
         events.append({"at": last_text[0], "kind": "assistant", "text": clip(last_text[1], clip_n)})
-    return {"session": os.path.basename(matches[0])[:-len(".jsonl")], "events": events}
+    return {"session": os.path.basename(matches[0]).removesuffix(".jsonl"), "events": events}
 
 
 def main():

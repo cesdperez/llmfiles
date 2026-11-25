@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,15 @@ friction = load_script("session-friction.py")
 KNOWN = {"fullsend", "locallensedreview", "fleet"}
 PROJECT = "-work-repo"
 FAKE_TOKEN = "glpat-" + "x" * 24
+FAKE_KEY_BODY = "Q" * 64
+FAKE_PRIVATE_KEY = ("-----BEGIN RSA PRIVATE KEY-----\n" + FAKE_KEY_BODY + "\n-----END RSA PRIVATE KEY-----")
+FAKE_SECRETS = {
+    "github token": "github_pat_" + "a" * 30,
+    "openai key": "sk-svcacct-" + "b" * 30,
+    "google key": "AIza" + "c" * 35,
+    "jwt": "eyJ" + "d" * 12 + ".eyJ" + "e" * 12 + "." + "f" * 10,
+    "bearer token": "Bearer " + "g" * 30,
+}
 
 
 def text(msg_id, minutes_ago, body):
@@ -37,6 +47,8 @@ class Extracts(unittest.TestCase):
             user("<task-notification><result>done</result></task-notification>", 55),
             user("Another Claude session sent a message: hi", 54),
             user("skill body", 53, isMeta=True),
+            user("\u2500\u2500\u2500\u2500 From: worker-2 \u2500\u2500\u2500\u2500\nstage 3 done", 52),
+            user("<command-message>fleet</command-message>\n<command-name>/fleet</command-name>", 51),
             user("no, keep the old name", 50),
             user("[Request interrupted by user]", 40),
         ])
@@ -61,9 +73,21 @@ class Extracts(unittest.TestCase):
         self.assertEqual(out["tool_errors"][0]["sessions"], 1)
         self.assertEqual(out["sessions"][0]["tool_errors"], 2)
 
+    def analyze_errors(self, commands):
+        rows = [slash("fullsend", 60)]
+        for i, cmd in enumerate(commands):
+            rows += [assistant(f"m{i}", 50, content=[tool_use(f"t{i}", "Bash", command=cmd)]),
+                     tool_result(f"t{i}", "Exit code 1", 49, is_error=True)]
+        write_jsonl(self.root / PROJECT / "s1.jsonl", rows)
+        return self.analyze()
+
     def test_error_kind_names_the_command_after_a_cd(self):
-        self.assertEqual(friction.command_head("cd /x; glab mr view 1"), "glab mr")
-        self.assertEqual(friction.command_head("cd /x\ngrep -r foo"), "grep")
+        out = self.analyze_errors(["cd /x; glab mr view 1", "TILE=3x2 S=/home/me/x; f=$(ls a b); grep -r foo",
+                                   "playwright-cli -s=abc click e1"])
+        self.assertEqual(sorted(e["kind"] for e in out["tool_errors"]),
+                         ["Bash: exit nonzero [glab mr view]", "Bash: exit nonzero [grep]",
+                          "Bash: exit nonzero [playwright-cli click]"])
+        self.assertNotIn("/home/me", str(out["tool_errors_by_command"]))
 
     def test_subagent_brief_and_report_are_cut_short_and_findings_counted(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("locallensedreview", 60)])
@@ -110,6 +134,89 @@ class Extracts(unittest.TestCase):
         ])
         events = friction.timeline(str(self.root), "abc")["events"]
         self.assertEqual([e["kind"] for e in events], ["human", "error [Read]", "assistant", "human"])
+
+
+
+class Secrets(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def analyze(self):
+        return friction.analyze(str(self.root), 7, now=NOW, known=KNOWN)
+
+    def kinds(self, out):
+        return {s["kind"]: s["count"] for s in out["secrets"]}
+
+    def test_secret_in_an_error_message_or_command_stays_out_of_error_output(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 60),
+            assistant("m1", 50, content=[tool_use("t1", "Bash", command=f"GITLAB_TOKEN={FAKE_TOKEN} glab mr list")]),
+            tool_result("t1", f"Exit code 1\n401 for token {FAKE_TOKEN}", 49, is_error=True),
+            assistant("m2", 48, content=[tool_use("t2", "Bash", command="glab api")]),
+            tool_result("t2", f"Reason: [{FAKE_TOKEN}] blocked", 47, is_error=True),
+        ])
+        out = self.analyze()
+        self.assertEqual(self.kinds(out), {"gitlab token": 3})
+        self.assertNotIn("glpat-", json.dumps(out))
+
+    def test_private_key_body_is_redacted_with_its_header(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 60), user("deploy key: " + FAKE_PRIVATE_KEY + " thanks", 50),
+            user("half a key: -----BEGIN PRIVATE KEY-----\n" + FAKE_KEY_BODY, 40),
+        ])
+        out = self.analyze()
+        self.assertEqual(self.kinds(out), {"private key": 2})
+        self.assertNotIn(FAKE_KEY_BODY[:20], json.dumps(out))
+
+    def test_secret_cut_at_a_snippet_edge_does_not_leak_its_tail(self):
+        body = "w" * 150 + FAKE_TOKEN + " " + "z" * 140 + " is a false positive"
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 60), text("m1", 50, body)])
+        out = self.analyze()
+        self.assertTrue(out["sessions"][0]["review_pushback"])
+        self.assertNotIn("x" * 12, json.dumps(out["sessions"][0]["review_pushback"]))
+
+    def test_every_secret_kind_is_detected_and_redacted(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 60)] + [
+            user(f"value {value} here", 50 - i) for i, value in enumerate(FAKE_SECRETS.values())
+        ])
+        out = self.analyze()
+        self.assertEqual(self.kinds(out), {k: 1 for k in FAKE_SECRETS})
+        for value in FAKE_SECRETS.values():
+            self.assertNotIn(value, json.dumps(out))
+
+    def test_secrets_in_subagent_brief_report_and_timeline_are_counted_never_shown(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 60),
+            assistant("m1", 55, content=[tool_use("t1", "Agent", subagent_type="worker", description="go",
+                                                  prompt=f"use {FAKE_TOKEN}")]),
+            tool_result("t1", f"done with {FAKE_TOKEN}", 40),
+        ])
+        subagent(self.root, PROJECT, "s1", "a1", "worker", [
+            user(f"use {FAKE_TOKEN}", 54),
+            assistant("m2", 45, content=[tool_use("h1", "SubagentHandback", message=f"done with {FAKE_TOKEN}")]),
+        ])
+        out = self.analyze()
+        self.assertEqual(self.kinds(out), {"gitlab token": 4})
+        timeline = friction.timeline(str(self.root), "s1")
+        self.assertNotIn("glpat-", json.dumps(out) + json.dumps(timeline))
+        self.assertIn("agent report", [e["kind"] for e in timeline["events"]])
+
+    def test_errors_and_secrets_before_the_window_are_not_reported_again(self):
+        old = 8 * 24 * 60
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", old), user(f"token {FAKE_TOKEN}", old - 1),
+            assistant("m1", old - 2, content=[tool_use("t1", "Bash", command="pnpm test")]),
+            tool_result("t1", "Exit code 1", old - 3, is_error=True),
+            user("still here", 10),
+        ])
+        out = self.analyze()
+        self.assertEqual(out["secrets"], [])
+        self.assertEqual(out["tool_errors"], [])
+        self.assertEqual(len(out["sessions"]), 1)
 
 
 if __name__ == "__main__":
