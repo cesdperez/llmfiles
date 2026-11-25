@@ -1,6 +1,6 @@
 ---
 description: Multi-angle code audit of local changes. Fans out parallel read-only lens agents (correctness, tests, standards, reuse, security, performance), then synthesizes one scored report.
-argument-hint: '[branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix] [--intent file]'
+argument-hint: '[branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix] [--base ref] [--intent file]'
 allowed-tools: Agent, Read, Grep, Glob, Bash, Edit, Write
 ---
 
@@ -18,7 +18,7 @@ two conflict, this file wins.
 Parse `$ARGUMENTS` (all optional, any order):
 
 - **scope**: `branch` (default) or `codebase`.
-  - `branch`: analyze only changes in the current branch vs `main`.
+  - `branch`: analyze only this branch's changes against the base.
   - `codebase`: analyze all files.
 - **depth**: `low` | `medium` (default) | `high` | `max`.
   - `low` / `medium`: fewer, high-confidence findings only, threshold 5.
@@ -28,6 +28,8 @@ Parse `$ARGUMENTS` (all optional, any order):
 - **`--verify`**: add the `verify` lens from the catalog. Heavier, and it runs the code
   rather than reading it.
 - **`--autofix`**: after synthesis, apply every surviving finding and commit. Off by default.
+- **`--base <ref>`**: the branch the change was cut from. Without it, the default branch.
+  Workflow step 1 resolves both.
 - **`--intent <file>`**: the caller's record of the intent: its sources, acceptance criteria
   and the decisions the user made.
 
@@ -38,26 +40,47 @@ blast-radius check on uncommitted work.
 
 ## Workflow
 
-1. **Resolve the target.** `git diff --name-only main...` for branch scope, or the relevant
-   tree for codebase scope. If branch scope has no diff, say so and stop.
+1. **Resolve the target.** Codebase scope reads the tree and goes to step 2. For branch
+   scope, run `git fetch origin` when there is a remote, then resolve the base:
+   - `--base` becomes `origin/<base>` when it is a bare branch name and that ref exists,
+     because a stale local branch pulls upstream commits into the diff.
+   - Without `--base`, the default branch: `origin/HEAD`, else `origin/main`, else
+     `origin/master`. With no remote, local `main`, else `master`.
+
+   Write the diff to `OUT=<scratchpad>/review-<repo>-<branch>`, with `/` replaced by `-`.
+   It includes uncommitted work and untracked files, which `git diff` alone leaves out.
+   ```bash
+   BASE=$(git merge-base HEAD <base>)
+   changes() {
+     git diff "$@" "$BASE"
+     git ls-files -z --others --exclude-standard |
+       xargs -0 -I{} git diff --no-index "$@" /dev/null {}
+   }
+   mkdir -p "$OUT"
+   changes > "$OUT/diff.patch"
+   changes --unified=0 | awk '
+     /^\+\+\+ /{p=substr($0,7); sub(/\t$/,"",p); next}
+     /^@@ /{match($0,/\+[0-9]+/); n=substr($0,RSTART+1,RLENGTH-1)+0; next}
+     /^\+/{ if (p != "dev/null") print p":"n"\t"substr($0,2); n++ }
+   ' > "$OUT/anchors.tsv"
+   ```
+   If `diff.patch` is empty, say so and stop.
 
 2. **Gather the intent**: the acceptance criteria and the decisions the user made. Take it
    from `--intent` when given. Otherwise take it from this conversation, the branch's commit
-   messages and any ticket they name. Every lens gets it.
+   messages and any ticket they name.
 
-3. **Build the anchor map** so findings cite real line numbers rather than counted ones:
-   ```bash
-   git diff --unified=0 main... | awk '
-     /^\+\+\+ /{p=substr($0,7); next}
-     /^@@ /{match($0,/\+[0-9]+/); n=substr($0,RSTART+1,RLENGTH-1)+0; next}
-     /^\+/{ if (p != "dev/null") print p":"n"\t"substr($0,2); n++ }
-   '
-   ```
-   Skip this for codebase scope, where lenses read files directly.
+3. **Write the shared brief** once, to `$OUT/brief.md`: the absolute checkout path, the
+   scope and depth, the paths of `diff.patch` and `anchors.tsv`, the intent, and the finding
+   format. For branch scope it tells each lens to read the change from `diff.patch` rather
+   than running `git diff`. A finding anchors on a line from `anchors.tsv`, never a counted
+   one. A finding about removed code cites the old-side range from its hunk header, and a
+   whole file or cross-cutting is also valid.
 
 4. **Fan out** per the shared contract: single message, read-only (except `verify`), strict
-   boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps. Give each agent its mandate and NOT
-   list, the scope, the depth, the target file list, the intent, and the finding format.
+   boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps. Each lens
+   brief holds only its mandate, its NOT list, its shard if sharded, the absolute path of
+   `brief.md` and the time signal.
 
 5. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
    above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything

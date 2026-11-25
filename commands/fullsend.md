@@ -247,12 +247,11 @@ card `--unread` and give one concise instruction.
 
 ### 3. Review
 
-Call the Skill tool with "locallensedreview" and args `--autofix --intent <ledger path>`,
-once per repo, from inside that repo's checkout. The intent is the ledger's sources, their
-acceptance criteria and the intake answers. Add the criteria to the ledger first when it
-lacks them. It diffs against `main`: when the recorded base differs, use the base instead.
-Give the lens agents absolute paths, because sibling worktrees are not the session's
-working directory. Its autofix commits the fixes.
+Call the Skill tool with "locallensedreview" and args
+`--autofix --base <recorded base> --intent <ledger path>`, once per repo, from inside that
+repo's checkout. The intent is the ledger's sources, their acceptance criteria and the
+intake answers. Add the criteria to the ledger first when it lacks them. Its autofix
+commits the fixes.
 
 Run it once. Write any finding it leaves unfixed to the ledger, and carry it into the MR
 description if it matters to a reviewer. Its printed report ends the skill, not the run:
