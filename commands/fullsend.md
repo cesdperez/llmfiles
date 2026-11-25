@@ -104,8 +104,9 @@ The home repo is the one the session started in. Keep the run state in
 `--git-dir` resolves to that worktree's own directory, so concurrent runs never share a
 ledger, and it is never committed.
 
-Record: source, endpoint, intake questions with their answers, repos with branch and base,
-current stage, blocked stages and why, review findings left unfixed, QA results, MR links.
+Record: source, its acceptance criteria, endpoint, intake questions with their answers,
+repos with branch and base, current stage, blocked stages and why, review findings left
+unfixed, QA results, MR links.
 Update it at each stage boundary.
 
 On start, if a ledger exists for the same source, resume from its stage. A ledger for
@@ -191,6 +192,9 @@ fit. If nothing is unclear, ask nothing. In worker mode, ask through the coordin
 is not possible (headless, delegated or unattended run), take the defaults and record them
 in the ledger.
 
+Write each source's acceptance criteria to the ledger: the ticket's own, or ones derived
+from the task text when it has none. Stages 3 and 4 read them from there.
+
 Without a Jira key and with a work repo involved, ask whether to create a ticket (call the
 Skill tool with "jira-writing" to write it). With no ticket, skip every Jira step, and use a short task slug
 wherever a Jira key is named below.
@@ -250,8 +254,7 @@ card `--unread` and give one concise instruction.
 Call the Skill tool with "locallensedreview" and args
 `--base <recorded base> --intent <ledger path> --compact`, once per repo, from inside that
 repo's checkout. Leave out `--autofix`, and do not rerun it after the fixes. The intent is
-the ledger's sources, their acceptance criteria and the intake answers. Add the criteria
-to the ledger first when it lacks them.
+the ledger's sources, their acceptance criteria and the intake answers.
 
 Send the findings at its fix bar to the implementing worker with SendMessage, to fix and
 commit: the controller holds conclusions, not file contents. Write every other finding to
