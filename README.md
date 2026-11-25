@@ -215,7 +215,7 @@ Content reused by several commands, extracted so it lives in one place. Commands
 Deliberately not skills: a skill is auto-listed with its description and can activate in unrelated sessions, whereas a shared protocol should load only when a command asks for it. Use a skill when the knowledge should surface on its own (`glab-cli`), a shared protocol when it should not (`review-lenses`).
 
 Current protocols:
-- `agent-docs-bar.md`, the quality bar for files an agent reads, used by `/curatemds` and `/skillbuilder`, and by `/fullsend`, `/bugbounty` and the `code-standards` lens for the docs they touch. It targets Opus 5.5, so update it when a new model ships.
+- `agent-docs-bar.md`, the quality bar for files an agent reads, used by `/curatemds` and `/skillbuilder`, and by `/fullsend` and `/bugbounty` for the docs they touch. It targets Opus 5.5, so update it when a new model ships.
 - `orca-fleet.md`, the Orca orchestration commands, worker mode and shipping rules for runs that share a repo, used by `/fleet` and by `/fullsend`, `/bugbounty` and `/curatemds` when they run as its workers or with "unattended".
 - `meta-hub.md`, checkouts, task ordering and verify for runs whose session sits in a
   checkout that holds other repos, such as a `meta` repo, used by `/fleet` and `/fullsend`.

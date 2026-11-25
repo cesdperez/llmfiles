@@ -107,9 +107,9 @@ list, the target, and the output contract.
    read from its `CLAUDE.md` or `AGENTS.md` chain and its lint and format config, not
    against generic taste. Single Level of Abstraction violations, comments that state the
    obvious (keep only the non-obvious "why"), dead code, unused imports, needless
-   complexity, unclear naming, inconsistency with surrounding code. Agent-facing docs the
-   change touches (`CLAUDE.md`, `AGENTS.md`, rules, skills) judged against
-   `~/llmfiles/shared/agent-docs-bar.md`, and docs the change made stale.
+   complexity, unclear naming, inconsistency with surrounding code. A doc the change
+   touches or affects is a finding only when it states something false or stale: wording
+   polish is not a finding.
    - NOT: duplication, bugs, tests.
 
 5. **reuse**: DRY. Duplicated logic, reinvented helpers that already exist in this repo or

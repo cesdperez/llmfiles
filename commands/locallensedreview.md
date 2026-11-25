@@ -27,7 +27,8 @@ Parse `$ARGUMENTS` (all optional, any order):
 - **`--skip a,b,...`**: run all default lenses except the listed ones.
 - **`--verify`**: add the `verify` lens from the catalog. Heavier, and it runs the code
   rather than reading it.
-- **`--autofix`**: after synthesis, apply every surviving finding and commit. Off by default.
+- **`--autofix`**: after synthesis, fix the findings at the [fix bar](#fix-bar) and commit.
+  Off by default.
 - **`--base <ref>`**: the branch the change was cut from. Without it, the default branch.
   Workflow step 1 resolves both.
 - **`--intent <file>`**: the caller's record of the intent: its sources, acceptance criteria
@@ -91,10 +92,16 @@ blast-radius check on uncommitted work.
 6. **Report.** Group survivors by lens, most impactful first. Zero findings for a lens is a
    valid result.
 
-7. **Fix mode** (only with `--autofix`): apply every surviving finding across all lenses
-   **sequentially**, never in parallel, to avoid edit conflicts. If on `main`, create a branch
-   first. Commit with a message summarizing what was fixed by lens. Print the full report
-   afterwards regardless, so the user sees what changed.
+7. **Fix mode** (only with `--autofix`): fix every finding at the [fix bar](#fix-bar)
+   **sequentially**, never in parallel, to avoid edit conflicts. If on the base or the
+   default branch, create a branch first. Commit with a message summarizing what was fixed
+   by lens. Print the full report afterwards regardless, so the user sees what changed.
+
+## Fix bar
+
+A finding is fixed only at or above the threshold, and a `test-health`, `code-standards` or
+`reuse` finding only at 7 or above. The rest are reported, not fixed. The bar holds for
+`--autofix` and for a calling command that applies the fixes itself.
 
 ## Output format
 
