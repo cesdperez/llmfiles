@@ -3,6 +3,9 @@
 For CLI upgrades, including "upgrade all my CLIs", read
 `~/llmfiles/shared/agentic-clis.md` and follow its CLI and companion-skill procedure.
 
+## Shell
+- Read a directory whose path holds `$`, a glob character or `$(...)` by passing its full single-quoted path to the command, or with the Read tool, `git -C '<dir>'` or `grep -r <pattern> '<dir>'`. Never `cd` into it: the harness cannot resolve that directory, so the `Read(./secrets/**)` deny rule blocks every later relative read, quoted or not.
+
 ## Code Style
 - Minimal comments. Code should be self explanatory.
 - Single Level of Abstraction Principle.
