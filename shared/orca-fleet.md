@@ -74,8 +74,11 @@ orca orchestration worker-list --run <run_id> --json
 - Orca closes a worker's chat on its own once its `worker_done` is accepted. The worktree
   and its terminal tabs stay until `orca worktree rm`. To keep a chat as a record, run
   `orca orchestration worker-keep-open --dispatch <dispatch_id>` before the worker reports.
-- `worker-start` takes `--model` and `--effort`. Pass them only when the user names a
-  model. Without them, the worker uses the user's agent default.
+- `worker-start` takes `--model` and `--effort`. Start a Claude worker with
+  `--model opus --effort high` unless the user names another model, because the agent
+  default may be Fable. Opus matched Fable on independent coding tests at about two thirds
+  of the cost, and Fable's weekly cap runs out first across parallel workers. High over
+  medium because an unattended run gains from the extra verification.
 
 ## Repos under a hub
 
