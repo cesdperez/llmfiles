@@ -77,9 +77,10 @@ blast-radius check on uncommitted work.
 4. **Fan out** per the shared contract: single message, read-only, strict
    boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps. Each lens
    brief holds its mandate, its NOT list, its shard if sharded, the absolute path of
-   `brief.md` and, except for `correctness`, the time signal. The `codex-reviewer` brief
-   also asks for every finding, and the rule-lens bundle keeps its per-lens sections and
-   count lines.
+   `brief.md` and, except for `correctness`, the time signal. The uncertainty policy is to
+   report: a finding the lens cannot settle is reported as unconfirmed, with its check,
+   because a dropped finding here ships as a bug. The `codex-reviewer` brief also asks for
+   every finding, and the rule-lens bundle keeps its per-lens sections and count lines.
 
    `correctness` runs as the built-in `/code-review high` in place of the `reviewer` lens
    agent, because on past misses it caught bugs the lens agent dropped. Start it in the same
@@ -92,7 +93,7 @@ blast-radius check on uncommitted work.
 
 5. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
    above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything
-   below high confidence.
+   below high confidence, except an unconfirmed finding, which stays with its check.
 
 6. **Report** in the [output format](#output-format), or the
    [compact output](#compact-output) with `--compact`. Group survivors by lens, most
@@ -108,6 +109,9 @@ blast-radius check on uncommitted work.
 A finding is fixed only at or above the threshold, and a `test-health`, `code-standards` or
 `reuse` finding only at 7 or above. The rest are reported, not fixed. The bar holds for
 `--autofix` and for a calling command that has the fixes made elsewhere.
+
+An unconfirmed finding is never fixed blind: whoever fixes it runs its check first, and
+fixes it only if it holds.
 
 ## Output format
 
@@ -127,15 +131,21 @@ The bound is `< len - 1`, so the final item never runs. Use `< len`.
 `user.test.ts`
 Every query is stubbed, so the test passes even when the SQL is wrong. Convert it to an integration test against a real DB.
 
+### unconfirmed
+- 7/10 correctness | `src/cache.ts:18` : A write in another tab may leave this entry stale. Check: read whether `onStorage` clears it.
+
 ### summary
 <total findings by lens; what the self-refutation dropped; note anything applied via --autofix>
 ```
+
+Confirmed findings fill the table. Unconfirmed findings go only under `### unconfirmed`, one
+line each with the check that settles it.
 
 Descriptions are two sentences maximum: what is wrong, then what to do instead. No pasted
 code, no emoji.
 
 ### Compact output
 
-With `--compact`, print one line per finding in the shared finding format, most impactful
-first, then one line per lens that ran: `<lens>: <n> findings` or `<lens>: none`. No table
+With `--compact`, print one line per finding in the shared finding format (the unconfirmed
+form for an unconfirmed one), most impactful first, then one line per lens that ran: `<lens>: <n> findings` or `<lens>: none`. No table
 and no per-finding sections.

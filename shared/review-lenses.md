@@ -18,6 +18,9 @@ The calling command owns and must supply:
   cross-repo hits), or the instruction that each lens gathers its own.
 - **output shape**: the report format shown to the user.
 - **write policy**: what, if anything, may be posted or edited, and when.
+- **uncertainty policy**: drop a finding the lens cannot settle (the default, for a review
+  that posts on someone else's MR), or report it as unconfirmed (a local review, where a
+  miss costs more than a check).
 
 This file owns the fan-out rules, the lens catalog, and the synthesis rules. When a
 command's instructions conflict with this file, the command wins.
@@ -38,10 +41,11 @@ determines speed.
 4. **Self-refute before reporting.** Each lens actively tries to kill its own findings
    against the real code, not against the diff alone: does the guard it claims is missing
    exist further up the call path? Is the branch it claims is broken actually reachable?
-   Is the "duplicate" helper actually different? Drop anything it cannot substantiate, and
-   any finding that contradicts a decision stated in the intent. Default to dropping when
-   uncertain. This replaces a serial orchestrator verify pass, which costs a full extra
-   round of wall clock for the same result.
+   Is the "duplicate" helper actually different? Drop what the code refutes, and any
+   finding that contradicts a decision stated in the intent. A finding the lens can neither
+   confirm nor refute follows the caller's uncertainty policy: dropped by default, or
+   reported as unconfirmed when the caller asks. This replaces a serial orchestrator verify
+   pass, which costs a full extra round of wall clock for the same result.
 5. **No serial context phase.** A lens that needs external context (a ticket, a
    cross-repo grep, lint config) gathers it inside its own agent, concurrently with the
    others. Do not gather context for the lenses first unless every lens needs the same
@@ -173,3 +177,10 @@ One line per finding, two sentences at most: what is wrong, then what to do inst
 
 The location lives only in the `file:line` field, and the finding line is plain prose: the
 reader opens the code at that location.
+
+An unconfirmed finding is scored on its impact if it holds, and ends with the one check
+that would settle it, such as a test to run or a caller to read:
+
+```
+[Score/10] <lens> | <file:line> : unconfirmed: <what may be wrong>. Check: <the check>.
+```

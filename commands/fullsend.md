@@ -288,7 +288,8 @@ worker, which launches as soon as the take returns, and calls the Skill tool wit
 once per repo, from inside that repo's checkout. Leave out `--autofix`, and do not rerun it after the fixes. The intent is
 the ledger's sources, their acceptance criteria and the intake answers.
 
-Write the findings at its fix bar to the ledger for the fix round in stage 4. Write every
+Write the findings at its fix bar to the ledger for the fix round in stage 4, where the
+implementing worker runs an unconfirmed finding's check first and fixes it only if it holds. Write every
 other finding there too, and carry it into the MR description if it matters to a
 reviewer. The printed report ends the skill, not the run: the message that holds it also
 moves the card to stage 4.
