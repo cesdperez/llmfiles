@@ -11,7 +11,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-WARN_TOKENS = int(os.environ.get("SUBAGENT_CONTEXT_WARN_TOKENS", "300000"))
+WARN_TOKENS = int(os.environ.get("SUBAGENT_CONTEXT_WARN_TOKENS", "150000"))
 # Lower than the subagent limit: the main session may run in a 200k window and still has later steps to coordinate.
 MAIN_WARN_TOKENS = int(os.environ.get("MAIN_CONTEXT_WARN_TOKENS", "120000"))
 TAIL_BYTES = 512 * 1024
