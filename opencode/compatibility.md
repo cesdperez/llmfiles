@@ -20,6 +20,7 @@ These adaptations take precedence over the Claude-specific instructions in `~/ll
 
 - Subagents run on ChatGPT models, except the Flash agents, which run on OpenCode Go. Opus is reserved for the `conductor` primary agent.
 - `codex-worker` and `codex-reviewer` run their task on the GPT model themselves. There is no `codex exec` step, and they have network access.
+- `codex-reviewer` runs the same model as `reviewer`, so skip a review protocol's extra `codex-reviewer` run of a lens.
 - A subagent cannot start its own subagents.
 - When an OpenAI subagent hits a usage limit, report the blocked work instead of moving it to Anthropic.
 

@@ -79,8 +79,10 @@ blast-radius check on uncommitted work.
 
 4. **Fan out** per the shared contract: single message, read-only, strict
    boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps. Each lens
-   brief holds only its mandate, its NOT list, its shard if sharded, the absolute path of
-   `brief.md` and, except for `correctness`, the time signal.
+   brief holds its mandate, its NOT list, its shard if sharded, the absolute path of
+   `brief.md` and, except for `correctness`, the time signal. The `codex-reviewer` brief
+   also asks for every finding, and the rule-lens bundle keeps its per-lens sections and
+   count lines.
 
 5. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
    above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything

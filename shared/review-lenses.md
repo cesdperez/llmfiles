@@ -52,10 +52,11 @@ determines speed.
    `correctness`, `security`, `cross-repo-impact`, `verify`. Findings that hinge on
    pattern recognition against stated rules run as `reviewer-fast`: `test-health`,
    `code-standards`, `reuse`, `ticket-alignment`, `performance`. A fork inherits the
-   session model and effort, so a lens is never a fork. When the change touches
-   authentication, authorization, payments, data migrations or concurrency, or the caller
-   marks it high risk, also run `correctness` as `codex-reviewer` in the same message, for
-   a second model family's read of that lens.
+   session model and effort, so a lens is never a fork. In every review, also run
+   `correctness` once as `codex-reviewer` in the same message, for a second model family's
+   read of that lens. Its brief asks for every finding it has, because Codex otherwise
+   reports its first few and drops the rest. A report that starts with `CODEX USAGE LIMIT`
+   means the review goes on without it: `reviewer` already covers the lens.
 7. **Bundle the rule lenses.** `test-health`, `code-standards`, `reuse`, and `performance`
    read the same diff against stated rules, so they run as one `reviewer-fast` agent that
    sees the change whole. Its brief keeps each selected lens as its own section with its
