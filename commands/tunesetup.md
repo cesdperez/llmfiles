@@ -16,9 +16,9 @@ Propose only. The one file this command edits is the price table in `~/llmfiles/
 
 Read the newest earlier run directory, if there is one: `usage.json`, `stages.json`, `report.md` and `proposals.json`. Then, for this repo, `git -C ~/llmfiles log --since=<that date> --stat`.
 
-- For each proposal with status `proposed` or `accepted`, find the commit that applied it: a commit since that run touching its `file` with the change it describes. Mark it `applied` with the hash, or `rejected` when nothing applied it.
+- For each `accepted` proposal, find the commit that applied it: a commit since that run touching its `file` with the change it describes. Mark it `applied` with the hash. One not applied yet stays `accepted` and is listed as pending.
 - For each proposal applied since, compare its `metric` in the old and new figures (step 2). Say whether it moved the way the proposal claimed. One that did not move gets a line saying so, with a suggestion to revert or rework it.
-- A proposal rejected in any earlier run is not proposed again, unless this period brings evidence it did not have.
+- A proposal I rejected in any earlier run is not proposed again, unless this period brings evidence it did not have.
 
 The periods can differ in length, so compare rates: per session, per run or per day, never totals.
 
@@ -34,13 +34,19 @@ python3 ~/llmfiles/scripts/session-friction.py --days <days> [--command <focus>]
 
 If `usage.json` has `unpriced_requests`, load the `claude-api` skill, add each missing model's list prices to `PRICES` in `claude-usage.py`, set `PRICES_CHECKED` to `D`, and run it again. Name that edit in the report so it gets committed.
 
-`usage.json` holds `headline`, the flat metrics the next run compares, plus cost by model, command, agent type and context size, cache misses by idle gap, compactions, tool mix and result sizes, and main-session idle time while subagents run. `stages.json` holds minutes per `/fullsend` stage. `cost_state_check` compares the script's cost with Claude Code's own: a gap over 5% means the prices or the deduplication are off, so say so before using the dollar figures.
+`usage.json` holds `headline`, the flat metrics the next run compares, plus cost by model, command, agent type and context size, cache misses by idle gap, compactions, tool mix and result sizes, and main-session idle time while subagents run. `stages.json` holds minutes per `/fullsend` stage. `cost_state_check` compares the script's cost with Claude Code's own on the `sessions` whose totals are complete: a gap over 5% means the prices or the deduplication are off, so say so before using the dollar figures.
 
 ## 3. Friction and outside evidence
 
 Spawn two `worker` agents in one message.
 
-**Friction.** Give it `friction.json`, the commands in scope and the previous run's rejected proposals. It reads the extracts one command at a time (`jq '.sessions[] | select(.command | startswith("<name>"))'`), opens one session with `session-friction.py --session <id>` when an extract is too short to judge, and reads `~/llmfiles/commands/<name>.md` and the files it loads. Per command it returns each problem: human corrections, stalls and interrupts, rework loops, skipped or useless steps, thin briefs, review findings that were noise and bugs the review missed, and repeated tool errors. Each problem has a count as n of m sessions, one quoted example with session id and date, and the `file:line` that causes it. It returns what works too, so the report can name it.
+**Friction.** Give it `friction.json`, the commands in scope and the previous run's rejected proposals.
+- It reads the extracts one command at a time: `jq '.sessions[] | select(.command | startswith("<name>"))'`.
+- It opens one session with `session-friction.py --session <id>` when an extract is too short to judge.
+- It reads `~/llmfiles/commands/<name>.md` and the files it loads.
+- Problems to look for: human corrections, stalls and interrupts, rework loops, skipped or useless steps, thin briefs, review findings that were noise, bugs the review missed, and repeated tool errors.
+- Each problem has a count as n of m sessions, one quoted example with session id and date, and the `file:line` that causes it.
+- It returns what works too, so the report can name it.
 
 **Outside evidence.** Give it the previous run's date, or the start of the period. It gathers only what was published since then: the Claude Code changelog and docs, benchmarks on code review, orchestration and cost, and practitioner reports. Each claim gets its URL, publish date and a tag: `official docs`, `benchmark`, `vendor claim` or `anecdote`. It reports only claims that bear on a command, agent or setting in this repo.
 
@@ -81,4 +87,4 @@ Under the tables, at most two lines per proposal that needs more than its row. S
 
 Save `proposals.json` in the run directory, one object per proposal: `id`, `file`, `change`, `metric`, `expected`, `status` (`proposed`), and `commit` (null). Update each earlier proposal's status in its own run's file.
 
-End by asking which proposals to apply. Group the accepted ones by the files they touch and offer to run them with `/fleet`, one item per group. Record each accepted one as `accepted` and the rest as `rejected`.
+End by asking which proposals to apply. Group the accepted ones by the files they touch and offer to run them with `/fleet`, one item per group. Record the ones I accept as `accepted` and the ones I decline as `rejected`. Unanswered ones stay `proposed`.
