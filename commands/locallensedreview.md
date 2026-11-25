@@ -57,24 +57,11 @@ blast-radius check on uncommitted work.
    - Without `--base`, the default branch: `origin/HEAD`, else `origin/main`, else
      `origin/master`. With no remote, local `main`, else `master`.
 
-   Write the diff to `OUT=<scratchpad>/review-<repo>-<branch>`, with `/` replaced by `-`.
-   It includes uncommitted work and untracked files, which `git diff` alone leaves out.
-   ```bash
-   BASE=$(git merge-base HEAD <base>)
-   changes() {
-     git diff "$@" "$BASE"
-     git ls-files -z --others --exclude-standard |
-       xargs -0 -I{} git diff --no-index "$@" /dev/null {}
-   }
-   mkdir -p "$OUT"
-   changes > "$OUT/diff.patch"
-   changes --unified=0 | awk '
-     /^\+\+\+ /{p=substr($0,7); sub(/\t$/,"",p); next}
-     /^@@ /{match($0,/\+[0-9]+/); n=substr($0,RSTART+1,RLENGTH-1)+0; next}
-     /^\+/{ if (p != "dev/null") print p":"n"\t"substr($0,2); n++ }
-   ' > "$OUT/anchors.tsv"
-   ```
-   If `diff.patch` is empty, say so and stop.
+   Write the diff and the anchor map to `OUT=<scratchpad>/review-<repo>-<branch>`, with `/`
+   replaced by `-`, from the checkout:
+   `python3 ~/llmfiles/scripts/review-diff.py --base <base> --out "$OUT"`. The diff includes
+   uncommitted work and untracked files, which `git diff` alone leaves out.
+   If its summary says `empty`, say so and stop.
 
 2. **Gather the intent**: the acceptance criteria and the decisions the user made. Take it
    from `--intent` when given. Otherwise take it from this conversation, the branch's commit

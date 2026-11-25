@@ -169,6 +169,10 @@ is needed.
   from its Orca stage marks. `session-friction.py` extracts human corrections, tool errors,
   subagent briefs and reports, and review findings per session, and names secrets it finds by
   session and kind only. Their tests are in `scripts/tests/`.
+- `review-diff.py`, used by `/locallensedreview`, writes the change since the merge base with
+  a ref, uncommitted and untracked work included, and its anchor map of added lines. A command
+  body cannot hold the awk it replaces, because slash-command substitution rewrites `$0`.
+  Its tests are in `scripts/tests/`.
 - `tuning-ledger.py`, used by `/tunesetup` and `/whichmodels`, validates and appends entries
   in the tuning ledger, lists the proposals with their candidate commits and the entries due a
   verdict, and fills an entry's measured value and verdict from the three scripts' output.
