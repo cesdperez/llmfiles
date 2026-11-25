@@ -21,9 +21,10 @@ AGENT_TOOLS = ("Agent", "Task")
 # CLIs whose first word alone says too little, so a command is keyed by its subcommand too.
 MULTIWORD = {"glab", "gh", "git", "npm", "pnpm", "npx", "yarn", "orca", "gcx", "twg", "aws", "docker", "dotnet",
              "kubectl", "playwright-cli", "cf", "uv", "python3", "bun", "make", "helm", "sp", "claude", "codex"}
-SETUP_STATEMENT_RE = re.compile(r"""^(cd|source|export|set)\b|^\w+=(\$\(.*\)|"[^"]*"|'[^']*')$|^(\w+=\S*\s*)+$""")
+SETUP_STATEMENT_RE = re.compile(r"""^(cd|source|export|set)\b|^\w+=(\$?\(.*\)|"[^"]*"|'[^']*')$|^(\w+=\S*\s*)+$""")
 ENV_PREFIX_RE = re.compile(r"^(\w+=\S*\s+)+")
 SUBCOMMAND_RE = re.compile(r"^[a-z][\w:.-]*$")
+PROGRAM_RE = re.compile(r"^[\w.+][\w.+-]*$")
 
 
 def repo_commands():
@@ -124,6 +125,8 @@ def bash_head(cmd):
     if not words:
         return "(setup only)" if statements else "(empty)"
     head = os.path.basename(words[0])
+    if not PROGRAM_RE.match(head):
+        return "(unparsed)"
     if head in MULTIWORD:
         return " ".join([head] + [w for w in words[1:3] if SUBCOMMAND_RE.match(w)][:2])
     return head

@@ -40,21 +40,24 @@ PUSHBACK_RE = re.compile(
 REWORK_RE = re.compile(
     r"verify (failed|found)|pipeline (failed|is red|went red)|job [`\w:-]+ failed"
     r"|review (missed|did not catch|didn.t catch)|missed by the review|lenses? (missed|did not)", re.I)
-# Earlier entries win where two match at one place, so anthropic key stays ahead of openai key.
+# Redaction runs in this order, so an anthropic key is gone before the openai pattern sees it.
+# Separate patterns, each starting with a literal, because one alternation scans a hundred times slower.
 SECRET_PATTERNS = [
     ("anthropic key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
-    ("openai key", r"sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}"),
+    ("openai key", r"sk-(?:(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}|[A-Za-z0-9]{32,})"),
     ("github token", r"gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}"),
     ("gitlab token", r"glpat-[A-Za-z0-9_-]{20,}"),
     ("aws access key", r"AKIA[0-9A-Z]{16}"),
     ("slack token", r"xox[abprs]-[A-Za-z0-9-]{10,}"),
     ("google key", r"AIza[0-9A-Za-z_-]{35}"),
-    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*"),
-    ("bearer token", r"Bearer\s+[A-Za-z0-9._~+/=-]{20,}"),
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+    # A digit tells a token from prose such as "Bearer token-from-the-environment".
+    ("bearer token", r"Bearer\s+(?=[A-Za-z0-9._~+/=-]*\d)[A-Za-z0-9._~+/=-]{20,}"),
     # Through the END line, or to the end of the text when the key was cut before it.
     ("private key", r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?s:.*?-----END [A-Z ]*PRIVATE KEY-----|.*)"),
 ]
-SECRET_RE = re.compile("|".join(f"(?P<s{i}>{p})" for i, (_, p) in enumerate(SECRET_PATTERNS)))
+SECRET_RES = [(kind, re.compile(pattern)) for kind, pattern in SECRET_PATTERNS]
+HOME = os.path.expanduser("~")
 ERROR_KINDS = [
     (r"denied by a built-in Claude Code safety check", "safety-check denial"),
     (r"permission|not allowed|denied", "permission denied"),
@@ -72,12 +75,12 @@ ERROR_KINDS = [
 ]
 
 
-def secret_kind(match):
-    return SECRET_PATTERNS[int(match.lastgroup[1:])][0]
-
-
 def redact(text):
-    return SECRET_RE.sub(lambda m: f"[{secret_kind(m)} redacted]", text or "")
+    """Text with every secret replaced by its kind, and the home directory shortened to ~."""
+    text = (text or "").replace(HOME, "~")
+    for kind, pattern in SECRET_RES:
+        text = pattern.sub(f"[{kind} redacted]", text)
+    return text
 
 
 def clip(text, n):
@@ -136,8 +139,10 @@ class FileFindings:
         self._tools = {}
 
     def feed(self, d, raw):
-        for m in SECRET_RE.finditer(raw.decode("utf-8", "replace")):
-            self.secrets[secret_kind(m)] += 1
+        line = raw.decode("utf-8", "replace")
+        for kind, pattern in SECRET_RES:
+            for _ in pattern.finditer(line):
+                self.secrets[kind] += 1
         content = (d.get("message") or {}).get("content")
         for b in content if isinstance(content, list) else []:
             if not isinstance(b, dict):

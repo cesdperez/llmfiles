@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,7 +18,7 @@ FAKE_SECRETS = {
     "openai key": "sk-svcacct-" + "b" * 30,
     "google key": "AIza" + "c" * 35,
     "jwt": "eyJ" + "d" * 12 + ".eyJ" + "e" * 12 + "." + "f" * 10,
-    "bearer token": "Bearer " + "g" * 30,
+    "bearer token": "Bearer " + "g" * 28 + "42",
 }
 
 
@@ -83,10 +84,12 @@ class Extracts(unittest.TestCase):
 
     def test_error_kind_names_the_command_after_a_cd(self):
         out = self.analyze_errors(["cd /x; glab mr view 1", "TILE=3x2 S=/home/me/x; f=$(ls a b); grep -r foo",
-                                   "playwright-cli -s=abc click e1"])
+                                   "playwright-cli -s=abc click e1", "S=(playwright-cli -s=feat-1 open x) && -s=feat-1 click",
+                                   "A=(a b); echo ok"])
         self.assertEqual(sorted(e["kind"] for e in out["tool_errors"]),
-                         ["Bash: exit nonzero [glab mr view]", "Bash: exit nonzero [grep]",
-                          "Bash: exit nonzero [playwright-cli click]"])
+                         sorted(["Bash: exit nonzero [glab mr view]", "Bash: exit nonzero [grep]",
+                          "Bash: exit nonzero [playwright-cli click]", "Bash: exit nonzero [(unparsed)]",
+                          "Bash: exit nonzero [echo]"]))
         self.assertNotIn("/home/me", str(out["tool_errors_by_command"]))
 
     def test_subagent_brief_and_report_are_cut_short_and_findings_counted(self):
@@ -187,6 +190,20 @@ class Secrets(unittest.TestCase):
         self.assertEqual(self.kinds(out), {k: 1 for k in FAKE_SECRETS})
         for value in FAKE_SECRETS.values():
             self.assertNotIn(value, json.dumps(out))
+
+    def test_prose_that_looks_like_a_key_prefix_is_not_a_secret(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 60), user("see task-notification-handler-for-the-queue and disk-usage-report-weekly-x", 50),
+            user("send Authorization: Bearer token-from-the-environment", 49),
+        ])
+        self.assertEqual(self.analyze()["secrets"], [])
+
+    def test_home_directory_is_shortened_in_extracts(self):
+        home = os.path.expanduser("~")
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 60), user(f"open {home}/notes.md", 50),
+        ])
+        self.assertEqual(self.analyze()["sessions"][0]["humans"][0]["text"], "open ~/notes.md")
 
     def test_secrets_in_subagent_brief_report_and_timeline_are_counted_never_shown(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [
