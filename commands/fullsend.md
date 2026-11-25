@@ -162,13 +162,17 @@ worktrees at once starve each other, and tests that pass alone then fail. One lo
 - Heavy is: a browser or end-to-end suite, a full test suite or the repo's whole verify
   script, a repeated run that measures a flaky test, and the local stack of stage 4. Tests
   scoped to the change need no lock.
-- Take it at any stage, and give this section to every agent that runs tests:
-  `mkdir -p ~/.cache/fullsend && mkdir ~/.cache/fullsend/qa.lock`, then write the branch
-  name into `qa.lock/owner`. If the lock exists, wait for it with Monitor.
-- Hold it for one command, or in stage 4 from starting the stack to stopping it. Remove it
-  right after, also on failure. Only the holder removes it.
-- The holder runs `touch qa.lock/owner` at least every 30 minutes. An `owner` file not
-  modified for over an hour is from a crashed run: remove the lock and take it.
+- Take it only through `~/llmfiles/scripts/qa-lock.sh`, and give this section to every
+  agent that runs tests. Hand-rolled `mkdir`/`rm` once let a run whose take failed run its
+  suite anyway and then delete another run's lock.
+- One command: `~/llmfiles/scripts/qa-lock.sh run <branch> -- <command>`. It waits for the
+  lock, keeps it fresh, releases it also on failure, and exits with the command's code. A
+  wait can outlast the Bash timeout, so run it in the background when the lock is held.
+- Stage 4 holds it from starting the stack to stopping it: `token=$(qa-lock.sh take
+  <branch>)`, `qa-lock.sh touch "$token"` at least every 30 minutes, and `qa-lock.sh
+  release "$token"` after the stack stops. Release removes the lock only for its own token.
+- A lock whose owner was not touched for over an hour is from a crashed run; the script
+  clears it while waiting.
 - Count a flaky test's failures only under the lock. A failure under another run's load
   says nothing about the test.
 
