@@ -9,6 +9,7 @@ counts toward it. `headline` holds the flat metrics /tunesetup compares run to r
 """
 
 import argparse
+import bisect
 import json
 import os
 import re
@@ -35,13 +36,11 @@ HAIKU_LONG = (0.50, 2.50, 0.05, 0.625, 1.0)  # Haiku 5.5 prompts over 100K token
 FAST_MULTIPLIER = 2.0
 MEDIA_TOKENS = 1600  # estimate per image or PDF page; the real count depends on pixel size
 CACHE_MISS_MIN_TOKENS = 2000
+IDLE_GAP_BUCKETS = ("<5m", "5m-1h", ">1h")
 SKIP_TYPES = {"queue-operation", "atis-latch", "tools-used", "ai-title", "last-prompt", "pr-link", "mode",
               "api-request-blob", "api-request-shape"}
-AGENT_TOOLS = ("Agent", "Task")
 NOTIFICATION_ID_RE = re.compile(r"<tool-use-id>([^<]+)</tool-use-id>")
 HANDBACK_RE = re.compile(r'<agent-message from="([^"]+)">')
-MULTIWORD = {"glab", "gh", "git", "npm", "pnpm", "npx", "yarn", "orca", "gcx", "twg", "aws", "docker",
-             "kubectl", "playwright-cli", "cf", "uv", "python3", "bun", "make", "helm", "sp", "claude", "codex"}
 
 
 def price_for(model, ctx):
@@ -59,26 +58,14 @@ def cost_of(req):
     return mult * (req["inp"] * pin + req["out"] * pout + req["cr"] * pread + req["cw5"] * p5 + req["cw1"] * p1) / 1e6
 
 
-def bash_key(cmd):
-    cmd = re.sub(r"^((cd|source)\s+\S+\s*(&&|;)\s*)+", "", cmd.strip())
-    cmd = re.sub(r"^(\w+=\S+\s+)+", "", cmd)
-    words = cmd.split()
-    if not words:
-        return "(empty)"
-    head = os.path.basename(words[0])
-    if head in MULTIWORD and len(words) > 1:
-        return " ".join([head] + [w for w in words[1:3] if not w.startswith("-")][:2])
-    return head
-
-
 def tool_key(name, inp):
     if not isinstance(inp, dict):
         return name
     if name == "Bash":
-        return "Bash: " + bash_key(inp.get("command", ""))
+        return "Bash: " + tr.bash_head(inp.get("command", ""))
     if name == "Skill":
         return "Skill: " + str(inp.get("skill"))
-    if name in AGENT_TOOLS:
+    if name in tr.AGENT_TOOLS:
         return "Agent: " + str(inp.get("subagent_type") or "general-purpose")
     return name
 
@@ -163,12 +150,13 @@ def usage_record(d, message, ts, path):
 
 
 def new_transcript(path, kind, root):
-    project, session = os.path.relpath(path, root).split(os.sep)[:2]
+    project, session = tr.session_of(path, root)
     t = {
-        "path": path, "project": project, "kind": kind, "session": session.replace(".jsonl", ""),
+        "path": path, "project": project, "kind": kind, "session": session,
         "agent_type": None, "meta": {}, "first_ts": None, "last_ts": None, "commands": [], "first_user": None,
         "tool_uses": {}, "tool_results": [], "compactions": 0, "req_start": {}, "api_params": [],
         "notif": {}, "handback": {}, "cost_state": None, "entry": None, "dispatched": False,
+        "file_first_ts": None, "last_usage_pos": -1,
     }
     if kind == "sub":
         t["meta"] = tr.subagent_meta(path)
@@ -183,7 +171,7 @@ def note_max(store, key, value):
 def scan(path, kind, root, cutoff, msgs, known):
     """Stream one transcript, appending each usage record to msgs[message id]."""
     t = new_transcript(path, kind, root)
-    for d in tr.records(path):
+    for pos, d in enumerate(tr.records(path)):
         typ = d.get("type")
         if typ == "attachment":
             at = d.get("attachment") or {}
@@ -194,11 +182,15 @@ def scan(path, kind, root, cutoff, msgs, known):
                     note_max(t["notif"], m.group(1), len(prompt.encode()))
             continue
         if typ == "cost-state":
-            t["cost_state"] = d.get("totalCostUSD")
+            t["cost_state"] = {"cost": d.get("totalCostUSD"), "start": (d.get("startTime") or 0) / 1000, "pos": pos}
             continue
         if typ in SKIP_TYPES:
             continue
         ts = tr.parse_ts(d.get("timestamp"))
+        if ts is not None and t["file_first_ts"] is None:
+            t["file_first_ts"] = ts
+        if typ == "assistant" and (d.get("message") or {}).get("usage"):
+            t["last_usage_pos"] = pos
         if ts is None or ts < cutoff:
             continue
         t["first_ts"] = ts if t["first_ts"] is None else min(t["first_ts"], ts)
@@ -365,10 +357,10 @@ def report_sizes(ctx):
     for t in ctx["T"].values():
         tu = t["tool_uses"]
         for tid, size, _, _ in t["tool_results"]:
-            if tid in tu and tu[tid]["name"] in AGENT_TOOLS:
+            if tid in tu and tu[tid]["name"] in tr.AGENT_TOOLS:
                 note_max(by_tool_use, tid, size)
         for tid, size in t["notif"].items():
-            if tid in tu and tu[tid]["name"] in AGENT_TOOLS:
+            if tid in tu and tu[tid]["name"] in tr.AGENT_TOOLS:
                 note_max(by_tool_use, tid, size)
         for aid, size in t["handback"].items():
             note_max(by_agent, aid, size)
@@ -423,6 +415,20 @@ def agents(ctx):
     }
 
 
+def final_cost_state(t, cutoff):
+    """Claude Code's own total for a session, when it covers exactly what this script counted.
+
+    A continued or resumed file carries the earlier session's spend, and some files keep one early
+    record that is never updated, so only a record started in the period, before the file's first
+    record, with no usage after it, is comparable."""
+    cs = t["cost_state"]
+    if not cs or cs["cost"] is None or t["file_first_ts"] is None:
+        return None
+    if cs["start"] < cutoff or cs["start"] > t["file_first_ts"] or t["last_usage_pos"] > cs["pos"]:
+        return None
+    return cs["cost"]
+
+
 def session_rows(ctx):
     T, reqs, subs_of = ctx["T"], ctx["reqs"], ctx["subs_of"]
     rows = []
@@ -446,7 +452,8 @@ def session_rows(ctx):
             "n_subs": len(subs), "dur_min": (last - t["first_ts"]) / 60,
             "peak_ctx": max((r["ctx"] for r in rs), default=0), "compactions": t["compactions"],
             "cr": sum(r["cr"] for r in all_rs), "cw": sum(r["cw5"] + r["cw1"] for r in all_rs),
-            "first_user": (t["first_user"] or "")[:160], "entry": t["entry"], "cost_state": t["cost_state"],
+            "first_user": (t["first_user"] or "")[:160], "entry": t["entry"],
+            "cost_state": final_cost_state(t, ctx["cutoff"]),
             "first_ts": t["first_ts"], "requests": len(rs),
             "cost_over_200k": sum(r["cost"] or 0 for r in rs if r["ctx"] > 200_000),
         })
@@ -468,8 +475,7 @@ def commands_section(ctx, sessions):
             "cache_read_per_write": sum(s["cr"] for s in ss) / max(1, sum(s["cw"] for s in ss)),
             "sub_share": sum(s["sub_cost"] for s in ss) / max(1e-9, cost),
         }
-    # Sessions that started before the window have a partial cost of their own, so compare only the rest.
-    full = [s for s in sessions if s["cost_state"] and s["first_ts"] - ctx["cutoff"] > 86400]
+    full = [s for s in sessions if s["cost_state"] is not None]
     none = [s for s in sessions if s["primary"] == "(none)"]
     skill_cost = Counter()
     for rs in ctx["reqs"].values():
@@ -600,7 +606,7 @@ def tools_section(ctx):
             u = tu.get(tid, {"name": "?", "key": "?", "detail": ""})
             size_by[u["key"]] += size
             size_by["__name__" + u["name"]] += size
-            later = sum(1 for s in starts if s > ts)
+            later = len(starts) - bisect.bisect_right(starts, ts)
             if read_price:
                 carry[u["key"]] += (size / 4 + img * MEDIA_TOKENS) * later * read_price[2] / 1e6
             media[u["key"]] += img
@@ -652,7 +658,7 @@ def parallelism_section(ctx, sessions):
         busy = [(r["start"] or r["ts"], r["ts"]) for r in reqs.get(p, [])]
         for tid, _, _, ts in t["tool_results"]:
             u = t["tool_uses"].get(tid)
-            if u and u["name"] not in AGENT_TOOLS:
+            if u and u["name"] not in tr.AGENT_TOOLS:
                 busy.append((u["ts"], ts))
         fg = [T[s] for s in subs if T[s]["meta"].get("requestShape") == "foreground"]
         rows.append({
@@ -676,7 +682,7 @@ def headline(out):
     h = {
         "total_cost": out["total_cost"], "main_cost": out["main_cost"], "sub_cost": out["sub_cost"],
         "main_sessions": out["n_main_sessions"], "cache_read_per_write": out["cache"]["read_per_write"],
-        "cache_miss_cost": sum(v.get("cost", 0) for k, v in out["cache_misses"].items() if k != "saved_by_1h_ttl"),
+        "cache_miss_cost": sum(out["cache_misses"].get(k, {}).get("cost", 0) for k in IDLE_GAP_BUCKETS),
         "sessions_over_200k": out["context"]["sessions_over_200k"],
         "compactions_main": out["context"]["compactions_main"],
         "main_idle_min": out["parallelism"]["sum_main_idle_min"],
