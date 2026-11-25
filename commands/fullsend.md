@@ -34,15 +34,16 @@ report is a status note, so the next stage's tool call goes in the same message.
   says which ones.
 - **"unattended"**: nobody will answer questions. See
   [Worker mode and unattended runs](#worker-mode-and-unattended-runs).
-- **"in a new worktree"** or **"in a new Orca worktree"**: hand the run off. See
-  [Handoff to a new worktree](#handoff-to-a-new-worktree).
+- **Another worktree**: any wording that asks for a new, different, separate or another
+  worktree, such as "in a new worktree", hands the run off. Unlike the endpoint phrases,
+  this needs no exact phrase. See [Handoff to a new worktree](#handoff-to-a-new-worktree).
 
 Read `~/llmfiles/local/work.json` for the org values. `platform_directory` and `team_id`
 there name the reviewer roster.
 
 ## Handoff to a new worktree
 
-Hand the run off when the arguments ask for a new worktree, or when this session runs in
+Hand the run off when the arguments ask for another worktree, or when this session runs in
 Orca at a hub, as `~/llmfiles/shared/meta-hub.md` defines it. A run that works from this
 chat in another worktree leaves that worktree's card with no chat, so the new card gets
 its own session instead. Ask no intake questions here: the new session asks them.
