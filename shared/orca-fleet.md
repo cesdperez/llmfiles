@@ -51,7 +51,7 @@ orca orchestration worker-start --task <task_id> --worktree path:<worktree path>
   --agent claude --json
 orca orchestration check --run <run_id> --wait --types worker_done,escalation,question \
   --timeout-ms 3600000 --json 2>/dev/null \
-  | jq 'if .result.messages then .result.messages |= map(select(.type != "heartbeat")) else . end'
+  | jq -c 'if .result.messages then .result.messages |= map(select(.type != "heartbeat")) else . end'
 orca orchestration reply --id <message_id> --body "<answer>" --json
 orca orchestration send --to dispatch:<dispatch_id> --subject "<subject>" --body "<text>" --json
 orca orchestration check --run <run_id> --ack <delivery_id> --json
@@ -61,7 +61,9 @@ orca orchestration worker-list --run <run_id> --json
 
 - Start the wait with Bash `run_in_background` and a 2-hour timeout: its exit re-invokes
   the session. Its stderr carries a keepalive line every 15 seconds, and the `jq` drops the
-  heartbeats saved up in the delivery. The ack still covers them.
+  heartbeats saved up in the delivery. The ack still covers them. The background task's
+  output file ends with a `[exited with code N]` line that is not JSON, so read it with
+  `jq -R 'fromjson? // empty' <output file>`, which needs the one-line JSON of `jq -c`.
 - While the wait runs, answer a push with no tool call and no text. The wait wakes the
   session for every message that needs action, and the heartbeats are acked with that
   delivery. Without a running wait, start one.
