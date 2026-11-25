@@ -9,7 +9,8 @@ allowed-tools: Agent, Read, Grep, Glob, Bash, PushNotification
 Posts inline threads on its own and maintains them across passes. Use `--dry-run` when you
 want to read the findings first without annotating the MR.
 
-**Load the shared protocols first**, both in one message:
+**Load the shared protocols first** with the Read tool, both calls in one message. Not with
+`cat`: zsh expands a word that starts with `=`, so a `cat a; echo =====; cat b` chain fails.
 
 - `Read ~/llmfiles/shared/glab-mr-context.md`: target resolution, the batched fetch, the
   MR-head worktree, the anchor map, the prior-pass marker check. Your `MARKER` is
