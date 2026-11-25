@@ -1,6 +1,6 @@
 ---
 description: Multi-angle code audit of local changes. Fans out parallel read-only lens agents (correctness, tests, standards, reuse, security, performance), then synthesizes one scored report.
-argument-hint: '[branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix]'
+argument-hint: '[branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix] [--intent file]'
 allowed-tools: Agent, Read, Grep, Glob, Bash, Edit, Write
 ---
 
@@ -28,6 +28,8 @@ Parse `$ARGUMENTS` (all optional, any order):
 - **`--verify`**: add the `verify` lens from the catalog. Heavier, and it runs the code
   rather than reading it.
 - **`--autofix`**: after synthesis, apply every surviving finding and commit. Off by default.
+- **`--intent <file>`**: the caller's record of the intent: its sources, acceptance criteria
+  and the decisions the user made.
 
 Default lens set: `correctness`, `test-health`, `code-standards`, `reuse`, `security`,
 `performance`. The two MR-specific lenses (`cross-repo-impact`, `ticket-alignment`) are not
@@ -39,7 +41,11 @@ blast-radius check on uncommitted work.
 1. **Resolve the target.** `git diff --name-only main...` for branch scope, or the relevant
    tree for codebase scope. If branch scope has no diff, say so and stop.
 
-2. **Build the anchor map** so findings cite real line numbers rather than counted ones:
+2. **Gather the intent**: the acceptance criteria and the decisions the user made. Take it
+   from `--intent` when given. Otherwise take it from this conversation, the branch's commit
+   messages and any ticket they name. Every lens gets it.
+
+3. **Build the anchor map** so findings cite real line numbers rather than counted ones:
    ```bash
    git diff --unified=0 main... | awk '
      /^\+\+\+ /{p=substr($0,7); next}
@@ -49,18 +55,18 @@ blast-radius check on uncommitted work.
    ```
    Skip this for codebase scope, where lenses read files directly.
 
-3. **Fan out** per the shared contract: single message, read-only (except `verify`), strict
+4. **Fan out** per the shared contract: single message, read-only (except `verify`), strict
    boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps. Give each agent its mandate and NOT
-   list, the scope, the depth, the target file list, and the finding format.
+   list, the scope, the depth, the target file list, the intent, and the finding format.
 
-4. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
+5. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
    above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything
    below high confidence.
 
-5. **Report.** Group survivors by lens, most impactful first. Zero findings for a lens is a
+6. **Report.** Group survivors by lens, most impactful first. Zero findings for a lens is a
    valid result.
 
-6. **Fix mode** (only with `--autofix`): apply every surviving finding across all lenses
+7. **Fix mode** (only with `--autofix`): apply every surviving finding across all lenses
    **sequentially**, never in parallel, to avoid edit conflicts. If on `main`, create a branch
    first. Commit with a message summarizing what was fixed by lens. Print the full report
    afterwards regardless, so the user sees what changed.

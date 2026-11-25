@@ -12,8 +12,10 @@ The calling command owns and must supply:
   read for surrounding context.
 - **lens set**: which lenses run, after applying the caller's `--only` / `--skip`.
 - **threshold**: the reporting bar, 0 to 10.
-- **context inputs**: whatever the lenses need beyond the diff (ticket intent, repo
-  conventions, cross-repo hits), or the instruction that each lens gathers its own.
+- **intent**: the acceptance criteria and the decisions the user made, when the caller has
+  them.
+- **context inputs**: whatever else the lenses need beyond the diff (repo conventions,
+  cross-repo hits), or the instruction that each lens gathers its own.
 - **output shape**: the report format shown to the user.
 - **write policy**: what, if anything, may be posted or edited, and when.
 
@@ -36,9 +38,10 @@ determines speed.
 4. **Self-refute before reporting.** Each lens actively tries to kill its own findings
    against the real code, not against the diff alone: does the guard it claims is missing
    exist further up the call path? Is the branch it claims is broken actually reachable?
-   Is the "duplicate" helper actually different? Drop anything it cannot substantiate.
-   Default to dropping when uncertain. This replaces a serial orchestrator verify pass,
-   which costs a full extra round of wall clock for the same result.
+   Is the "duplicate" helper actually different? Drop anything it cannot substantiate, and
+   any finding that contradicts a decision stated in the intent. Default to dropping when
+   uncertain. This replaces a serial orchestrator verify pass, which costs a full extra
+   round of wall clock for the same result.
 5. **No serial context phase.** A lens that needs external context (a ticket, a
    cross-repo grep, lint config) gathers it inside its own agent, concurrently with the
    others. Do not gather context for the lenses first unless every lens needs the same
