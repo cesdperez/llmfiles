@@ -13,8 +13,11 @@ fix in the session that investigated it.
 "Full send" means: ask everything up front in one batch, then work unattended until the
 endpoint is reached or a stage is blocked. Put status notes in the same message as the next
 tool call. Waiting on an agent, a pipeline or the lock is not a stop: the stage ends when
-what it waits on has finished. A skill this run calls returns control to the run: its final
-report is a status note, so the next stage's tool call goes in the same message.
+what it waits on has finished. The waits for the lock and for pipelines happen in this
+session. An agent's prompt cache lasts 5 minutes, so an agent that waits longer pays to
+rewrite its whole context: send an agent in when its work can start at once. A skill this
+run calls returns control to the run: its final report is a status note, so the next
+stage's tool call goes in the same message.
 
 ## Arguments
 
@@ -172,9 +175,18 @@ worktrees at once starve each other, and tests that pass alone then fail. One lo
 - One command: `~/llmfiles/scripts/qa-lock.sh run <branch> -- <command>`. It waits for the
   lock, keeps it fresh, releases it also on failure, and exits with the command's code. A
   wait can outlast the Bash timeout, so run it in the background when the lock is held.
-- Stage 4 holds it from starting the stack to stopping it: `token=$(qa-lock.sh take
-  <branch>)`, `qa-lock.sh touch "$token"` at least every 30 minutes, and `qa-lock.sh
-  release "$token"` after the stack stops. Release removes the lock only for its own token.
+- An agent runs heavy commands only under a token this session took for it, so no agent
+  waits for the lock. An agent that needs one mid-task reports the command back.
+- This session takes the lock for an agent: run `~/llmfiles/scripts/qa-lock.sh take
+  <branch>` in the background with a 2-hour timeout, started again when the timeout stops
+  it, and send the agent its brief with the token it prints. The agent runs its heavy
+  commands directly, never through `run`, which would wait on its own lock. It runs
+  `~/llmfiles/scripts/qa-lock.sh touch "$token"` at least every 30 minutes and
+  `~/llmfiles/scripts/qa-lock.sh release "$token"` when its heavy work ends.
+- The token is the holder, because release removes the lock only for its own token. So
+  this session also releases it when the agent reports or is stopped, which does nothing
+  when the agent already did. Before releasing for a stopped agent, stop what it started,
+  such as the stage 4 stack.
 - A lock whose owner was not touched for over an hour is from a crashed run; the script
   clears it while waiting.
 - Count a flaky test's failures only under the lock. A failure under another run's load
@@ -269,10 +281,10 @@ card `--unread` and give one concise instruction.
 ### 3. Review
 
 Stages 3 and 4 start in the same message, on the same commit: neither changes the code, so
-neither waits for the other. That message launches the stage 4 verify worker in the
-background and calls the Skill tool with "locallensedreview" and args
-`--base <recorded base> --intent <ledger path> --compact`, once per repo, from inside that
-repo's checkout. Leave out `--autofix`, and do not rerun it after the fixes. The intent is
+neither waits for the other. That message takes the machine lock for the stage 4 verify
+worker, which launches as soon as the take returns, and calls the Skill tool with
+"locallensedreview" and args `--base <recorded base> --intent <ledger path> --compact`,
+once per repo, from inside that repo's checkout. Leave out `--autofix`, and do not rerun it after the fixes. The intent is
 the ledger's sources, their acceptance criteria and the intake answers.
 
 Write the findings at its fix bar to the ledger for the fix round in stage 4. Write every
@@ -286,8 +298,8 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 `worker` with the criteria, the checkouts, how to start them, and
 [the machine lock](#the-machine-lock).
 
-- One shared local stack serves every run on this machine. The worker takes the machine
-  lock before starting it and holds it until the stack is stopped.
+- One shared local stack serves every run on this machine. The worker gets the lock's
+  token in its brief and releases it after it stops the stack.
 - Start the stack from this run's checkouts, so it serves this branch and not another
   run's code. Run Compose from the checkout and label every `docker run` container
   `--label llmfiles.worktree=<checkout path>`: `/orcacleanup` finds leftovers of a crashed
@@ -301,10 +313,11 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 - **Fix round.** Once review and verify have both reported, send the review findings at the
   fix bar and every verify Fail to the implementing worker in one SendMessage, to fix and
   commit: the controller holds conclusions, not file contents. With neither, go to stage 5.
-- **Rerun.** After the fixes, the verify worker reruns only what they could change: the
-  tests scoped to the changed files, every criterion that failed, and every criterion whose
-  code path a fix touched. Review fixes get no other verify, so a criterion a fix might
-  reach is rerun. A Fail in the rerun blocks the run.
+- **Rerun.** After the fixes, this session takes the lock again, and the verify worker
+  reruns only what they could change: the tests scoped to the changed files, every
+  criterion that failed, and every criterion whose code path a fix touched. Review fixes
+  get no other verify, so a criterion a fix might reach is rerun. A Fail in the rerun
+  blocks the run.
 - Run the [stall check](#2-implement) on the verify worker.
 
 ### 5. MR
@@ -329,9 +342,10 @@ Push each branch and open one draft MR per repo (`glab mr create --draft` with t
 ### 6. Green
 
 Watch each MR pipeline with Monitor until it finishes. A Monitor that expires first has not
-seen the end, so start it again. Fix failures caused by the change and push. A failure
-that is not caused by the change (flaky job, infra) gets one retry, then goes in the
-report. Stop after three fix attempts per pipeline.
+seen the end, so start it again. The implementing worker fixes failures caused by the
+change, pushes, and reports without waiting on the pipeline. A failure that is not caused
+by the change (flaky job, infra) gets one retry, then goes in the report. Stop after three
+fix attempts per pipeline.
 
 Endpoint `main`: mark the MR ready, merge it once the pipeline is green, and confirm the
 main pipeline passes. With MRs in several repos, merge in dependency order (provider before
