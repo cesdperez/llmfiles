@@ -299,8 +299,9 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 `worker` with the criteria, the checkouts, how to start them, and
 [the machine lock](#the-machine-lock).
 
-- One shared local stack serves every run on this machine. The worker gets the lock's
-  token in its brief and releases it after it stops the stack.
+- One shared local stack serves every run on this machine, so the worker runs it under a
+  token, as [the machine lock](#the-machine-lock) describes, and stops the stack before it
+  releases the token.
 - Start the stack from this run's checkouts, so it serves this branch and not another
   run's code. Run Compose from the checkout and label every `docker run` container
   `--label llmfiles.worktree=<checkout path>`: `/orcacleanup` finds leftovers of a crashed
@@ -351,8 +352,8 @@ Push each branch and open one draft MR per repo (`glab mr create --draft` with t
 
 ### 6. Green
 
-Watch each MR pipeline with Monitor until it finishes. A Monitor that expires first has not
-seen the end, so start it again. The implementing worker fixes failures caused by the
+Watch each MR pipeline with Monitor until it finishes. Any Monitor that expires has not
+seen what it waits for, so start it again. The implementing worker fixes failures caused by the
 change, pushes, and reports without waiting on the pipeline. A failure that is not caused
 by the change (flaky job, infra) gets one retry, then goes in the report. Stop after three
 fix attempts per pipeline.
