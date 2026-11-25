@@ -1,0 +1,167 @@
+import json
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+from transcript_fixtures import load_script
+
+ledger = load_script("tuning-ledger.py")
+
+
+def entry(**overrides):
+    e = {
+        "id": "2026-11-25-1", "date": "2026-11-25", "source": "tunesetup",
+        "change": "agents batch independent reads", "files": ["agents/worker.md"], "where": ["4243c67"],
+        "why": "one tool call per request", "metric": "usage:tools/calls_per_request",
+        "baseline": 1.05, "expected": "up", "status": "applied",
+    }
+    e.update(overrides)
+    return e
+
+
+class Validation(unittest.TestCase):
+    def test_a_complete_entry_is_valid(self):
+        self.assertEqual(ledger.validate_entry(entry()), [])
+
+    def test_unknown_enum_values_and_fields_are_errors(self):
+        errors = ledger.validate_entry(entry(status="done", source="me", expected="sideways", colour="red"))
+        self.assertEqual(len(errors), 4)
+
+    def test_a_metric_needs_a_baseline_and_a_direction(self):
+        self.assertTrue(ledger.validate_entry(entry(baseline=None)))
+        self.assertTrue(ledger.validate_entry(entry(expected=None)))
+        self.assertEqual(ledger.validate_entry(entry(metric=None, baseline=None, expected=None)), [])
+
+    def test_a_script_metric_names_one_of_the_three_outputs(self):
+        self.assertTrue(ledger.validate_entry(entry(metric="cost/total")))
+        self.assertEqual(ledger.validate_entry(entry(metric="review reports flagging a decision", hand_counted=True)), [])
+
+    def test_a_proposal_names_what_it_would_touch(self):
+        self.assertTrue(ledger.validate_entry(entry(status="proposed", files=[], where=[])))
+        self.assertEqual(ledger.validate_entry(entry(status="proposed", files=[], where=["settings.json:effortLevel"])), [])
+
+    def test_an_applied_entry_points_to_its_change(self):
+        self.assertTrue(ledger.validate_entry(entry(where=[])))
+
+    def test_a_file_with_a_bad_line_or_a_repeated_id_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "ledger.jsonl"
+            path.write_text(json.dumps(entry()) + "\n" + json.dumps(entry()) + "\nnot json\n")
+            errors = ledger.validate_file(path)
+        self.assertEqual(len(errors), 2)
+        self.assertTrue(all(e.startswith("line ") for e in errors))
+
+
+class Writing(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "tunesetup" / "ledger.jsonl"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_add_numbers_entries_per_date_and_fills_defaults(self):
+        first = entry()
+        del first["id"]
+        self.assertEqual(ledger.add(self.path, first), "2026-11-25-1")
+        self.assertEqual(ledger.add(self.path, dict(first)), "2026-11-25-2")
+        saved = ledger.load(self.path)
+        self.assertEqual([e["id"] for e in saved], ["2026-11-25-1", "2026-11-25-2"])
+        self.assertIsNone(saved[0]["verdict"])
+        self.assertFalse(saved[0]["hand_counted"])
+
+    def test_add_refuses_an_invalid_entry(self):
+        with self.assertRaises(ValueError):
+            ledger.add(self.path, entry(status="done"))
+        self.assertFalse(self.path.exists())
+
+    def test_update_changes_fields_in_place_and_validates(self):
+        ledger.add(self.path, entry(status="proposed", where=[]))
+        ledger.update(self.path, "2026-11-25-1", {"status": "applied", "where": ["abc1234"]})
+        self.assertEqual(ledger.load(self.path)[0]["where"], ["abc1234"])
+        with self.assertRaises(ValueError):
+            ledger.update(self.path, "2026-11-25-1", {"verdict": "great"})
+        with self.assertRaises(KeyError):
+            ledger.update(self.path, "nope", {"status": "applied"})
+
+
+class OpenEntries(unittest.TestCase):
+    def test_applied_measurable_entries_a_week_old_without_verdict(self):
+        entries = [
+            entry(id="a"),
+            entry(id="young", date="2026-11-30"),
+            entry(id="settled", verdict="kept"),
+            entry(id="proposed", status="proposed"),
+            entry(id="no-metric", metric=None, baseline=None, expected=None),
+        ]
+        self.assertEqual([e["id"] for e in ledger.open_entries(entries, "2026-12-02")], ["a"])
+
+
+class Measuring(unittest.TestCase):
+    outputs = {
+        "usage": {"days": 14, "tools": {"calls_per_request": 1.4},
+                  "headline": {"agents.worker.runs": 700}},
+        "stages": {"days": 14, "stages": {"3 review": {"median": 8.0}}},
+        "friction": {"days": 14, "tool_errors": [{"kind": "Bash: permission denied", "count": 30}]},
+    }
+
+    def test_a_metric_reads_a_path_through_dicts_and_kind_lists(self):
+        self.assertEqual(ledger.metric_value("usage:tools/calls_per_request", self.outputs), (1.4, 14))
+        self.assertEqual(ledger.metric_value("usage:headline/agents.worker.runs", self.outputs), (700, 14))
+        self.assertEqual(ledger.metric_value("stages:stages/3 review/median", self.outputs), (8.0, 14))
+        self.assertEqual(ledger.metric_value("friction:tool_errors/Bash: permission denied/count", self.outputs), (30, 14))
+
+    def test_a_missing_metric_or_output_reads_as_none(self):
+        self.assertIsNone(ledger.metric_value("usage:tools/nope", self.outputs))
+        self.assertIsNone(ledger.metric_value("usage:tools/calls_per_request", {}))
+
+    def test_a_period_total_is_scaled_to_the_baseline_period(self):
+        e = entry(metric="usage:headline/agents.worker.runs", baseline=319, baseline_days=7, expected="down")
+        self.assertEqual(ledger.measured_value(e, self.outputs), 350)
+
+    def test_judge_needs_a_five_percent_move(self):
+        self.assertEqual(ledger.judge(entry(), 1.4), ("as_expected", "kept"))
+        self.assertEqual(ledger.judge(entry(), 1.07), ("flat", "inconclusive"))
+        self.assertEqual(ledger.judge(entry(), 0.9), ("against", None))
+        self.assertEqual(ledger.judge(entry(baseline=0, expected="down"), 0), ("flat", "inconclusive"))
+
+    def test_measure_settles_open_script_entries_and_skips_hand_counts(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "ledger.jsonl"
+            ledger.add(path, entry(id="a"))
+            ledger.add(path, entry(id="hand", metric="decisions flagged", hand_counted=True, baseline=4, expected="down"))
+            ledger.add(path, entry(id="gone", metric="usage:tools/nope"))
+            results = ledger.measure(path, self.outputs, "2026-12-09")
+            saved = {e["id"]: e for e in ledger.load(path)}
+        self.assertEqual({r["id"]: r["moved"] for r in results}, {"a": "as_expected", "hand": "hand_count", "gone": "no_value"})
+        self.assertEqual((saved["a"]["measured"], saved["a"]["measured_on"], saved["a"]["verdict"]), (1.4, "2026-12-09", "kept"))
+        self.assertIsNone(saved["hand"]["measured"])
+
+
+class Pending(unittest.TestCase):
+    def test_lists_commits_on_the_branch_since_the_date_touching_the_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            def git(*args, date="2026-11-20T12:00:00"):
+                env = {"GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date, "HOME": d, "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}
+                return subprocess.run(["git", "-C", d, *args], check=True, capture_output=True, text=True, env=env).stdout
+
+            git("init", "-q", "-b", "main")
+            git("config", "user.email", "t@example.com")
+            git("config", "user.name", "t")
+            (Path(d) / "a.md").write_text("1")
+            git("add", "a.md")
+            git("commit", "-q", "-m", "before")
+            (Path(d) / "a.md").write_text("2")
+            git("commit", "-q", "-am", "a: the change", date="2026-11-27T12:00:00")
+            (Path(d) / "b.md").write_text("1")
+            git("add", "b.md")
+            git("commit", "-q", "-m", "b: unrelated", date="2026-11-27T13:00:00")
+            proposals = [entry(id="p", status="proposed", where=[], files=["a.md"]), entry(id="x")]
+            out = ledger.pending(proposals, d, "main")
+        self.assertEqual(list(out), ["p"])
+        self.assertEqual([c.split(" ", 1)[1] for c in out["p"]], ["2026-11-27 a: the change"])
+
+
+if __name__ == "__main__":
+    unittest.main()
