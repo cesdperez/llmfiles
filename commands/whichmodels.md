@@ -10,6 +10,8 @@ Decide whether the model and effort pinned to each executor still fits now that 
 
 Propose only. Change no file until I say so.
 
+`L` stands for `python3 ~/llmfiles/scripts/tuning-ledger.py`, which reads and writes the tuning ledger. Its fields are in `~/llmfiles/local.example/tunesetup/ledger.md`.
+
 ## 1. Inventory what runs today
 
 Do this inline, it is cheap:
@@ -19,6 +21,7 @@ Do this inline, it is cheap:
 - The model rationale in `~/llmfiles/README.md` under "Agents".
 - In each `codex-*` agent, the frontmatter pins only the Claude forwarder. The work runs on the `--model` and `model_reasoning_effort` in its `codex exec` command, so read those too.
 - The ChatGPT plan behind Codex (`codex login status`), since its usage limits cap how much work can move there.
+- Earlier decisions: `L list --source whichmodels`, plus any `rejected` entry about a model or effort. Each one's `reversed_by` names the evidence that would undo it. Check the research for that evidence before changing the row again, and do not reopen a rejected one without new evidence.
 
 Each of these becomes one row of the final table. A `codex-*` agent gets two rows: its forwarder and its Codex model.
 
@@ -64,4 +67,4 @@ Write `Today` and `Proposed` as `model / effort`.
 
 Then one short paragraph per changed row under the table. Each paragraph gives why, the strongest counter-argument, and why it lost. Then one line naming the evidence that would reverse the call, so the next run knows what to check.
 
-End by offering to apply the changes, including the `codex exec` command in each changed `codex-*` agent and the README "Agents" rationale when it no longer matches.
+End by offering to apply the changes, including the `codex exec` command in each changed `codex-*` agent and the README "Agents" rationale when it no longer matches. Once they are committed, append one entry per changed row with `L add`: `source` `whichmodels`, `status` `applied`, the commit sha or settings key in `where`, the paragraph's reason in `why` and its reversing evidence in `reversed_by`. Give it a `usage:` metric when one tracks the row, such as the agent's cost or runs. Record a proposed change I leave unapplied as `proposed`, and one I decline as `rejected` with my reason in `note`.
