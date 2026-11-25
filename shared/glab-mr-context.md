@@ -52,12 +52,15 @@ glab mr note list "$I" -R "$P" -F json        > "$OUT/notes.json"  2>"$OUT/notes
 git -C "$CLONE" fetch origin "refs/merge-requests/$I/head" --no-tags -q \
   && git -C "$CLONE" worktree add --detach "$WT" FETCH_HEAD -q &
 wait
-jq -r '.title, .author.username, .source_branch, .target_branch, .sha, .changes_count, (.labels|join(","))' "$OUT/mr.json"
+jq -r '.title, .author.username, .source_branch, .target_branch, .state, .sha, .changes_count, (.labels|join(","))' "$OUT/mr.json"
 ```
 
 Keep from `mr.json`: `title`, `description`, `author.username`, `source_branch`,
-`target_branch`, `sha`, `diff_refs`, `labels`, `draft`, `changes_count`, `web_url`. Call
-`sha` the `HEAD_SHA`.
+`target_branch`, `state`, `sha`, `diff_refs`, `labels`, `draft`, `changes_count`,
+`web_url`. Call `sha` the `HEAD_SHA`.
+
+When `state` is `merged` or `closed`, the review is moot: report the state in one line, run
+the [cleanup](#cleanup), and end the run. Post nothing and send no notification.
 
 `refs/merge-requests/<iid>/head` resolves for fork-sourced MRs, which
 `origin/<source_branch>` does not.
