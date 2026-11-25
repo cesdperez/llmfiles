@@ -67,7 +67,7 @@ Each proposal has:
 - the files to change and the change in one line;
 - evidence from the transcripts or the numbers: n of m runs, or a dollar or minute figure;
 - the expected effect, with estimates marked as estimates;
-- the metric it should move, as a path into this run's script output, with its value now as the baseline. Use a hand count only when no script measures it, and say in `note` how to count it again.
+- the metric it should move, as a path into this run's script output, with its value now as the baseline, and `baseline_days` set to `<days>` when the metric is a total over the period. Use a hand count only when no script measures it, and say in `note` how to count it again.
 
 Append each one with `L add` as `proposed`, `source` `tunesetup`, dated `D`. The id it prints is the proposal's id in the report.
 
