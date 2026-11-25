@@ -121,9 +121,23 @@ update argument ambiguity, the non-idempotency guard, and placement verification
 3. **Inline findings are the only notes.** Never post a root summary note. **Findings below
    the threshold do not appear anywhere in the MR**: not as a summary, not as
    "below-threshold notes", not as context lines. The threshold is the publication bar, not
-   a formatting hint. Sub-threshold material belongs only in the terminal report.
+   a formatting hint. Sub-threshold material belongs only in the terminal report and the
+   local log of step 4.
 
-4. **Verify placement** and report any note that landed at the wrong line or fell back to
+4. **Log sub-threshold findings locally**, so the threshold can be judged against real
+   scores later. Append one line per finding to a file outside every repo, with tabs between
+   the fields: date, `<project>!<iid>`, score, threshold, lens, location, the one-line issue.
+   Write the lines through a quoted heredoc: finding text holds backticks and MR-controlled
+   paths, which a double-quoted shell string would execute. Turn any tab or newline inside a
+   field into a space. A secret gets its location and type, never its value.
+   ```bash
+   mkdir -p -m 700 ~/.cache/glablensedreview
+   (umask 077; cat >> ~/.cache/glablensedreview/below-threshold.tsv) <<'EOF'
+   <one line per finding>
+   EOF
+   ```
+
+5. **Verify placement** and report any note that landed at the wrong line or fell back to
    root level.
 
 ## Phase 3: Clean up and report
@@ -182,8 +196,8 @@ before looking for anything new.
 
 5. **Review only what is new.** `git -C "$WT" diff <marker-sha>..HEAD`. If that range is
    empty you are done after steps 1 to 4. Otherwise run the Phase 1 fan-out scoped to only
-   the files and hunks in that range, then post survivors per Phase 2.2. A regression
-   introduced by a fix is a normal new finding.
+   the files and hunks in that range, then post survivors per Phase 2.2 and log the rest per
+   Phase 2.4. A regression introduced by a fix is a normal new finding.
 
 6. **Marker refresh comes from new findings only.** New comments posted this pass carry the
    current `HEAD_SHA` in their marker, which advances the prior-pass sha for the next run. A
