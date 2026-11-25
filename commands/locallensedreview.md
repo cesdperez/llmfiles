@@ -77,10 +77,10 @@ blast-radius check on uncommitted work.
    one. A finding about removed code cites the old-side range from its hunk header, and a
    whole file or cross-cutting is also valid.
 
-4. **Fan out** per the shared contract: single message, read-only (except `verify`), strict
+4. **Fan out** per the shared contract: single message, read-only, strict
    boundaries, self-refute, executor tiering, the rule-lens bundle, sharding caps. Each lens
    brief holds only its mandate, its NOT list, its shard if sharded, the absolute path of
-   `brief.md` and the time signal.
+   `brief.md` and, except for `correctness`, the time signal.
 
 5. **Synthesize** per the shared rules: dedupe by lens ownership, score, keep findings at or
    above the threshold for the chosen depth. At `low` and `medium`, additionally drop anything
