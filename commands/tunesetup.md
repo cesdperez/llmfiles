@@ -8,19 +8,19 @@ disable-model-invocation: true
 
 Find what in this repo costs money, time or rework, and propose the changes that fix it. `$ARGUMENTS` may hold the period in days and a focus. Without a period, use the days since the newest `~/llmfiles/local/tunesetup/<date>/`, or 14 when there is none. A command name as focus limits the friction read and the report to that command. `cost`, `speed` or `quality` limits the report to that group.
 
-Propose only. The one file this command edits is the price table in `~/llmfiles/scripts/claude-usage.py` (step 2). Everything else waits for my answer at the end.
+Propose only. This command edits two files: the price table in `~/llmfiles/scripts/claude-usage.py` (step 2) and the tuning ledger. Everything else waits for my answer at the end.
 
-`D` is today's date, and `~/llmfiles/local/tunesetup/D/` holds this run's files.
+`D` is today's date, and `~/llmfiles/local/tunesetup/D/` holds this run's files. `L` stands for `python3 ~/llmfiles/scripts/tuning-ledger.py`.
 
-## 1. Compare with the previous run
+## 1. Read the ledger and the previous run
 
-Read the newest earlier run directory, if there is one: `usage.json`, `stages.json`, `report.md` and `proposals.json`. Then, for this repo, `git -C ~/llmfiles log --since=<that date> --stat`.
+`~/llmfiles/local/tunesetup/ledger.jsonl` is the one record of proposals and changes across runs, from this command, `/whichmodels` and by hand. Its fields are in `~/llmfiles/local.example/tunesetup/ledger.md`. Read and write it only through `L`, which rejects an invalid entry.
 
-- For each `accepted` proposal, find the commit that applied it: a commit since that run touching its `file` with the change it describes. Mark it `applied` with the hash. One not applied yet stays `accepted` and is listed as pending.
-- For each proposal applied since, compare its `metric` in the old and new figures (step 2). Say whether it moved the way the proposal claimed. One that did not move gets a line saying so, with a suggestion to revert or rework it.
-- A proposal I rejected in any earlier run is not proposed again, unless this period brings evidence it did not have.
+- `L pending` lists, for each `proposed` entry, the commits on `main` since its date that touch its files. Read each candidate. When one makes the change, run `L set <id> status=applied 'where=["<sha>"]' date=<commit date>`. A proposal not applied yet stays `proposed` and is listed as pending.
+- `L list --status rejected` gives the proposals I declined, with my reason in `note`. Do not propose one again unless this period brings evidence it did not have.
+- `L list --open` gives the applied entries with no verdict and a week of data since their date. Step 2 measures them.
 
-The periods can differ in length, so compare rates: per session, per run or per day, never totals.
+Read the newest earlier run directory, if there is one: `usage.json`, `stages.json` and `report.md`. The periods can differ in length, so compare rates: per session, per run or per day, never totals.
 
 ## 2. Measure
 
@@ -36,11 +36,19 @@ If `usage.json` has `unpriced_requests`, load the `claude-api` skill, add each m
 
 `usage.json` holds `headline`, the flat metrics the next run compares, plus cost by model, command, agent type and context size, cache misses by idle gap, compactions, tool mix and result sizes, and main-session idle time while subagents run. `stages.json` holds minutes per `/fullsend` stage. `cost_state_check` compares the script's cost with Claude Code's own on the `sessions` whose totals are complete: a gap over 5% means the prices or the deduplication are off, so say so before using the dollar figures.
 
+Then settle the open entries:
+
+```bash
+L measure --usage <usage.json> --stages <stages.json> --friction <friction.json>
+```
+
+It reads each entry's metric, scales a period total to its `baseline_days`, and writes `measured`, `moved` and `verdict`. The figures must cover only days after the entry's date: when this period reaches back further, run the three scripts again with `--days` set to the days since that date, into `D/since-<date>/`, and measure from those. A `friction:` metric needs a `friction.json` run without `--command`. An entry with `hand_counted` goes to the friction worker, which counts it again the way its `note` says; record the count with `L set` as the ledger format describes. A `moved` of `against` leaves the verdict to me.
+
 ## 3. Friction and outside evidence
 
 Spawn two `worker` agents in one message.
 
-**Friction.** Give it `friction.json`, the commands in scope and the previous run's rejected proposals.
+**Friction.** Give it `friction.json`, the commands in scope, the rejected ledger entries, and the open hand-counted entries to count again.
 - It reads the extracts one command at a time: `jq '.sessions[] | select(.command | startswith("<name>"))'`.
 - It opens one session with `session-friction.py --session <id>` when an extract is too short to judge.
 - It reads `~/llmfiles/commands/<name>.md` and the files it loads.
@@ -55,10 +63,12 @@ Model and effort choices belong to `/whichmodels`. When the numbers suggest one 
 ## 4. Draft the proposals
 
 Each proposal has:
-- an id `D-<n>`, the file to change and the change in one line;
+- the files to change and the change in one line;
 - evidence from the transcripts or the numbers: n of m runs, or a dollar or minute figure;
 - the expected effect, with estimates marked as estimates;
-- the `headline` key or stage it should move, so the next run can check it.
+- the metric it should move, as a path into this run's script output, with its value now as the baseline. Use a hand count only when no script measures it, and say in `note` how to count it again.
+
+Append each one with `L add` as `proposed`, `source` `tunesetup`, dated `D`. The id it prints is the proposal's id in the report.
 
 Outside evidence alone supports only "test this", never a change. Prefer one change at a cause over several at its symptoms. A secret found in a transcript is reported by session and date, never by value.
 
@@ -72,8 +82,8 @@ tunesetup D, <days> days, <sessions> sessions, $<total> list price
 Since last run
 | Metric | Then | Now | Change |
 
-Applied since last run
-| Id | File | Metric | Claimed | Moved |
+Settled since last run
+| Id | Change | Metric | Baseline | Now | Moved |
 
 Proposals: review quality / cost / speed and stalls / tool friction
 | Id | File | Change | Evidence | Expected effect |
@@ -83,8 +93,6 @@ Leave alone: 3 to 6 lines on what the data shows working.
 Secrets: session, date and kind, when any were found.
 ```
 
-Under the tables, at most two lines per proposal that needs more than its row. Skip a section that has nothing.
+Under the tables, at most two lines per proposal that needs more than its row. An entry that moved `against` gets a line suggesting to revert or rework it. Pending proposals get one line each. Skip a section that has nothing.
 
-Save `proposals.json` in the run directory, one object per proposal: `id`, `file`, `change`, `metric`, `expected`, `status` (`proposed`), and `commit` (null). Update each earlier proposal's status in its own run's file.
-
-End by asking which proposals to apply. Group the accepted ones by the files they touch and offer to run them with `/fleet`, one item per group. Record the ones I accept as `accepted` and the ones I decline as `rejected`. Unanswered ones stay `proposed`.
+End by asking which proposals to apply, and what to do with each entry that moved `against`. Group the accepted proposals by the files they touch and offer to run them with `/fleet`, one item per group. Accepted ones stay `proposed` until a commit applies them. For each one I decline, run `L set <id> status=rejected note="<my reason>"`. For an entry I revert, set `status=reverted verdict=reverted`; for one I keep, `verdict=kept`.
