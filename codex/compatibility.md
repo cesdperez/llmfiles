@@ -9,6 +9,7 @@ These adaptations take precedence over Claude-specific instructions in `commands
 - `/name` references mean the matching Codex skill in `~/llmfiles/codex/skills/<name>/SKILL.md`. Load that entry file and its adaptations when a workflow dispatches another command. A skill reference is not a shell command.
 - `Read`, `Grep`, `Glob`, `Bash`, `WebSearch`, and `WebFetch` refer to the equivalent available Codex tools. Load skill files directly in place of Claude's `Skill` tool. Source `allowed-tools` fields do not configure Codex permissions.
 - Use a temporary directory for a source workflow's `<scratchpad>`.
+- Where a source says to wait with `Monitor` or a background command instead of `sleep`, poll with a shell loop that sleeps between checks. Codex allows `sleep`.
 
 ## Delegation
 
