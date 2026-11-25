@@ -1,5 +1,5 @@
 ---
-description: Multi-angle code audit of local changes. Fans out parallel read-only lens agents (correctness, tests, standards, reuse, security, performance), then synthesizes one scored report.
+description: Multi-angle code audit of local changes. Fans out parallel read-only lens agents (correctness, tests, standards, reuse, and security or performance when the change calls for them), then synthesizes one scored report.
 argument-hint: '[branch|codebase] [low|medium|high|max] [--only a,b] [--skip a,b] [--verify] [--autofix] [--base ref] [--intent file]'
 allowed-tools: Agent, Read, Grep, Glob, Bash, Edit, Write
 ---
@@ -34,8 +34,15 @@ Parse `$ARGUMENTS` (all optional, any order):
 - **`--intent <file>`**: the caller's record of the intent: its sources, acceptance criteria
   and the decisions the user made.
 
-Default lens set: `correctness`, `test-health`, `code-standards`, `reuse`, `security`,
-`performance`. The two MR-specific lenses (`cross-repo-impact`, `ticket-alignment`) are not
+Default lens set: `correctness`, `test-health`, `code-standards`, `reuse`, plus:
+
+- `security` when the diff touches authentication, authorization, request or input
+  handling, queries, file paths, secrets, tokens, CORS or exposed config. When in doubt, it
+  runs.
+- `performance` when the diff holds a schema or data migration. Otherwise it runs only with
+  `--only`.
+
+The two MR-specific lenses (`cross-repo-impact`, `ticket-alignment`) are not
 part of this command's default, but `--only cross-repo-impact` works when you want a
 blast-radius check on uncommitted work.
 
