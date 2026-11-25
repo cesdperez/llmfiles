@@ -67,8 +67,16 @@ Give each task a slug and its command (`fullsend` by default, or the one the use
 for example `bugbounty` or `locallensedreview --autofix`).
 
 Show the plan as a table (slug, items, command, depends on, files), under one line that
-counts the items and the worktrees, and ask one AskUserQuestion to confirm it. Skip the question when there is a single task, because the conversation
-already agreed on it, or when "unattended" or "no supervision" was given.
+counts the items and the worktrees, and ask one AskUserQuestion to confirm it. Skip the
+question when there is a single task, because the conversation already agreed on it, or
+when "unattended" or "no supervision" was given.
+
+When an item for a work repo, as `fullsend.md` classifies repos, has no Jira key, the
+confirmation also asks whether to create tickets for those items. With a single task, ask
+that question alone. On yes, create them before Launch (call the Skill tool with
+"jira-writing" and "twg-jira"), and each key becomes its item's source. Otherwise, and
+always when "unattended" or "no supervision" was given, create none, and the spec says
+so, so the worker does not ask again.
 
 ## Handoff without supervision
 
@@ -158,6 +166,11 @@ An Orca push that arrives while the wait runs gets no tool call and no reply, as
   leftovers", it goes to the items for the user. With it, collect them until every task
   has settled, group them as in [Plan](#1-plan), and start one follow-up wave. What that
   wave leaves open goes to the items for the user.
+- **A usage limit**: a worker that stops on one sends nothing and stays stopped until told
+  to go on, so the `worker-list` check after empty waits finds it. Wait for the reset in a
+  background command, restarted at its 2-hour timeout, then `send` it a message to resume
+  its run from its ledger. Without a known reset time, send the resume each hour until the
+  worker goes on.
 - **A failed task**: its dependents stay `pending`. Do not retry it, because `/fullsend`
   has its own fix loops. Report it with the tasks it held back.
 
