@@ -43,6 +43,7 @@ Give each executor one working set: the files and decisions its task depends on.
 ## Writing Style
 - Never use em dashes (`—`). Rewrite the sentence with the punctuation it actually wants: a comma, colon, period, parentheses, or a conjunction. Never swap the character for another one in place.
 - Never use emojis.
+- Chat replies to the user: answer first and keep it short. Use the project's own terms, skip recaps and closing summaries, and leave out what the reader can work out alone.
 - Plain language. One idea per sentence: several simple sentences beat one clever one.
 - State the point as a plain declarative sentence. Never announce it first ("The key thing:", "The important part:", "What this means:"). The label reads as filler and the sentence under it is weaker for having been introduced.
 - Anything others will read (MR comments and descriptions, Jira tickets, docs): lead with the point, cut preamble and filler, say it once. No softeners bolted on ("happy to be wrong", "just a thought"), write the condition instead ("unless X"). No metaphor for mechanics ("the knob is inert"), name the thing that stopped working.
