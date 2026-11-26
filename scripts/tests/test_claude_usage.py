@@ -101,6 +101,41 @@ class SessionAttribution(unittest.TestCase):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 30), assistant("m1", 29)])
         self.assertIn("(none)", analyze(self.root)["commands"])
 
+    def primary_of(self, *first_rows):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [*first_rows, assistant("m1", 20)])
+        return list(analyze(self.root)["commands"])
+
+    def test_conductor_prompt_counts_as_fullconduct(self):
+        prompt = [{"type": "text", "text": "Read `~/llmfiles/opencode/fullconduct.md`, then `~/llmfiles/commands/"
+                                           "fullsend.md`, and run it with these arguments:\n\nfix x"}]
+        self.assertEqual(self.primary_of(user(prompt, 30)), ["fullconduct"])
+
+    def test_branch_name_helper_quoting_the_conductor_prompt_stays_none(self):
+        prompt = "Generate a short git branch name.\n\nUser request:\nRead `~/llmfiles/opencode/fullconduct.md`"
+        self.assertEqual(self.primary_of(user(prompt, 30)), ["(none)"])
+
+    def test_code_review_started_by_locallensedreview_counts_as_it(self):
+        caveat = user("<local-command-caveat>The command below was run directly</local-command-caveat>", 31, isMeta=True)
+        self.assertEqual(self.primary_of(caveat, user("/code-review high", 30)), ["locallensedreview"])
+
+    def test_a_reminder_before_the_conductor_prompt_does_not_hide_it(self):
+        prompt = [{"type": "text", "text": "<system-reminder>ctx</system-reminder>"},
+                  {"type": "text", "text": "Read `~/llmfiles/opencode/fullconduct.md`, then fix x"}]
+        self.assertEqual(self.primary_of(user(prompt, 30)), ["fullconduct"])
+
+    def test_a_session_resumed_into_the_period_keeps_the_command_its_first_prompt_implies(self):
+        self.assertEqual(self.primary_of(user("Read `~/llmfiles/opencode/fullconduct.md`, then fix x", 8 * 24 * 60),
+                                         user("go on", 30)), ["fullconduct"])
+
+    def test_dispatched_worker_without_a_command_is_an_orca_worker(self):
+        preamble = "You are working inside Orca, a multi-agent IDE. You are a dispatched worker.\nTask: tidy x"
+        self.assertEqual(self.primary_of(user(preamble, 30)), ["orca-worker"])
+
+    def test_dispatched_worker_that_loads_a_command_skill_counts_as_that_command(self):
+        preamble = "You are working inside Orca, a multi-agent IDE. You are a dispatched worker.\nRun /fullsend"
+        skill = assistant("m0", 29, content=[tool_use("t1", "Skill", skill="fullsend")])
+        self.assertEqual(self.primary_of(user(preamble, 30), skill), ["fullsend[fleet-worker]"])
+
 
 class Subagents(unittest.TestCase):
     def setUp(self):

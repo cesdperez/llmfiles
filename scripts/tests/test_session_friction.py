@@ -119,10 +119,54 @@ class Extracts(unittest.TestCase):
         self.assertEqual(out["secrets"], [{"session": "s1", "date": "2026-06-15", "kind": "gitlab token", "count": 1}])
         self.assertNotIn(FAKE_TOKEN, str(out))
 
+    def test_pushback_and_rework_come_only_from_what_the_human_typed(self):
+        reminder = [{"type": "text", "text": "that finding is a false positive"},
+                    {"type": "text", "text": "<system-reminder>the pipeline failed on main</system-reminder>"}]
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 60),
+            text("m1", 59, "Declined finding 2: false positive. The pipeline failed once, verify failed too."),
+            user("Base directory for this skill: x\nreview missed things are noise", 58),
+            assistant("m2", 57, content=[tool_use("t1", "Bash", command="glab ci status")]),
+            tool_result("t1", "job lint failed; pipeline failed", 56),
+            user(reminder, 55),
+            user("the pipeline failed again, look", 54),
+        ])
+        s = self.only_session()
+        self.assertEqual(len(s["review_pushback"]), 1)
+        self.assertIn("false positive", s["review_pushback"][0])
+        self.assertEqual(len(s["rework"]), 1)
+        self.assertIn("failed again", s["rework"][0])
+
+    def test_dispatched_preamble_is_the_first_message_but_not_human_text(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            user("You are working inside Orca. You are a dispatched worker. Declined findings are noise.", 60),
+            slash("fullsend", 59),
+            user("not that branch", 50),
+        ])
+        s = self.only_session()
+        self.assertEqual([h["text"] for h in s["humans"]], ["not that branch"])
+        self.assertEqual(s["review_pushback"], [])
+
     def test_command_filter_keeps_sessions_whose_first_command_matches(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fleet", 60), slash("fullsend", 59)])
         write_jsonl(self.root / PROJECT / "s2.jsonl", [slash("fullsend", 60)])
         self.assertEqual([s["session"] for s in self.analyze(wanted=["fullsend"])["sessions"]], ["s2"])
+
+    def test_code_review_started_by_locallensedreview_counts_as_it(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [user("/code-review high", 60), user("thanks", 50)])
+        self.assertEqual(self.only_session()["command"], "locallensedreview")
+
+    def test_implied_commands_and_orca_workers_are_in_scope_by_default(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [user("Read `~/llmfiles/opencode/fullconduct.md`, then fix x", 60)])
+        write_jsonl(self.root / PROJECT / "s2.jsonl", [user("You are a dispatched worker. Task ID: 1\ntidy x", 60)])
+        out = self.analyze()
+        self.assertEqual(out["sessions_by_command"], {"fullconduct": 1, "orca-worker": 1})
+
+    def test_a_session_resumed_into_the_period_keeps_the_command_its_first_prompt_implies(self):
+        old = 8 * 24 * 60
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            user("Read `~/llmfiles/opencode/fullconduct.md`, then fix x", old), user("go on", 30)])
+        self.assertEqual(self.only_session()["command"], "fullconduct")
 
     def test_session_without_a_known_command_is_out_of_scope(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 60), user("again", 50)])
@@ -177,7 +221,7 @@ class Secrets(unittest.TestCase):
 
     def test_secret_cut_at_a_snippet_edge_does_not_leak_its_tail(self):
         body = "w" * 150 + FAKE_TOKEN + " " + "z" * 140 + " is a false positive"
-        write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 60), text("m1", 50, body)])
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 60), user(body, 50)])
         out = self.analyze()
         self.assertTrue(out["sessions"][0]["review_pushback"])
         self.assertNotIn("x" * 12, json.dumps(out["sessions"][0]["review_pushback"]))

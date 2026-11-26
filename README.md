@@ -170,10 +170,14 @@ is needed.
   Claude Code transcripts under `~/.claude/projects` for a period in days. They stream each
   file, because a week of transcripts runs to gigabytes, and share `transcripts.py`.
   `claude-usage.py` reports list-price spend per model, command and agent type, deduplicated by
-  message id, plus cache misses, context size, tool results and parallelism. Its `PRICES` table
+  message id, plus cache misses, context size, tool results and parallelism. A session counts
+  toward its first command, or the one its first prompt implies (a `fullconduct.md` conductor
+  run, a `/code-review` started by `/locallensedreview`); a dispatched Orca worker without one is
+  `orca-worker`. Its `PRICES` table
   carries the date it was checked. `fullsend-stages.py` reports minutes per `/fullsend` stage
   from its Orca stage marks. `session-friction.py` extracts human corrections, tool errors,
-  subagent briefs and reports, and review findings per session, and names secrets it finds by
+  subagent briefs and reports, review findings, and pushback and rework in what the human typed
+  per session, and names secrets it finds by
   session and kind only. Their tests are in `scripts/tests/`.
 - `review-diff.py`, used by `/locallensedreview`, writes the change since the merge base with
   a ref, uncommitted and untracked work included, and its anchor map of added lines. A command

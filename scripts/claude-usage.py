@@ -4,8 +4,9 @@
 Usage: claude-usage.py [--days 14] [--root ~/.claude/projects]
 
 Emits JSON on stdout. Dollar figures are list-price equivalents from PRICES, not what a
-subscription bills. A session belongs to its first slash command, and its subagents' spend
-counts toward it. `headline` holds the flat metrics /tunesetup compares run to run.
+subscription bills. A session belongs to its first slash command, or the command its first
+prompt implies, and its subagents' spend counts toward it. `headline` holds the flat metrics
+/tunesetup compares run to run.
 """
 
 import argparse
@@ -149,13 +150,13 @@ def usage_record(d, message, ts, path):
     return rec
 
 
-def new_transcript(path, kind, root):
+def new_transcript(path, kind, root, known):
     project, session = tr.session_of(path, root)
     t = {
         "path": path, "project": project, "kind": kind, "session": session,
         "agent_type": None, "meta": {}, "first_ts": None, "last_ts": None, "commands": [], "first_user": None,
         "tool_uses": {}, "tool_results": [], "compactions": 0, "req_start": {}, "api_params": [],
-        "notif": {}, "handback": {}, "cost_state": None, "entry": None, "dispatched": False,
+        "notif": {}, "handback": {}, "cost_state": None, "entry": None, "head": tr.SessionHead(known),
         "file_first_ts": None, "last_usage_pos": -1,
     }
     if kind == "sub":
@@ -170,7 +171,7 @@ def note_max(store, key, value):
 
 def scan(path, kind, root, cutoff, msgs, known):
     """Stream one transcript, appending each usage record to msgs[message id]."""
-    t = new_transcript(path, kind, root)
+    t = new_transcript(path, kind, root, known)
     for pos, d in enumerate(tr.records(path)):
         typ = d.get("type")
         if typ == "attachment":
@@ -191,6 +192,8 @@ def scan(path, kind, root, cutoff, msgs, known):
             t["file_first_ts"] = ts
         if typ == "assistant" and (d.get("message") or {}).get("usage"):
             t["last_usage_pos"] = pos
+        if kind == "main":
+            t["head"].feed(d)
         if ts is None or ts < cutoff:
             continue
         t["first_ts"] = ts if t["first_ts"] is None else min(t["first_ts"], ts)
@@ -242,8 +245,6 @@ def scan_user(t, d, ts):
         m = NOTIFICATION_ID_RE.search(txt)
         if m:
             note_max(t["notif"], m.group(1), len(txt.encode()))
-    if tr.is_dispatched(txt):
-        t["dispatched"] = True
     if "<agent-message from=" in txt[:300]:
         for m in HANDBACK_RE.finditer(txt):
             note_max(t["handback"], m.group(1), len(txt.encode()))
@@ -441,9 +442,7 @@ def session_rows(ctx):
         if cost == 0 and not reqs.get(p):
             continue
         cmds = [c for _, c in sorted(t["commands"])]
-        primary = cmds[0] if cmds else "(none)"
-        if t["dispatched"]:
-            primary += "[fleet-worker]"
+        primary = t["head"].command()
         rs = reqs.get(p, [])
         all_rs = rs + [r for s in subs for r in reqs.get(s, [])]
         last = max([t["last_ts"]] + [T[s]["last_ts"] for s in subs if T[s]["last_ts"]])

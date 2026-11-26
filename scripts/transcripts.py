@@ -17,6 +17,23 @@ DEFAULT_ROOT = os.path.expanduser("~/.claude/projects")
 REPO = Path(__file__).resolve().parent.parent
 COMMAND_RE = re.compile(r"<command-name>/?([\w:-]+)</command-name>")
 DISPATCH_MARKERS = ("You are a dispatched worker", "Dispatch ID", "Dispatch id")
+# Text Claude Code or another agent puts in a user turn; a human message never starts with these.
+NOT_HUMAN = ("<task-notification", "<system-reminder", "Another Claude session", "<agent-message",
+             "──── From: ", "Base directory", "**Role:**", "<local-command", "Caveat",
+             "This session is being continued", "<bash-", "[Request interrupted by user for tool use]",
+             "<system-update>", "The server restarted while you were working")
+SYSTEM_REMINDER_RE = re.compile(r"<system-reminder>.*?(</system-reminder>|$)", re.S)
+# OpenCode replays earlier history between these, one text block per message.
+CHECKPOINT_OPEN, CHECKPOINT_CLOSE = "<conversation-checkpoint>", "</conversation-checkpoint>"
+# OpenCode forwards a command's body as a user turn headed by its name.
+FORWARDED_COMMAND_RE = re.compile(r"# /[\w:-]+[ \t]*\n[ \t]*\n")
+# Prompts that start a session for a command without typing it, as (pattern, command).
+IMPLIED_COMMANDS = [
+    (re.compile(r"\s*Read `?" + re.escape("~/llmfiles/opencode/fullconduct.md")), "fullconduct"),
+    # /locallensedreview runs `claude -p "/code-review high"`, which records the prompt as plain text.
+    (re.compile(r"\s*/code-review\b"), "locallensedreview"),
+]
+ORCA_WORKER = "orca-worker"
 AGENT_TOOLS = ("Agent", "Task")
 # CLIs whose first word alone says too little, so a command is keyed by its subcommand too.
 MULTIWORD = {"glab", "gh", "git", "npm", "pnpm", "npx", "yarn", "orca", "gcx", "twg", "aws", "docker", "dotnet",
@@ -150,3 +167,65 @@ def commands_in(record, known):
 
 def is_dispatched(text):
     return any(m in text[:2000] for m in DISPATCH_MARKERS)
+
+
+def implied_command(first_prompt):
+    """The command a session ran without a slash command or Skill call, from its first prompt."""
+    for pattern, command in IMPLIED_COMMANDS:
+        if pattern.match(first_prompt or ""):
+            return command
+    return None
+
+
+def primary_command(commands, first_prompt, dispatched):
+    """The command a session belongs to, tagged when an Orca coordinator dispatched it."""
+    primary = commands[0] if commands else implied_command(first_prompt)
+    if primary is None:
+        return ORCA_WORKER if dispatched else "(none)"
+    return primary + ("[fleet-worker]" if dispatched else "")
+
+
+def human_text(record):
+    """What a person typed in a user turn, or "" for a turn no person wrote.
+
+    Tool results, meta turns, compaction summaries, injected skill bodies, notifications and
+    system reminders attached to the turn are left out."""
+    if record.get("type") != "user" or record.get("isMeta") or record.get("isCompactSummary"):
+        return ""
+    content = (record.get("message") or {}).get("content")
+    blocks = [content] if isinstance(content, str) else [
+        b.get("text", "") for b in content or [] if isinstance(b, dict) and b.get("type") == "text"]
+    kept = [b for b in (SYSTEM_REMINDER_RE.sub("", b).strip() for b in outside_checkpoints(blocks))
+            if b and not b.startswith(NOT_HUMAN) and not FORWARDED_COMMAND_RE.match(b)]
+    return "\n".join(kept)
+
+
+def outside_checkpoints(blocks):
+    inside = False
+    for b in blocks:
+        if b.lstrip().startswith(CHECKPOINT_OPEN):
+            inside = True
+        if not inside:
+            yield b
+        elif CHECKPOINT_CLOSE in b:
+            inside = False
+            yield b.split(CHECKPOINT_CLOSE, 1)[1]
+
+
+class SessionHead:
+    """How a session began, read from every record of its file, so a session resumed into the
+    period keeps its command: the commands it ran, what a person first typed, and whether an Orca
+    coordinator dispatched it."""
+
+    def __init__(self, known=frozenset()):
+        self.known, self.commands, self.first_prompt, self.dispatched = known, [], None, False
+
+    def feed(self, record):
+        self.commands += commands_in(record, self.known)
+        if record.get("type") == "user":
+            self.dispatched = self.dispatched or is_dispatched(text_of((record.get("message") or {}).get("content")))
+            self.first_prompt = self.first_prompt or human_text(record) or None
+
+    def command(self):
+        return primary_command(self.commands, self.first_prompt, self.dispatched)
+

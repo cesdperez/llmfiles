@@ -6,7 +6,8 @@ Usage: session-friction.py [--days 14] [--root ~/.claude/projects] [--command NA
 
 Emits JSON on stdout. Per session: the human messages after the first (corrections, nudges,
 interrupts), each subagent's brief and report cut short with its review findings, review tables
-with the findings that survived, review pushback, rework signals and tool errors. Across
+with the findings that survived, review pushback and rework signals in what the human typed, and
+tool errors. Across
 sessions: tool errors by category with counts and an example, and secrets found, named by session,
 date and kind, never by value. Secrets are redacted from every extract. `--session` gives one
 session's timeline instead.
@@ -26,9 +27,6 @@ import transcripts as tr  # noqa: E402
 
 MAX_HUMANS = 40
 MAX_SNIPPETS = 5
-NOT_HUMAN = ("<task-notification", "<system-reminder", "Another Claude session", "<agent-message",
-             "──── From: ", "Base directory", "**Role:**", "<local-command", "Caveat",
-             "This session is being continued", "<bash-", "[Request interrupted by user for tool use]")
 SLASH_COMMAND = ("<command-name>", "<command-message>")
 INTERRUPT = "[Request interrupted"
 FINDING_RE = re.compile(r"\[\d+(?:\.\d+)?/10\]")
@@ -113,7 +111,7 @@ def error_message_key(message):
 def classify_human(text):
     """'human', 'command' for a typed slash command, or None for text no person wrote."""
     head = text.lstrip()
-    if not head or head.startswith(NOT_HUMAN):
+    if not head or head.startswith(tr.NOT_HUMAN):
         return None
     return "command" if head.startswith(SLASH_COMMAND) else "human"
 
@@ -158,35 +156,36 @@ class FileFindings:
 
 class MainExtract:
     def __init__(self, known, clip_n):
-        self.known, self.clip_n = known, clip_n
-        self.commands, self.humans, self.tables, self.pushback, self.rework = [], [], [], [], []
-        self.interrupts, self.seen_first, self.dispatched, self.first_ts = 0, False, False, None
+        self.head, self.clip_n = tr.SessionHead(known), clip_n
+        self.humans, self.tables, self.pushback, self.rework = [], [], [], []
+        self.interrupts, self.seen_first, self.first_ts = 0, False, None
 
     def feed(self, d, ts, in_window):
-        self.commands += tr.commands_in(d, self.known)
+        self.head.feed(d)
         if not in_window:
             return
         self.first_ts = self.first_ts or ts
         content = (d.get("message") or {}).get("content")
-        if d.get("type") == "user" and not d.get("isMeta") and not d.get("isCompactSummary"):
-            self.user_text(tr.text_of(content), d.get("timestamp") or "")
+        if d.get("type") == "user":
+            self.user_text(tr.human_text(d), d.get("timestamp") or "")
         elif d.get("type") == "assistant" and isinstance(content, list):
             for b in content:
                 if isinstance(b, dict) and b.get("type") == "text":
                     self.assistant_text(b.get("text", ""))
 
     def user_text(self, text, at):
-        self.dispatched = self.dispatched or tr.is_dispatched(text)
         kind = classify_human(text)
         if kind is None:
             return
-        if kind == "human":
+        # A coordinator wrote the dispatch preamble, yet it is the session's first message.
+        if kind == "human" and not tr.is_dispatched(text):
             if text.lstrip().startswith(INTERRUPT):
                 self.interrupts += 1
                 text = "[interrupted]"
             if self.seen_first and len(self.humans) < MAX_HUMANS:
                 self.humans.append({"at": at[:16], "text": clip(text, self.clip_n)})
             self.pushback += snippets(text, PUSHBACK_RE)
+            self.rework += snippets(text, REWORK_RE)
         self.seen_first = True
 
     def assistant_text(self, text):
@@ -197,11 +196,9 @@ class MainExtract:
             tail = text[i:] if i >= 0 else text[-400:]
             self.tables.append({"kept": [{"score": float(s), "lens": lens} for s, lens in rows],
                                 "summary": clip(tail, 2 * self.clip_n)})
-        self.pushback += snippets(text, PUSHBACK_RE)
-        self.rework += snippets(text, REWORK_RE)
 
     def result(self):
-        return {"dispatched": self.dispatched, "humans": self.humans, "interrupts": self.interrupts,
+        return {"dispatched": self.head.dispatched, "humans": self.humans, "interrupts": self.interrupts,
                 "review_tables": self.tables, "review_pushback": self.pushback[:MAX_SNIPPETS],
                 "rework": self.rework[:MAX_SNIPPETS]}
 
@@ -292,22 +289,22 @@ def session_row(path, root, cutoff, known, clip_n):
     errors = [e for f in findings for e in f.errors]
     secrets = sum((f.secrets for f in findings), Counter())
     row = {"session": session, "project": tr.project_label(project), "date": date_of(main.first_ts),
-           "commands": main.commands, **main.result(), "tool_errors": len(errors), "agents": agents}
+           "commands": main.head.commands, "command": main.head.command(),
+           **main.result(), "tool_errors": len(errors), "agents": agents}
     return row, errors, secrets
 
 
 def analyze(root, days, wanted=None, clip_n=300, now=None, known=None):
     known = tr.repo_commands() if known is None else known
-    wanted = set(wanted or known)
+    wanted = set(wanted or known | {c for _, c in tr.IMPLIED_COMMANDS} | {tr.ORCA_WORKER})
     cutoff = tr.cutoff_for(days, now)
     sessions, secrets, tally = [], [], ErrorTally()
     for path, kind in tr.transcript_files(root, cutoff):
         if kind != "main":
             continue
         row, errors, found = session_row(path, root, cutoff, known, clip_n)
-        if not row["commands"] or row["commands"][0] not in wanted or not row["date"]:
+        if row["command"].removesuffix("[fleet-worker]") not in wanted or not row["date"]:
             continue
-        row["command"] = row["commands"][0] + ("[fleet-worker]" if row["dispatched"] else "")
         tally.add(row["session"], row["command"], errors)
         secrets += [{"session": row["session"], "date": row["date"], "kind": k, "count": n} for k, n in found.items()]
         sessions.append(row)
