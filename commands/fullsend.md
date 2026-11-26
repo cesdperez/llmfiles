@@ -111,7 +111,9 @@ sharing a repo with sibling worktrees.
 The home repo is the one the session started in. Keep the run state in
 `$(git rev-parse --git-dir)/fullsend-ledger.md` of the home repo. Inside a linked worktree
 `--git-dir` resolves to that worktree's own directory, so concurrent runs never share a
-ledger, and it is never committed.
+ledger, and it is never committed. The plan and notes of stage 2 live in the home checkout
+as `.fullsend/plan.md` and `.fullsend/notes.md`, because workers, isolated ones included,
+may be refused writes inside the git directory. Setup excludes `.fullsend/` from git.
 
 Record: source, its acceptance criteria, endpoint, intake questions with their answers,
 repos with branch and base, current stage, blocked stages and why, review findings left
@@ -122,9 +124,9 @@ On start, if a ledger exists for the same source, resume from its stage. A ledge
 another source belongs to an unfinished run: ask whether to resume it or replace it.
 
 When the home checkout is a hub, as `~/llmfiles/shared/meta-hub.md` defines it, read that
-file too. Several runs share a hub, so wherever this file names `fullsend-ledger.md` or
-`fullsend-qa/`, use `fullsend-ledger-<jira-key>.md` and `fullsend-qa-<jira-key>/`, and
-leave other sources' ledgers alone.
+file too. Several runs share a hub, so add `-<jira-key>` to the name of each run file
+this command names, such as `fullsend-ledger-<jira-key>.md`, `fullsend-qa-<jira-key>/` and
+`.fullsend/plan-<jira-key>.md`, and leave other sources' files alone.
 
 ## Blocked stages
 
@@ -202,15 +204,14 @@ worktrees at once starve each other, and tests that pass alone then fail. One lo
 ### 0. Intake
 
 Read the source fully: the ticket with its links and comments, or the whole Slack thread.
-Send the codebase exploration to a `worker` (or `Explore` when only locations are needed): it
-returns the repos involved, the files to change, the approach, and the open questions it
-found. That worker owns the working set, so it implements in stage 2. Collect every open
-question (ambiguous scope, feature flags to create, test accounts, which environment to verify on,
-whether to leave a server running to try it) and ask them in one batch, each with a
-recommended default. AskUserQuestion holds four questions per call, so use as few calls as
-fit. If nothing is unclear, ask nothing. In worker mode, ask through the coordinator. If asking
-is not possible (headless, delegated or unattended run), take the defaults and record them
-in the ledger.
+Send the codebase exploration to a `worker` (or `Explore` when only locations are needed):
+it returns the repos involved, the files to change, the approach, and the open questions it
+found. Collect every open question (ambiguous scope, feature flags to create, test accounts,
+which environment to verify on, whether to leave a server running to try it) and ask them in
+one batch, each with a recommended default. AskUserQuestion holds four questions per call,
+so use as few calls as fit. If nothing is unclear, ask nothing. In worker mode, ask through
+the coordinator. If asking is not possible (headless, delegated or unattended run), take the
+defaults and record them in the ledger.
 
 Write each source's acceptance criteria to the ledger: the ticket's own, or ones derived
 from the task text when it has none. Stages 3 and 4 read them from there.
@@ -242,6 +243,8 @@ card `--unread` and give one concise instruction.
 - At a hub outside Orca, leave the home checkout on its branch: every involved repo gets a worktree.
   The first takes `--parent-worktree current`, and the others take
   `--parent-worktree path:<first worktree>`, so the run folds under one card.
+- Add `.fullsend/` to `$(git rev-parse --git-common-dir)/info/exclude` of the home repo
+  unless it is there, so the plan and notes are never committed.
 - Jira: assign to the user and move to In Progress.
 
 ### 2. Implement
@@ -256,10 +259,19 @@ card `--unread` and give one concise instruction.
   instructions say it is cheap, or when the change is cross-cutting, and under
   [the machine lock](#the-machine-lock). Without a test suite, the verify stage carries
   the proof.
-- The intake `worker` implements, continued with SendMessage, and later fixes from review
-  and verify go to it too. Publish `2/8 implement` in the message that sends it the
-  implement brief, or the card shows intake for the whole implementation. Only a change of
-  one or two files whose exact edit was known at intake stays in this session.
+- **Plan first.** A `worker` writes `.fullsend/plan.md`: the ordered steps, the files each
+  changes and the check that shows it done. It starts `.fullsend/notes.md` and then works
+  the steps in order. After each step it appends to the notes what it changed, the
+  decisions it made, the traps it hit and the `file:line` pointers the next step needs.
+  Publish `2/8 implement` in the message that sends this brief, or the card shows intake
+  for the whole implementation.
+- **Step workers.** A worker stops after the step on which its context passes 100k
+  tokens, which `subagent-context-budget.py` tells it, and reports. Send the remaining
+  steps to a fresh `worker` whose brief names the plan and notes files and says to start
+  from the notes. Never resume a step worker: past 100k every request costs more, and an
+  agent idle over 5 minutes rewrites its whole cache when resumed.
+- Only a change of one or two files whose exact edit was known at intake stays in this
+  session.
 - Independent parts get a `worker` each, with `isolation: "worktree"`. Its brief tells it to
   use paths relative to its worktree and keep scratch files inside it, because a command
   that leaves the worktree is refused. A part whose brief is complete and needs no network
@@ -299,7 +311,7 @@ once per repo, from inside that repo's checkout. Leave out `--autofix`, and do n
 the ledger's sources, their acceptance criteria and the intake answers.
 
 Write the findings at its fix bar to the ledger for the fix round in stage 4, where the
-implementing worker runs an unconfirmed finding's check first and fixes it only if it holds. Write every
+fix worker runs an unconfirmed finding's check first and fixes it only if it holds. Write every
 other finding there too, and carry it into the MR description if it matters to a
 reviewer. The printed report ends the skill, not the run: the message that holds it also
 moves the card to stage 4.
@@ -324,8 +336,11 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 - Report Pass or Fail per criterion with one line of evidence. Save screenshots of failures
   and of the main UI change in `fullsend-qa/`.
 - **Fix round.** Once review and verify have both reported, send the review findings at the
-  fix bar and every verify Fail to the implementing worker in one SendMessage, to fix and
-  commit: the controller holds conclusions, not file contents. With neither, go to stage 5.
+  fix bar and every verify Fail to a fresh `worker`, the fix worker, in one brief. Give
+  each item with its `file:line` pointers, and the path of `.fullsend/notes.md`. It fixes,
+  commits, and appends to the notes. A fix needs the finding's lines, not the
+  implementation's history, so never resume a step worker for it. With neither, go to
+  stage 5.
 - **Rerun.** After the fixes, this session takes the lock again, and the verify worker
   reruns only what they could change: the tests scoped to the changed files, every
   criterion that failed, and every criterion whose code path a fix touched. Review fixes
@@ -374,11 +389,11 @@ codes. Act on them this way:
 - Exit 4: at endpoint `prod`, the deploy jobs the endpoint covers are the run's to start.
   Any other manual job goes to the user.
 
-Every pushed commit needs its own green pipeline, so after a fix push the wait runs again
-on the new HEAD. The implementing worker fixes failures caused by the change, pushes, and
-reports without waiting on the pipeline. A failure that is not caused by the change (flaky
-job, infra) gets one retry, then goes in the report. Stop after three fix attempts per
-pipeline.
+Every pushed commit needs its own green pipeline, so after a fix push the wait runs again on
+the new HEAD. A fresh fix worker, briefed with the failing job's log lines and
+`.fullsend/notes.md`, fixes failures caused by the change, pushes, and reports without waiting on the
+pipeline. A failure that is not caused by the change (flaky job, infra) gets one retry, then
+goes in the report. Stop after three fix attempts per pipeline.
 
 ### 7. Land
 
@@ -408,8 +423,8 @@ A personal repo that ships to main without a PR has no MR, so only its local mer
   bot and saying so in the handoff's Open line.
 - **Threads.** Once the bot has finished and the pipeline is green, list the unresolved
   threads (`glab mr note list <iid> --state unresolved`, review threads on GitHub). Send
-  them to the implementing worker in one SendMessage. It fixes what holds, commits, pushes,
-  and reports per thread: the fixing commit, or why it does not hold. Reply in each thread
+  them to a fresh fix worker in one brief, each with its `file:line`. It fixes what holds,
+  commits, pushes, and reports per thread: the fixing commit, or why it does not hold. Reply in each thread
   with that, following **Writing MR Text** and `references/mr-comments.md` in `glab-cli`,
   then resolve it. A person's thread that was not fixed stays open, since they decide
   whether the reason holds. A fix push gets its own green pipeline: run the stage 6 wait on
@@ -436,8 +451,8 @@ Clean up only what this run made and what is safe to lose:
   its tip is an ancestor of `origin/<base>`. Ancestry alone misses a squash merge.
 - Delete a local branch only if this run created it and it is merged, with `git branch -D`:
   `-d` refuses a squash-merged branch. At endpoint `branch`, keep it: it is the deliverable.
-- Delete the ledger and `fullsend-qa/` once the endpoint is reached. A blocked run keeps
-  them, so it can resume.
+- Delete the ledger, `.fullsend/` and `fullsend-qa/` once the endpoint is reached.
+  A blocked run keeps them, so it can resume.
 - At endpoint `main` or `prod`, this run's own worktree can go once its branch is merged,
   when it is a linked worktree, not the repo's main checkout, with nothing uncommitted.
   Inside Orca, leave it for `/orcacleanup` and say so in the report's Open line: Orca

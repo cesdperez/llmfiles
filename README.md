@@ -234,8 +234,9 @@ any finding:
 
 ### Claude Code hooks (`claude-hooks/`)
 
-`subagent-context-budget.py` is a `PostToolUse` hook. When a subagent's context passes 150k
-tokens, it tells that subagent once to finish its step and report a handoff. When the main
+`subagent-context-budget.py` is a `PostToolUse` hook. When a subagent's context passes 100k
+tokens, it tells that subagent once to finish its step and write a handoff to its notes file
+or report. When the main
 session passes 120k, it tells it once to hand the remaining reading and editing to agents.
 Neither can see its own token count, so the delegation rule in `shared/CLAUDE.md` needs this to
 hold. `SUBAGENT_CONTEXT_WARN_TOKENS` and `MAIN_CONTEXT_WARN_TOKENS` override the limits.

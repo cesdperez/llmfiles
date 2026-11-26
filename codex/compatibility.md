@@ -19,6 +19,7 @@ These adaptations take precedence over Claude-specific instructions in `commands
 - When custom roles are unavailable but delegation is supported, read the matching TOML and use its instructions, model, and effort in the supported spawn mechanism. Otherwise run the mandates sequentially and disclose that limitation. Never drop a lens because no slot is available.
 - `codex-reviewer` would run the same model family as `reviewer` here, so skip a review protocol's extra `codex-reviewer` run of a lens.
 - Inspection agents make no edits, commits, pushes, or external writes. The `verify` lens may run the affected flow and existing tests. These are behavioral restrictions; custom agents inherit the parent session's permissions.
+- Claude hooks under `claude-hooks/` do not run here, so no hook tells an agent its context passed its budget. Where a source workflow restarts step workers on that signal, one worker works every step of the plan and keeps the notes.
 - Treat Claude's `background` and `maxTurns` as source metadata. Use Codex's available agent lifecycle and wait for required results before reporting completion.
 
 ## GitLab and notifications

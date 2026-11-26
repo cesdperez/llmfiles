@@ -11,16 +11,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-WARN_TOKENS = int(os.environ.get("SUBAGENT_CONTEXT_WARN_TOKENS", "150000"))
-# Lower than the subagent limit: the main session may run in a 200k window and still has later steps to coordinate.
+WARN_TOKENS = int(os.environ.get("SUBAGENT_CONTEXT_WARN_TOKENS", "100000"))
+# Higher than the subagent limit: the main session cannot restart from a notes file, so it hands off later, still short of a 200k window.
 MAIN_WARN_TOKENS = int(os.environ.get("MAIN_CONTEXT_WARN_TOKENS", "120000"))
 TAIL_BYTES = 512 * 1024
 MARKER_DIR = Path(tempfile.gettempdir()) / "claude-subagent-context-budget"
 
 
 SUBAGENT_ADVICE = (
-    "Finish the step you are on, then report what is done, what remains, "
-    "and the file:line pointers a fresh agent needs to continue."
+    "Finish the step you are on, then write what is done, what remains, and the file:line "
+    "pointers a fresh agent needs to continue to the notes file your brief names, or to your report."
 )
 MAIN_ADVICE = (
     "Hand the remaining reading, exploring and editing to agents, and keep only their "
