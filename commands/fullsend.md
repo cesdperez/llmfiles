@@ -1,7 +1,7 @@
 ---
 description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
 argument-hint: <jira key|jira url|slack url|task text>... [open a PR|ship to main|ship to prod] [fix leftovers] [unattended] [in a new worktree]
-allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, Monitor, TaskStop, ToolSearch
+allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, TaskStop, ToolSearch
 ---
 
 **Role:** controller of one end-to-end delivery run. You own the stage order, the ledger,
@@ -278,6 +278,11 @@ card `--unread` and give one concise instruction.
 - Keep docs in sync in the same commits: docs that describe the changed behaviour, and
   any trap this run hit that the repo's agent docs did not warn about, written in the file
   that owns that topic. Both follow `~/llmfiles/shared/agent-docs-bar.md`.
+- **Open the MR now.** When the run will open an MR or PR (stage 5), implement ends by
+  pushing each branch and opening its draft: `glab mr create --draft` with the flags and
+  title format in `glab-cli`, assigned to the user, or `gh pr create --draft` on a GitHub
+  remote. The pipeline then runs while review and verify do. Stage 5 writes the
+  description.
 
 ### 3. Review
 
@@ -327,8 +332,8 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 
 Skip this stage and stage 6 at endpoint `branch`.
 
-Push each branch and open one draft MR per repo (`glab mr create --draft` with the flags in
-`glab-cli`), assigned to the user. On a GitHub remote, open a draft PR with `gh` instead.
+Finish the draft MR stage 2 opened in each repo: push the fixes from stage 4, then set
+the reviewers and the description, which reflects the final diff.
 
 - Reviewers: one or two engineers from the `team_id` team in `platform_directory`, taken
   only from members with a `gitlab` handle. Rank them by MRs they merged in that repo in the
@@ -353,11 +358,22 @@ Push each branch and open one draft MR per repo (`glab mr create --draft` with t
 
 ### 6. Green
 
-Watch each MR pipeline with Monitor until it finishes. Any Monitor that expires has not
-seen what it waits for, so start it again. The implementing worker fixes failures caused by the
-change, pushes, and reports without waiting on the pipeline. A failure that is not caused
-by the change (flaky job, infra) gets one retry, then goes in the report. Stop after three
-fix attempts per pipeline.
+Wait for each MR's pipeline on the pushed HEAD with
+`python3 ~/llmfiles/scripts/pipeline-wait.py -C <checkout> --mr <iid>`, run with Bash
+`run_in_background` and a 2-hour timeout. It polls on its own and exits when the pipeline
+settles, so this session makes no request while it waits. Its docstring owns the exit
+codes. Act on them this way:
+
+- Exit 5, or the background timeout stopping it: start it again.
+- Exit 3: blocks the stage.
+- Exit 4: at endpoint `prod`, the deploy jobs the endpoint covers are the run's to start.
+  Any other manual job goes to the user.
+
+Every pushed commit needs its own green pipeline, so after a fix push the wait runs again
+on the new HEAD. The implementing worker fixes failures caused by the change, pushes, and
+reports without waiting on the pipeline. A failure that is not caused by the change (flaky
+job, infra) gets one retry, then goes in the report. Stop after three fix attempts per
+pipeline.
 
 Endpoint `main`: mark the MR ready, merge it once the pipeline is green, and confirm the
 main pipeline passes. With MRs in several repos, merge in dependency order (provider before

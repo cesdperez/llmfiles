@@ -182,6 +182,9 @@ is needed.
   in the tuning ledger, lists the proposals with their candidate commits and the entries due a
   verdict, and fills an entry's measured value and verdict from the three scripts' output.
   Its tests are in `scripts/tests/`.
+- `pipeline-wait.py`, used by `/fullsend`, waits in the background until the GitLab pipeline
+  or GitHub runs of a commit settle, and exits with the outcome and the failed jobs, so the
+  session spends nothing while CI runs. Its tests are in `scripts/tests/`.
 - `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks
   (see [Conductor](#conductor)), plus a usage report from opencode's sessions. It reads model and wall time from the opencode session API.
 
