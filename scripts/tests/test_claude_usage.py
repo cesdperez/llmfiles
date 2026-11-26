@@ -102,6 +102,12 @@ class SessionAttribution(unittest.TestCase):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 30), assistant("m1", 29)])
         self.assertIn("(none)", analyze(self.root)["commands"])
 
+    def test_a_token_in_the_first_prompt_is_redacted_from_the_report(self):
+        token = "glpat-" + "x" * 200
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [user(f"push with {token} please", 30), assistant("m1", 29)])
+        top = analyze(self.root)["no_command_sessions"]["top"]
+        self.assertEqual(top[0]["first_user"], "push with [gitlab token redacted] please")
+
     def test_each_session_names_the_setup_it_started_on_even_before_the_window(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 30), assistant("m1", 29)])
         write_jsonl(self.root / PROJECT / "s2.jsonl", [user("hi", 60 * 24 * 10), user("again", 20), assistant("m2", 19)])
@@ -223,6 +229,130 @@ class CostStateCheck(unittest.TestCase):
             {"type": "system", "subtype": "compact_boundary", "timestamp": iso(50)}, assistant("m2", 49),
         ])
         self.assertEqual(self.check()["sessions"], 0)
+
+
+def attachment(kind, minutes_ago, **fields):
+    return {"type": "attachment", "timestamp": iso(minutes_ago), "attachment": {"type": kind, **fields}}
+
+
+class BaseContext(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_first_request_context_is_reported_per_agent_type(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            user("hi", 60), assistant("m1", 59, cache_write=30_000), assistant("m2", 58, cache_read=90_000),
+        ])
+        subagent(self.root, PROJECT, "s1", "a1", "worker", [user("go", 50), assistant("m3", 49, inp=0, cache_write=40_000)])
+        first = analyze(self.root)["base_context"]["first_request_ctx"]
+        self.assertEqual(first["main"]["median"], 30_010)
+        self.assertEqual(first["worker"], {"runs": 1, "median": 40_000, "p90": 40_000})
+
+    def test_a_session_with_usage_before_the_window_has_no_first_request(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 60), assistant("m1", 59, inp=0, cache_write=30_000)])
+        write_jsonl(self.root / PROJECT / "s2.jsonl", [
+            assistant("old", 8 * 24 * 60, inp=0, cache_write=20_000), user("again", 10),
+            assistant("m2", 9, inp=0, cache_read=150_000),
+        ])
+        self.assertEqual(analyze(self.root)["base_context"]["first_request_ctx"]["main"]["runs"], 1)
+
+    def test_skills_listed_are_compared_with_skills_invoked(self):
+        listing = "- fleet: run items\n- glab-cli: GitLab CLI\n- figma:figma-use: Figma"
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            attachment("skill_listing", 60, content=listing),
+            user("hi", 59),
+            assistant("m1", 58, content=[tool_use("t1", "Skill", skill="glab-cli"), tool_use("t2", "Skill", skill="figma:figma-use")]),
+        ])
+        skills = analyze(self.root)["base_context"]["skills"]
+        self.assertEqual(skills["listed"], 3)
+        self.assertEqual(skills["invoked"], {"glab-cli": 1, "figma:figma-use": 1})
+        self.assertEqual(skills["listed_never_invoked"], ["fleet"])
+        self.assertEqual(analyze(self.root)["base_context"]["plugin_calls"], {"figma": 1})
+
+    def test_mcp_calls_are_counted_by_server_and_sessions_by_project(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            user("hi", 60),
+            assistant("m1", 59, content=[tool_use("t1", "mcp__claude_ai_Slack__slack_send_message", text="x")]),
+        ])
+        write_jsonl(self.root / "-other" / "s2.jsonl", [user("hi", 60), assistant("m2", 59)])
+        base = analyze(self.root)["base_context"]
+        self.assertEqual(base["mcp_calls_by_server"], {"claude_ai_Slack": 1})
+        self.assertEqual({k: v["sessions"] for k, v in base["sessions_by_project"].items()}, {"-work-repo": 1, "-other": 1})
+
+
+class CommandEconomics(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_the_command_with_the_largest_spend_is_broken_down(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 120),
+            assistant("m1", 119, content=[tool_use("t1", "Bash", command="git diff --shortstat origin/main...")]),
+            tool_result("t1", " 3 files changed, 40 insertions(+), 20 deletions(-)", 118),
+            assistant("m2", 100, content=[tool_use("t2", "Bash", command="cd /repo && glab mr create --draft")]),
+            tool_result("t2", "https://gitlab.example.com/g/r/-/merge_requests/7", 99),
+            assistant("m3", 98, out=10),
+            user("now rebase it", 68),
+            assistant("m4", 67, out=10),
+        ])
+        subagent(self.root, PROJECT, "s1", "a1", "reviewer", [user("review", 110), assistant("m5", 109, out=1_000_000)])
+        write_jsonl(self.root / PROJECT / "s2.jsonl", [
+            user("You are a dispatched worker. Task ID: 2", 60), slash("fullsend", 59),
+            assistant("m6", 58, content=[tool_use("t3", "Bash", command="git push -u origin HEAD")]),
+            tool_result("t3", "ok", 57),
+        ])
+        write_jsonl(self.root / PROJECT / "s3.jsonl", [slash("fleet", 30), assistant("m7", 29)])
+        econ = analyze(self.root)["command_economics"]
+        self.assertEqual(econ["command"], "fullsend")
+        self.assertEqual(econ["sessions"], 2)
+        self.assertGreater(econ["cost_by_role"]["reviewer"], econ["cost_by_role"]["main"])
+        self.assertEqual({k: v["sessions"] for k, v in econ["by_change_size"].items()}, {"51-200": 1, "unknown": 1})
+        self.assertAlmostEqual(econ["wait_min"], 30)
+        self.assertEqual(econ["human_turns"], 1)
+        self.assertEqual(econ["outcomes"], {"mr_created": 1, "pushed": 1, "neither": 0})
+
+    def test_consecutive_human_messages_wait_only_on_the_assistant_turn_before_them(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 120), assistant("m1", 119), user("are you there", 89), user("hello?", 79),
+            assistant("m2", 78),
+        ])
+        econ = analyze(self.root)["command_economics"]
+        self.assertAlmostEqual(econ["wait_min"], 30)
+        self.assertAlmostEqual(econ["work_min"], 42 - 30)
+
+    def test_a_failed_or_unanswered_mr_create_or_push_is_no_outcome(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 60),
+            assistant("m1", 59, content=[tool_use("t1", "Bash", command="glab mr create --draft")]),
+            tool_result("t1", "error: no remote", 58, is_error=True),
+            assistant("m2", 57, content=[tool_use("t2", "Bash", command="git push -u origin HEAD")]),
+        ])
+        econ = analyze(self.root)["command_economics"]
+        self.assertEqual(econ["outcomes"], {"mr_created": 0, "pushed": 0, "neither": 1})
+
+    def test_change_size_is_the_last_git_diff_stat_across_main_and_subagents(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            slash("fullsend", 120),
+            assistant("m1", 119, content=[tool_use("t1", "Bash", command="git diff --shortstat origin/main...")]),
+            tool_result("t1", " 9 files changed, 400 insertions(+), 100 deletions(-)", 118),
+            assistant("m2", 90, content=[tool_use("t2", "Bash", command="git log --stat -5")]),
+            tool_result("t2", " 90 files changed, 4000 insertions(+)", 89),
+        ])
+        subagent(self.root, PROJECT, "s1", "a1", "worker", [
+            user("go", 110),
+            assistant("m3", 100, content=[tool_use("t3", "Bash", command="git -C /repo diff --stat main")]),
+            tool_result("t3", " 2 files changed, 40 insertions(+), 20 deletions(-)", 99),
+        ])
+        sizes = analyze(self.root)["command_economics"]["by_change_size"]
+        self.assertEqual({k: v["sessions"] for k, v in sizes.items()}, {"51-200": 1})
 
 
 class Helpers(unittest.TestCase):

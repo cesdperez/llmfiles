@@ -6,7 +6,8 @@ Usage: claude-usage.py [--days 14] [--root ~/.claude/projects]
 Emits JSON on stdout. Dollar figures are list-price equivalents from PRICES, not what a
 subscription bills. A session belongs to its first slash command, or the command its first
 prompt implies, and its subagents' spend counts toward it. `headline` holds the flat metrics
-/tunesetup compares run to run.
+/tunesetup compares run to run. `base_context` holds what every session pays before its work, and
+`command_economics` breaks down the command with the largest spend.
 """
 
 import argparse
@@ -42,6 +43,13 @@ SKIP_TYPES = {"queue-operation", "atis-latch", "tools-used", "ai-title", "last-p
               "api-request-blob", "api-request-shape"}
 NOTIFICATION_ID_RE = re.compile(r"<tool-use-id>([^<]+)</tool-use-id>")
 HANDBACK_RE = re.compile(r'<agent-message from="([^"]+)">')
+SKILL_LINE_RE = re.compile(r"^- ([\w.-]+(?::[\w.-]+)?):\s", re.M)
+SHORTSTAT_RE = re.compile(r"(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?")
+DIFF_STAT_RE = re.compile(r"\bgit (-C \S+ )?diff\b.*--(short)?stat\b")
+MR_CREATE_RE = re.compile(r"\b(glab mr create|gh pr create)\b")
+PUSH_RE = re.compile(r"\bgit push\b")
+CHANGE_SIZES = ((50, "1-50"), (200, "51-200"), (1000, "201-1000"))
+NOT_A_COMMAND = ("(none)", tr.ORCA_WORKER)
 
 
 def price_for(model, ctx):
@@ -157,7 +165,9 @@ def new_transcript(path, kind, root, known):
         "agent_type": None, "meta": {}, "first_ts": None, "last_ts": None, "commands": [], "first_user": None,
         "tool_uses": {}, "tool_results": [], "compactions": 0, "req_start": {}, "api_params": [],
         "notif": {}, "handback": {}, "cost_state": None, "entry": None, "head": tr.SessionHead(known),
-        "file_first_ts": None, "last_usage_pos": -1,
+        "file_first_ts": None, "last_usage_pos": -1, "listed_skills": set(), "listing_bytes": 0,
+        "last_asst_ts": None, "seen_human": False, "wait": 0.0, "human_turns": 0, "change_lines": None,
+        "failed": set(), "usage_before_window": False,
     }
     if kind == "sub":
         t["meta"] = tr.subagent_meta(path)
@@ -178,6 +188,10 @@ def scan(path, kind, root, cutoff, msgs, known):
         typ = d.get("type")
         if typ == "attachment":
             at = d.get("attachment") or {}
+            if at.get("type") == "skill_listing" and (tr.parse_ts(d.get("timestamp")) or 0) >= cutoff:
+                listing = at.get("content") or ""
+                t["listed_skills"].update(SKILL_LINE_RE.findall(listing))
+                note_max(t, "listing_bytes", len(listing.encode()))
             prompt = at.get("prompt") if at.get("type") == "queued_command" else None
             if isinstance(prompt, str) and "<task-notification>" in prompt and "<result>" in prompt:
                 m = NOTIFICATION_ID_RE.search(prompt)
@@ -194,6 +208,8 @@ def scan(path, kind, root, cutoff, msgs, known):
             t["file_first_ts"] = ts
         if typ == "assistant" and (d.get("message") or {}).get("usage"):
             t["last_usage_pos"] = pos
+        if ts is not None and ts < cutoff and typ == "assistant" and (d.get("message") or {}).get("usage"):
+            t["usage_before_window"] = True
         if ts is None or ts < cutoff:
             continue
         t["first_ts"] = ts if t["first_ts"] is None else min(t["first_ts"], ts)
@@ -224,6 +240,7 @@ def scan_api_request(t, d, ts):
 
 def scan_assistant(t, d, ts, msgs):
     m = d.get("message") or {}
+    t["last_asst_ts"] = ts
     if m.get("usage") and m.get("id") and m.get("model") != "<synthetic>":
         msgs[m["id"]].append(usage_record(d, m, ts, t["path"]))
     for b in m.get("content") or []:
@@ -250,11 +267,32 @@ def scan_user(t, d, ts):
             note_max(t["handback"], m.group(1), len(txt.encode()))
     if txt and not d.get("isMeta") and t["first_user"] is None and "tool_result" not in str(content)[:50]:
         t["first_user"] = txt[:3000]
+    typed = tr.human_text(d)
+    if typed and not tr.is_dispatched(typed):
+        if t["seen_human"]:
+            t["human_turns"] += 1
+            if t["last_asst_ts"] is not None:
+                t["wait"] += ts - t["last_asst_ts"]
+                t["last_asst_ts"] = None
+        t["seen_human"] = True
     if isinstance(content, list):
         for b in content:
             if isinstance(b, dict) and b.get("type") == "tool_result":
                 size, media = result_size(b.get("content"))
                 t["tool_results"].append((b.get("tool_use_id"), size, media, ts))
+                if b.get("is_error"):
+                    t["failed"].add(b.get("tool_use_id"))
+                note_change_size(t, b.get("tool_use_id"), tr.tool_result_text(b), ts)
+
+
+def note_change_size(t, tool_id, text, ts):
+    """The diff size the last `git diff --stat` or `--shortstat` reported, with when it did."""
+    cmd = (t["tool_uses"].get(tool_id) or {}).get("full_cmd") or ""
+    if "changed" not in text or not DIFF_STAT_RE.search(cmd):
+        return
+    lines = [int(m.group(2) or 0) + int(m.group(3) or 0) for m in SHORTSTAT_RE.finditer(text[:20000])]
+    if lines:
+        t["change_lines"] = (ts, lines[-1])
 
 
 def dedupe(msgs, T):
@@ -328,6 +366,8 @@ def report(scanned, keep=None):
     out.update(effort_section(ctx))
     out["tools"] = tools_section(ctx)
     out["parallelism"] = parallelism_section(ctx, sessions)
+    out["base_context"] = base_context(ctx, sessions)
+    out["command_economics"] = command_economics(ctx, sessions)
     out["headline"] = headline(out)
     return out
 
@@ -466,13 +506,20 @@ def session_rows(ctx):
         rs = reqs.get(p, [])
         all_rs = rs + [r for s in subs for r in reqs.get(s, [])]
         last = max([t["last_ts"]] + [T[s]["last_ts"] for s in subs if T[s]["last_ts"]])
+        files = [t, *(T[s] for s in subs)]
+        cmds_run = [f["tool_uses"][tid]["full_cmd"] for f in files for tid, *_ in f["tool_results"]
+                    if tid in f["tool_uses"] and f["tool_uses"][tid]["full_cmd"] and tid not in f["failed"]]
+        sizes = [f["change_lines"] for f in files if f["change_lines"] is not None]
         rows.append({
+            "wait_min": t["wait"] / 60, "human_turns": t["human_turns"], "change_lines": max(sizes, default=(None, None))[1],
+            "outcome": "mr_created" if any(MR_CREATE_RE.search(c) for c in cmds_run)
+            else "pushed" if any(PUSH_RE.search(c) for c in cmds_run) else "neither",
             "path": p, "project": tr.project_label(t["project"]), "session": t["session"], "commands": cmds,
             "primary": primary, "cost": cost, "main_cost": tcost(ctx, p), "sub_cost": cost - tcost(ctx, p),
             "n_subs": len(subs), "dur_min": (last - t["first_ts"]) / 60,
             "peak_ctx": max((r["ctx"] for r in rs), default=0), "compactions": t["compactions"],
             "cr": sum(r["cr"] for r in all_rs), "cw": sum(r["cw5"] + r["cw1"] for r in all_rs),
-            "first_user": (t["first_user"] or "")[:160], "entry": t["entry"],
+            "first_user": tr.redact(t["first_user"] or "")[:160], "entry": t["entry"],
             "cost_state": final_cost_state(t, [T[s] for s in subs], ctx["cutoff"]),
             "first_ts": t["first_ts"], "requests": len(rs), "setup_rev": t["setup_rev"],
             "cost_over_200k": sum(r["cost"] or 0 for r in rs if r["ctx"] > 200_000),
@@ -699,6 +746,76 @@ def parallelism_section(ctx, sessions):
     }
 
 
+def first_request_ctx(ctx):
+    by_type = defaultdict(list)
+    for p, rs in ctx["reqs"].items():
+        if rs and not ctx["T"][p]["usage_before_window"]:
+            by_type[ctx["T"][p]["agent_type"] or "main"].append(rs[0]["ctx"])
+    return {k: {"runs": len(v), "median": med(v), "p90": pct(v, .9)}
+            for k, v in sorted(by_type.items(), key=lambda kv: -len(kv[1]))}
+
+
+def base_context(ctx, sessions):
+    """What sessions carry before their work: first-request context per agent type, the skills
+    listed against those invoked, MCP and plugin calls, and where the sessions ran."""
+    T = ctx["T"]
+    uses = [u for t in T.values() for u in t["tool_uses"].values()]
+    invoked = Counter(u["key"].removeprefix("Skill: ") for u in uses if u["name"] == "Skill")
+    listed = set().union(*(t["listed_skills"] for t in T.values()))
+    mcp = Counter(u["name"].split("__")[1] for u in uses if (u["name"] or "").startswith("mcp__") and u["name"].count("__") >= 2)
+    projects = defaultdict(Counter)
+    for s in sessions:
+        projects[s["project"]]["sessions"] += 1
+        projects[s["project"]]["cost"] += s["cost"]
+    return {
+        "first_request_ctx": first_request_ctx(ctx),
+        "skills": {"listed": len(listed), "listing_bytes_max": max((t["listing_bytes"] for t in T.values()), default=0),
+                   "invoked": dict(invoked.most_common()), "listed_never_invoked": sorted(listed - set(invoked))},
+        "plugin_calls": dict(Counter(k.split(":")[0] for k in invoked.elements() if ":" in k)),
+        "mcp_calls_by_server": dict(mcp.most_common()),
+        "sessions_by_project": {k: dict(v) for k, v in sorted(projects.items(), key=lambda kv: -kv[1]["cost"])[:25]},
+    }
+
+
+def change_size(lines):
+    if lines is None:
+        return "unknown"
+    if lines == 0:
+        return "0"
+    return next((label for top, label in CHANGE_SIZES if lines <= top), f">{CHANGE_SIZES[-1][0]}")
+
+
+def command_economics(ctx, sessions):
+    """Where the command with the largest spend puts its money and time: cost by role, cost and
+    minutes by change size, time waiting on a person against working, and how its sessions ended."""
+    by_cmd = defaultdict(list)
+    for s in sessions:
+        name = s["primary"].removesuffix("[fleet-worker]")
+        if name not in NOT_A_COMMAND:
+            by_cmd[name].append(s)
+    if not by_cmd:
+        return {}
+    name, ss = max(by_cmd.items(), key=lambda kv: sum(s["cost"] for s in kv[1]))
+    roles = Counter()
+    for s in ss:
+        roles["main"] += s["main_cost"]
+        for sub in ctx["subs_of"].get(s["path"], []):
+            roles[ctx["T"][sub]["agent_type"]] += tcost(ctx, sub)
+    sizes = defaultdict(list)
+    for s in ss:
+        sizes[change_size(s["change_lines"])].append(s)
+    wait = sum(s["wait_min"] for s in ss)
+    return {
+        "command": name, "sessions": len(ss), "cost": sum(s["cost"] for s in ss),
+        "cost_by_role": dict(roles.most_common()),
+        "by_change_size": {k: {"sessions": len(v), "median_cost": med([s["cost"] for s in v]),
+                               "median_dur_min": med([s["dur_min"] for s in v])} for k, v in sorted(sizes.items())},
+        "wait_min": wait, "work_min": sum(s["dur_min"] for s in ss) - wait,
+        "human_turns": sum(s["human_turns"] for s in ss),
+        "outcomes": {k: sum(1 for s in ss if s["outcome"] == k) for k in ("mr_created", "pushed", "neither")},
+    }
+
+
 def headline(out):
     h = {
         "total_cost": out["total_cost"], "main_cost": out["main_cost"], "sub_cost": out["sub_cost"],
@@ -708,7 +825,11 @@ def headline(out):
         "compactions_main": out["context"]["compactions_main"],
         "main_idle_min": out["parallelism"]["sum_main_idle_min"],
         "tool_result_bytes": out["tools"]["total_result_bytes"],
+        "skills_listed": out["base_context"]["skills"]["listed"],
+        "skills_invoked": len(out["base_context"]["skills"]["invoked"]),
     }
+    for name, c in out["base_context"]["first_request_ctx"].items():
+        h[f"first_request_ctx.{name}.median"] = c["median"]
     for name, c in out["commands"].items():
         for k in ("sessions", "total_cost", "median_cost", "median_dur_min"):
             h[f"commands.{name}.{k}"] = c[k]

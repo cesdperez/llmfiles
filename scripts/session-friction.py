@@ -9,8 +9,10 @@ interrupts), each subagent's brief and report cut short with its review findings
 with the findings that survived, review pushback and rework signals in what the human typed, and
 tool errors. Across
 sessions: tool errors by category with counts and an example, and secrets found, named by session,
-date and kind, never by value. Secrets are redacted from every extract. `--session` gives one
-session's timeline instead.
+date and kind, never by value. Secrets are redacted from every extract. `outside_commands` lists the
+interactive sessions that ran no command by first prompt, with their follow-up redirects, and
+`retyped_phrases` the phrases typed in several interactive sessions, commands or not. `--session`
+gives one session's timeline instead.
 """
 
 import argparse
@@ -27,6 +29,30 @@ import transcripts as tr  # noqa: E402
 
 MAX_HUMANS = 40
 MAX_SNIPPETS = 5
+MIN_PHRASE_SESSIONS = 4
+PHRASE_WORDS = range(2, 6)
+# Long pastes (logs, diffs) would flood the phrase counts with text nobody typed twice.
+MAX_TYPED_CHARS = 2000
+WORD_RE = re.compile(r"[a-z0-9][a-z0-9'+/.-]*[a-z0-9]|[a-z0-9]")
+STOPWORDS = set("""a an the to of in on at by for from with and or but so if then than as is are was be it its it's
+this that these those i you we me my your our us he she they them do does did can could would should will
+please just also there here what how when which who about into out up""".split())
+# First prompts another program wrote: the opencode conductor's builders and Claude Code's helpers.
+PROGRAM_PROMPTS = ("You are a subagent spawned", "Name this chat", "Generate a short git branch",
+                   "Generate a single git commit message")
+# Sessions started in a scratchpad or temp directory were started by an agent or a test.
+SCRATCH_PROJECTS = ("-claude-runtime", "-private-tmp", "-tmp-")
+ARGS_RE = re.compile(r"<command-args>(.*?)</command-args>", re.S)
+# The first that matches names a follow-up that turned the session around.
+REDIRECTS = [
+    ("interrupted", re.compile(r"^\[interrupted\]")),
+    ("negation", re.compile(r"^(no|nope|don'?t|do not|stop|wait)\b", re.I)),
+    ("challenge", re.compile(r"\bwhy (did|didn'?t|are|is|not)\b|you (didn'?t|forgot|missed|ignored)", re.I)),
+    ("still broken", re.compile(r"still (not|broken|fail|the same|getting)|not working|(doesn|didn)'?t work|same (error|issue)", re.I)),
+    ("scope", re.compile(r"\binstead\b|not what|i (meant|said)|^(only|just)(\s*,|\s+(do|use|change|fix|keep|run|make|add"
+                         r"|remove|update|edit|touch|look|check|the)\b)", re.I)),
+    ("plainer", re.compile(r"plainenglish|didn'?t understand|too (long|verbose|dense)|shorter|more concise|simpler", re.I)),
+]
 SLASH_COMMAND = ("<command-name>", "<command-message>")
 INTERRUPT = "[Request interrupted"
 FINDING_RE = re.compile(r"\[\d+(?:\.\d+)?/10\]")
@@ -38,24 +64,6 @@ PUSHBACK_RE = re.compile(
 REWORK_RE = re.compile(
     r"verify (failed|found)|pipeline (failed|is red|went red)|job [`\w:-]+ failed"
     r"|review (missed|did not catch|didn.t catch)|missed by the review|lenses? (missed|did not)", re.I)
-# Redaction runs in this order, so an anthropic key is gone before the openai pattern sees it.
-# Separate patterns, each starting with a literal, because one alternation scans a hundred times slower.
-SECRET_PATTERNS = [
-    ("anthropic key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
-    ("openai key", r"sk-(?:(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}|[A-Za-z0-9]{32,})"),
-    ("github token", r"gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}"),
-    ("gitlab token", r"glpat-[A-Za-z0-9_-]{20,}"),
-    ("aws access key", r"AKIA[0-9A-Z]{16}"),
-    ("slack token", r"xox[abprs]-[A-Za-z0-9-]{10,}"),
-    ("google key", r"AIza[0-9A-Za-z_-]{35}"),
-    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
-    # A digit tells a token from prose such as "Bearer token-from-the-environment".
-    ("bearer token", r"Bearer\s+(?=[A-Za-z0-9._~+/=-]*\d)[A-Za-z0-9._~+/=-]{20,}"),
-    # Through the END line, or to the end of the text when the key was cut before it.
-    ("private key", r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?s:.*?-----END [A-Z ]*PRIVATE KEY-----|.*)"),
-]
-SECRET_RES = [(kind, re.compile(pattern)) for kind, pattern in SECRET_PATTERNS]
-HOME = os.path.expanduser("~")
 ERROR_KINDS = [
     (r"denied by a built-in Claude Code safety check", "safety-check denial"),
     (r"permission|not allowed|denied", "permission denied"),
@@ -73,21 +81,13 @@ ERROR_KINDS = [
 ]
 
 
-def redact(text):
-    """Text with every secret replaced by its kind, and the home directory shortened to ~."""
-    text = (text or "").replace(HOME, "~")
-    for kind, pattern in SECRET_RES:
-        text = pattern.sub(f"[{kind} redacted]", text)
-    return text
-
-
 def clip(text, n):
-    text = re.sub(r"\s+", " ", redact(text)).strip()
+    text = re.sub(r"\s+", " ", tr.redact(text)).strip()
     return text if len(text) <= n else text[:n] + "..."
 
 
 def snippets(text, pattern, width=160):
-    text = redact(text)
+    text = tr.redact(text)
     return [clip(text[max(0, m.start() - width):m.end() + width], 2 * width + 40) for m in pattern.finditer(text)]
 
 
@@ -138,7 +138,7 @@ class FileFindings:
 
     def feed(self, d, raw):
         line = raw.decode("utf-8", "replace")
-        for kind, pattern in SECRET_RES:
+        for kind, pattern in tr.SECRET_RES:
             for _ in pattern.finditer(line):
                 self.secrets[kind] += 1
         content = (d.get("message") or {}).get("content")
@@ -147,10 +147,10 @@ class FileFindings:
                 continue
             if b.get("type") == "tool_use":
                 inp = b.get("input") if isinstance(b.get("input"), dict) else {}
-                self._tools[b.get("id")] = (b.get("name"), redact(inp.get("command", "") or ""))
+                self._tools[b.get("id")] = (b.get("name"), tr.redact(inp.get("command", "") or ""))
             elif b.get("type") == "tool_result" and b.get("is_error"):
                 tool, cmd = self._tools.get(b.get("tool_use_id"), ("?", ""))
-                message = redact(tr.tool_result_text(b))
+                message = tr.redact(tr.tool_result_text(b))
                 self.errors.append((error_kind(tool, message, cmd), error_message_key(message), cmd, message))
 
 
@@ -159,12 +159,15 @@ class MainExtract:
         self.head, self.clip_n = tr.SessionHead(known), clip_n
         self.humans, self.tables, self.pushback, self.rework = [], [], [], []
         self.interrupts, self.seen_first, self.first_ts = 0, False, None
+        self.entry = None
+        self.typed, self.follow_ups, self.redirects = [], 0, Counter()
 
     def feed(self, d, ts, in_window):
         self.head.feed(d)
         if not in_window:
             return
         self.first_ts = self.first_ts or ts
+        self.entry = self.entry or d.get("entrypoint")
         content = (d.get("message") or {}).get("content")
         if d.get("type") == "user":
             self.user_text(tr.human_text(d), d.get("timestamp") or "")
@@ -177,11 +180,20 @@ class MainExtract:
         kind = classify_human(text)
         if kind is None:
             return
+        if kind == "command":
+            self.typed += [tr.redact(a.strip())[:MAX_TYPED_CHARS] for a in ARGS_RE.findall(text) if a.strip()]
         # A coordinator wrote the dispatch preamble, yet it is the session's first message.
         if kind == "human" and not tr.is_dispatched(text):
             if text.lstrip().startswith(INTERRUPT):
                 self.interrupts += 1
                 text = "[interrupted]"
+            else:
+                self.typed.append(tr.redact(text)[:MAX_TYPED_CHARS])
+            if self.seen_first:
+                self.follow_ups += 1
+                kind = next((k for k, pattern in REDIRECTS if pattern.search(text.strip())), None)
+                if kind:
+                    self.redirects[kind] += 1
             if self.seen_first and len(self.humans) < MAX_HUMANS:
                 self.humans.append({"at": at[:16], "text": clip(text, self.clip_n)})
             self.pushback += snippets(text, PUSHBACK_RE)
@@ -190,7 +202,7 @@ class MainExtract:
 
     def assistant_text(self, text):
         if TABLE_RE.search(text):
-            text = redact(text)
+            text = tr.redact(text)
             rows = TABLE_ROW_RE.findall(text)
             i = text.lower().find("### summary")
             tail = text[i:] if i >= 0 else text[-400:]
@@ -275,6 +287,12 @@ class ErrorTally:
         }
 
 
+def programmatic(main, project):
+    first = (main.head.first_prompt or "").lstrip()
+    return (project.startswith(SCRATCH_PROJECTS) or main.head.dispatched or (main.entry or "").startswith("sdk") or first.startswith(PROGRAM_PROMPTS)
+            or tr.implied_command(first) is not None)
+
+
 def session_row(path, root, cutoff, known, clip_n, revs):
     """A main session's extract, its subagents' extracts, and the errors and secrets across them."""
     main = MainExtract(known, clip_n)
@@ -288,14 +306,16 @@ def session_row(path, root, cutoff, known, clip_n, revs):
             agents.append(extract.result())
     errors = [e for f in findings for e in f.errors]
     secrets = sum((f.secrets for f in findings), Counter())
+    typing = {"entry": main.entry, "first": main.head.first_prompt, "typed": main.typed, "follow_ups": main.follow_ups,
+              "redirects": main.redirects, "interactive": not programmatic(main, tr.project_label(project))}
     row = {"session": session, "project": tr.project_label(project), "date": date_of(main.first_ts),
            "commands": main.head.commands, "command": main.head.command(),
            "setup_rev": revs.at(main.head.start), **main.result(), "tool_errors": len(errors), "agents": agents}
-    return row, errors, secrets, main.head.start
+    return row, errors, secrets, main.head.start, typing
 
 
 def collect(root, days, wanted=None, clip_n=300, now=None, known=None, revs=None):
-    """The extracts of the period's sessions whose command is wanted, read once for one or more reports."""
+    """The extracts of the period's sessions, read once for one or more reports."""
     known = tr.repo_commands() if known is None else known
     wanted = set(wanted or known | {c for _, c in tr.IMPLIED_COMMANDS} | {tr.ORCA_WORKER})
     cutoff = tr.cutoff_for(days, now)
@@ -304,10 +324,10 @@ def collect(root, days, wanted=None, clip_n=300, now=None, known=None, revs=None
     for path, kind in tr.transcript_files(root, cutoff):
         if kind != "main":
             continue
-        row, errors, found, start = session_row(path, root, cutoff, known, clip_n, revs)
-        if row["command"].removesuffix("[fleet-worker]") in wanted and row["date"]:
-            rows.append((row, errors, found, start))
-    return {"days": days, "rows": rows}
+        row, errors, found, start, typing = session_row(path, root, cutoff, known, clip_n, revs)
+        if row["date"]:
+            rows.append((row, errors, found, start, typing))
+    return {"days": days, "wanted": wanted, "rows": rows}
 
 
 def analyze(root, days, wanted=None, clip_n=300, now=None, known=None, revs=None):
@@ -316,17 +336,61 @@ def analyze(root, days, wanted=None, clip_n=300, now=None, known=None, revs=None
 
 def report(scanned, keep=None):
     """The extracts and tallies over the sessions whose (start, setup_rev) keep accepts, or all of them."""
-    days = scanned["days"]
-    sessions, secrets, tally = [], [], ErrorTally()
-    for row, errors, found, start in scanned["rows"]:
+    days, wanted = scanned["days"], scanned["wanted"]
+    sessions, secrets, tally, typings = [], [], ErrorTally(), []
+    for row, errors, found, start, typing in scanned["rows"]:
         if keep and not keep(start, row["setup_rev"]):
+            continue
+        typings.append((row, typing))
+        if row["command"].removesuffix("[fleet-worker]") not in wanted:
             continue
         tally.add(row["session"], row["command"], errors)
         secrets += [{"session": row["session"], "date": row["date"], "kind": k, "count": n} for k, n in found.items()]
         sessions.append(row)
     sessions.sort(key=lambda s: (s["command"], s["date"]))
     return {"days": days, "sessions_by_command": dict(Counter(s["command"] for s in sessions)),
-            **tally.result(), "secrets": secrets, "sessions": sessions}
+            **tally.result(), "secrets": secrets, "outside_commands": outside_commands(typings),
+            "retyped_phrases": retyped_phrases(typings), "sessions": sessions}
+
+
+def outside_commands(typings):
+    """The sessions that ran no command: a person's by first prompt, a program's as a count."""
+    none = [(row, t) for row, t in typings if row["command"] == "(none)"]
+    people = sorted(((row, t) for row, t in none if t["interactive"]), key=lambda rt: rt[0]["date"])
+    return {
+        "programmatic": len(none) - len(people),
+        "redirects": dict(sum((t["redirects"] for _, t in people), Counter())),
+        "sessions": [{"session": row["session"], "project": row["project"], "date": row["date"], "entry": t["entry"],
+                      "first": clip(t["first"], 200), "follow_ups": t["follow_ups"],
+                      "redirects": sum(t["redirects"].values())} for row, t in people],
+    }
+
+
+def phrases_in(text):
+    return set().union(*map(phrases_between_redactions, tr.REDACTED_RE.split(text)))
+
+
+def phrases_between_redactions(text):
+    words = WORD_RE.findall(text.lower())
+    return {" ".join(words[i:i + n]) for n in PHRASE_WORDS for i in range(len(words) - n + 1)
+            if words[i] not in STOPWORDS and words[i + n - 1] not in STOPWORDS}
+
+
+def retyped_phrases(typings, top=40):
+    """Phrases a person typed in MIN_PHRASE_SESSIONS interactive sessions or more, counted once per
+    session, without a shorter phrase that only ever appears inside a longer one."""
+    counts, commands = Counter(), defaultdict(Counter)
+    for row, t in typings:
+        if not t["interactive"]:
+            continue
+        for phrase in set().union(*map(phrases_in, t["typed"])):
+            counts[phrase] += 1
+            commands[phrase][row["command"]] += 1
+    common = {p: n for p, n in counts.items() if n >= MIN_PHRASE_SESSIONS}
+    kept = [p for p, n in common.items()
+            if not any(len(q) > len(p) and f" {p} " in f" {q} " and common[q] == n for q in common)]
+    kept.sort(key=lambda p: (-common[p], -len(p.split()), p))
+    return [{"phrase": p, "sessions": common[p], "commands": dict(commands[p].most_common(3))} for p in kept[:top]]
 
 
 def timeline(root, prefix, clip_n=300):

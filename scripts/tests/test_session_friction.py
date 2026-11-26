@@ -178,6 +178,65 @@ class Extracts(unittest.TestCase):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 60), user("again", 50)])
         self.assertEqual(self.analyze()["sessions"], [])
 
+    def test_sessions_outside_any_command_are_listed_by_first_prompt(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            user("recap what landed in tosti this week", 60), user("no, only the merged ones", 50),
+        ])
+        write_jsonl(self.root / PROJECT / "s2.jsonl", [user("Name this chat", 60, entrypoint="sdk-cli")])
+        out = self.analyze()
+        self.assertEqual(out["sessions"], [])
+        outside = out["outside_commands"]
+        self.assertEqual(outside["programmatic"], 1)
+        self.assertEqual([(r["session"], r["first"], r["follow_ups"], r["redirects"]) for r in outside["sessions"]],
+                         [("s1", "recap what landed in tosti this week", 1, 1)])
+        self.assertEqual(outside["redirects"]["negation"], 1)
+
+    def test_prompts_a_program_wrote_are_not_a_person_working(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            user("You are a subagent spawned by another session. Fix x", 60),
+            user('<subagent sessionID="ses_1" state="completed" description="d">PASSED</subagent>', 50),
+        ])
+        write_jsonl(self.root / PROJECT / "s2.jsonl", [
+            user("tidy the readme", 60),
+            user('<subagent sessionID="ses_2" state="completed" description="d">PASSED</subagent>', 50),
+        ])
+        write_jsonl(self.root / "-claude-runtime-x-scratchpad" / "s3.jsonl", [user("reply with the single word ok", 60)])
+        outside = self.analyze()["outside_commands"]
+        self.assertEqual(outside["programmatic"], 2)
+        self.assertEqual([(r["session"], r["follow_ups"]) for r in outside["sessions"]], [("s2", 0)])
+
+    def test_phrases_typed_in_four_sessions_are_counted_once_per_session(self):
+        for n in range(4):
+            write_jsonl(self.root / PROJECT / f"s{n}.jsonl", [
+                slash("fullsend", 60), user(f"fix bug {n}, then ship to main", 50), user("ship to main", 40),
+            ])
+        write_jsonl(self.root / PROJECT / "s9.jsonl", [user("make it super short", 60, entrypoint="cli")])
+        phrases = {p["phrase"]: p["sessions"] for p in self.analyze()["retyped_phrases"]}
+        self.assertEqual(phrases.get("ship to main"), 4)
+        self.assertNotIn("to main", phrases)
+        self.assertNotIn("super short", phrases)
+
+    def test_a_token_typed_in_four_sessions_is_not_a_retyped_phrase(self):
+        bearer = FAKE_SECRETS["bearer token"]
+        for n in range(4):
+            write_jsonl(self.root / PROJECT / f"s{n}.jsonl", [
+                user(f"<command-name>/fullsend</command-name>\n<command-args>use {FAKE_TOKEN} now</command-args>", 60),
+                user(f"call the api with {bearer} then retry", 50),
+            ])
+        phrases = " | ".join(p["phrase"] for p in self.analyze()["retyped_phrases"])
+        self.assertIn("call the api", phrases)
+        for leak in ("redacted", "glpat", "ggg", "bearer"):
+            self.assertNotIn(leak, phrases)
+
+    def test_waiting_or_checking_is_not_a_redirect(self):
+        for n, follow_up in enumerate(["waiting for CI", "just checking", "nope, use the other file",
+                                       "just use the other file"]):
+            write_jsonl(self.root / PROJECT / f"s{n}.jsonl", [
+                user(f"recap what landed in repo {n}", 60), user(follow_up, 50),
+            ])
+        redirects = self.analyze()["outside_commands"]["redirects"]
+        self.assertEqual(redirects, {"negation": 1, "scope": 1})
+
     def test_timeline_orders_human_assistant_and_error_events(self):
         write_jsonl(self.root / PROJECT / "abc123.jsonl", [
             user("fix the bug", 60),

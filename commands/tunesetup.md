@@ -1,5 +1,5 @@
 ---
-description: Review my Claude Code setup over the last period, every 1 or 2 weeks. Measures usage with scripts, reads the transcripts for friction, checks new outside evidence, compares with the run before, and proposes changes to commands, agents and shared files. Proposes only.
+description: Review my Claude Code setup over the last period, every 1 or 2 weeks. Measures usage with scripts, reads the transcripts for friction, work outside the commands, base context and the costliest command's economics, checks new outside evidence, compares with the run before, and proposes changes to commands, agents, settings and schedules. Proposes only.
 argument-hint: '[days] [focus: a command name, "cost", "speed" or "quality"]'
 disable-model-invocation: true
 ---
@@ -22,6 +22,11 @@ Propose only. This command edits two files: the price table in `~/llmfiles/scrip
 
 Read the newest earlier run directory, if there is one: `usage.json`, `stages.json` and `report.md`. The periods can differ in length, so compare rates: per session, per run or per day, never totals.
 
+Read what else changed and was measured in the period:
+- `git -C ~/llmfiles log --since=<period start> --stat main`: which files churned. A file changed many times is a candidate for a structural fix rather than another edit.
+- `python3 ~/llmfiles/scripts/builder-evals.py summary` and `python3 ~/llmfiles/scripts/builder-evals.py usage`: the opencode conductor's ledger.
+- `~/llmfiles/local/review-bench/results.md`, when it exists: the review benchmark.
+
 ## 2. Measure
 
 Create the run directory, then run the three scripts in parallel, one Bash call each. A week takes under a minute.
@@ -40,7 +45,7 @@ Each session in the three outputs carries `setup_rev`, the commit `main` of `~/l
 
 ## 3. Friction and outside evidence
 
-Spawn two `worker` agents in one message.
+Spawn five `worker` agents in one message. Each returns problems with a count, a quoted example with session id and date, and what works.
 
 **Friction.** Give it `friction.json`, the commands in scope, the rejected ledger entries, and the open hand-counted entries to count again.
 - It reads the extracts one command at a time: `jq '.sessions[] | select(.command | startswith("<name>"))'`.
@@ -52,9 +57,28 @@ Spawn two `worker` agents in one message.
 
 **Outside evidence.** Give it the previous run's date, or the start of the period. It gathers only what was published since then: the Claude Code changelog and docs, benchmarks on code review, orchestration and cost, and practitioner reports. Each claim gets its URL, publish date and a tag: `official docs`, `benchmark`, `vendor claim` or `anecdote`. It reports only claims that bear on a command, agent or setting in this repo.
 
+**Work outside the commands.** Give it `friction.json` and `usage.json`.
+- `outside_commands.sessions` lists the sessions a person ran without a command, by first prompt, and `commands["(none)"]` in `usage.json` gives their spend. It clusters the first prompts into shapes of work and names each shape with 4 or more sessions as a candidate for a command, a schedule or a standing rule.
+- `retyped_phrases` holds phrases typed in 4 or more sessions. A phrase retyped as an instruction (a target, a format, a stopping point) is a candidate default.
+- `outside_commands.redirects` counts follow-ups that turned a session around, by kind. It quotes the shape they cluster in.
+
+**Base context and settings.** Give it `usage.json` and `~/.claude/settings.json`.
+- `base_context.first_request_ctx` gives the tokens each agent type carries on its first request, and `base_context.skills` the skills listed against those invoked.
+- It compares the installed plugins and MCP servers (`enabledPlugins` in settings, `claude mcp list`) with `base_context.plugin_calls` and `base_context.mcp_calls_by_server`, and `tools.calls_by_key` (`Bash: <head>`) with the permission rules and hooks.
+- It compares `autoMode.environment` with the repos the work ran in, `base_context.sessions_by_project`.
+
+**Economics of the costliest command.** Give it `usage.json`, `stages.json` and that command's sessions in `friction.json`.
+- `command_economics` holds cost by role, cost and minutes by change size (lines in git's shortstat), minutes waiting on me against working, and outcomes (MR or PR created, pushed, neither).
+- Review and verify yield comes from the reviewer and verifier reports in `friction.json`: findings raised, findings kept in `review_tables`, and pushback.
+- It reads what I typed in those sessions for work the command leaves to me, such as admin after the MR.
+
 Model and effort choices belong to `/whichmodels`. When the numbers suggest one is wrong (an agent type's cost against its work, a model or effort nobody pinned), say to run `/whichmodels` and why. Do not propose the change here.
 
 ## 4. Draft the proposals
+
+A proposal may be structural: a new command, a schedule, a settings change or a stage replaced, not only an edit to a file. A change to what the permission classifier trusts (`autoMode`, `permissions`) is drafted for me to apply, never applied by an agent, because it widens what runs without asking.
+
+Score each proposal 0 to 10 for value: money, minutes or rework saved, against the cost of the change. Only proposals scoring 7 or more go into the ledger and the report's tables. List the rest as one line each under the bar. At most about 8 proposals per run carry a metric, so their verdicts can be told apart. Keep the 8 with the highest score.
 
 Each proposal has:
 - the files to change and the change in one line;
@@ -79,8 +103,10 @@ Since last run
 Settled since last run
 | Id | Change | Metric | Baseline | Now | Moved |
 
-Proposals: review quality / cost / speed and stalls / tool friction
-| Id | File | Change | Evidence | Expected effect |
+Proposals: review quality / cost / speed and stalls / tool friction / work outside the commands / base context
+| Id | Score | File | Change | Evidence | Expected effect |
+
+Under the bar: one line each, with its score.
 
 Test this: one line each, with its source.
 Leave alone: 3 to 6 lines on what the data shows working.

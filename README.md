@@ -173,12 +173,16 @@ is needed.
   message id, plus cache misses, context size, tool results and parallelism. A session counts
   toward its first command, or the one its first prompt implies (a `fullconduct.md` conductor
   run, a `/code-review` started by `/locallensedreview`); a dispatched Orca worker without one is
-  `orca-worker`. Its `PRICES` table
+  `orca-worker`. It also reports `base_context` (first-request tokens per agent type, skills
+  listed against invoked, MCP and plugin calls, sessions per project) and `command_economics` for
+  the command with the largest spend (cost by role and by change size, waiting against working
+  minutes, outcomes). Its `PRICES` table
   carries the date it was checked. `fullsend-stages.py` reports minutes per `/fullsend` stage
   from its Orca stage marks. `session-friction.py` extracts human corrections, tool errors,
   subagent briefs and reports, review findings, and pushback and rework in what the human typed
   per session, and names secrets it finds by
-  session and kind only. Every session in their output carries `setup_rev`, the commit `main` of
+  session and kind only. Across every session it lists the ones a person ran without a command by
+  first prompt, with their redirects, and the phrases typed in four sessions or more. Every session in their output carries `setup_rev`, the commit `main` of
   `~/llmfiles` pointed at when it started, read from the branch's reflog. Their tests are in
   `scripts/tests/`.
 - `review-diff.py`, used by `/locallensedreview`, writes the change since the merge base with

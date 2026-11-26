@@ -25,7 +25,7 @@ DISPATCH_MARKERS = ("You are a dispatched worker", "Dispatch ID", "Dispatch id")
 NOT_HUMAN = ("<task-notification", "<system-reminder", "Another Claude session", "<agent-message",
              "──── From: ", "Base directory", "**Role:**", "<local-command", "Caveat",
              "This session is being continued", "<bash-", "[Request interrupted by user for tool use]",
-             "<system-update>", "The server restarted while you were working")
+             "<subagent sessionID=", "<system-update>", "The server restarted while you were working")
 SYSTEM_REMINDER_RE = re.compile(r"<system-reminder>.*?(</system-reminder>|$)", re.S)
 # OpenCode replays earlier history between these, one text block per message.
 CHECKPOINT_OPEN, CHECKPOINT_CLOSE = "<conversation-checkpoint>", "</conversation-checkpoint>"
@@ -46,6 +46,26 @@ SETUP_STATEMENT_RE = re.compile(r"""^(cd|source|export|set)\b|^\w+=(\$?\(.*\)|"[
 ENV_PREFIX_RE = re.compile(r"^(\w+=\S*\s+)+")
 SUBCOMMAND_RE = re.compile(r"^[a-z][\w:.-]*$")
 PROGRAM_RE = re.compile(r"^[\w.+][\w.+-]*$")
+
+# Redaction runs in this order, so an anthropic key is gone before the openai pattern sees it.
+# Separate patterns, each starting with a literal, because one alternation scans a hundred times slower.
+SECRET_PATTERNS = [
+    ("anthropic key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
+    ("openai key", r"sk-(?:(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}|[A-Za-z0-9]{32,})"),
+    ("github token", r"gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}"),
+    ("gitlab token", r"glpat-[A-Za-z0-9_-]{20,}"),
+    ("aws access key", r"AKIA[0-9A-Z]{16}"),
+    ("slack token", r"xox[abprs]-[A-Za-z0-9-]{10,}"),
+    ("google key", r"AIza[0-9A-Za-z_-]{35}"),
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+    # A digit tells a token from prose such as "Bearer token-from-the-environment".
+    ("bearer token", r"Bearer\s+(?=[A-Za-z0-9._~+/=-]*\d)[A-Za-z0-9._~+/=-]{20,}"),
+    # Through the END line, or to the end of the text when the key was cut before it.
+    ("private key", r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?s:.*?-----END [A-Z ]*PRIVATE KEY-----|.*)"),
+]
+SECRET_RES = [(kind, re.compile(pattern)) for kind, pattern in SECRET_PATTERNS]
+HOME = os.path.expanduser("~")
+REDACTED_RE = re.compile(r"\[[a-z ]+ redacted\]")
 
 
 def repo_commands():
@@ -80,6 +100,14 @@ def tool_result_text(block):
     if isinstance(content, list):
         return " ".join(b.get("text", "") for b in content if isinstance(b, dict))
     return ""
+
+
+def redact(text):
+    """Text with every secret replaced by its kind, and the home directory shortened to ~."""
+    text = (text or "").replace(HOME, "~")
+    for kind, pattern in SECRET_RES:
+        text = pattern.sub(f"[{kind} redacted]", text)
+    return text
 
 
 def records(path):
