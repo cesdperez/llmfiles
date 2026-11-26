@@ -117,7 +117,7 @@ Invoke the <command> skill with: <sources or full task text> <endpoint phrase> [
 Context: <decisions from this conversation that the task depends on, and what the
 sibling tasks change, so the worker leaves those alone>
 Files: <files it will likely touch>
-This coordinator authorizes the run's own pushes, MR or PR, and Jira steps.
+This coordinator authorizes the run's own pushes, MR or PR with its review requests, thread replies and merge, and Jira steps.
 Follow ~/llmfiles/shared/orca-fleet.md: worker mode, and sharing a repo with sibling worktrees.
 ```
 
@@ -155,9 +155,11 @@ An Orca push that arrives while the wait runs gets no tool call and no reply, as
   that task, and tell it when the task settles.
   Otherwise reply that the stage stays blocked, and add it to the items for the user.
 - **worker_done**: check the claim, because the dependent tasks build on it:
-  - endpoint `main`: the branch tip is an ancestor of `origin/<base>`;
+  - endpoint `main`: the branch is merged: its MR state is `merged`, or, for a local merge
+    with no MR, its tip is an ancestor of `origin/<base>`. Ancestry alone misses a squash
+    merge;
   - endpoint `prod`: production serves the change;
-  - endpoint `mr`: the MR is open and its pipeline is green.
+  - endpoint `mr`: the MR is open, marked ready, and its pipeline is green.
   Collect its `Open:` items. Then remove its worktree if the rule in [Close](#4-close)
   allows it, without waiting for the rest of the Run: Orca has already closed the worker's
   chat, so the worktree would stay in the sidebar with nothing to read in it.
@@ -182,8 +184,8 @@ The Run is done when every task has settled or is held back by a failed task.
 ## 4. Close
 
 - File the items for the user as `orca-fleet.md` describes.
-- Remove a worker's worktree only when its branch is merged into the base and has no
-  uncommitted changes: `worker-release` its dispatch, then
+- Remove a worker's worktree only when its branch is merged, as `worker_done` checks it,
+  and has no uncommitted changes: `worker-release` its dispatch, then
   `orca worktree rm --worktree path:<path> --run-hooks`. Without `--run-hooks` Orca skips
   the repo's archive hook, and what the hook frees (ports, containers) stays taken. Keep
   the other worktrees: they are the deliverable or the evidence.

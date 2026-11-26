@@ -14,5 +14,7 @@
   "all_staff_list": "all-staff@",
   "timezone": "Europe/Amsterdam",
   "platform_directory": "~/projects/acme/meta/platform-directory.yaml",
-  "team_id": "team-core"
+  "team_id": "team-core",
+  "review_bot": { "username": "acme-review-bot", "trigger_comment": "@acme-review-bot review", "busy_marker": "acme-review-bot: running" },
+  "default_endpoints": { "acme/web/storefront": "main" }
 }

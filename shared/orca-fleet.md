@@ -113,12 +113,14 @@ them as written. Then:
   background command or Monitor, which re-invoke the session when they end. A background
   wait stopped by its timeout has not seen what it waits for, so start it again. A turn
   that ends with nothing armed leaves the worker idle until the coordinator notices.
-- **Publishing.** The coordinator authorizes the run's own pushes, MR or PR, and Jira
-  steps. Post nothing else.
+- **Publishing.** The coordinator authorizes the run's own pushes, MR or PR with its
+  review requests, thread replies and merge, and Jira steps. Post nothing else.
 - **Finish.** Send `worker_done` once, after the handoff. Use `--outcome succeeded` when
   the endpoint was reached, and `--outcome failed` when the run is blocked. The body is the
   handoff report. Put every item that needs the user in its `Open:` line (`Decide:` in
-  `/bugbounty`), because the coordinator files them from there.
+  `/bugbounty`), because the coordinator files them from there. Leave the worktree in
+  place: Orca closes the chat once `worker_done` is accepted, so a later removal would
+  never run, and the coordinator removes it.
 
 The phrase "unattended" without a preamble means nobody will answer. Take the recommended
 defaults and record them in the ledger. A stage that needs the user is blocked. Its items

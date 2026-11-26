@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minutes per /fullsend stage, read from the `orca worktree set --comment "<n>/7 <stage>"`
+"""Minutes per /fullsend stage, read from the `orca worktree set --comment "<n>/8 <stage>"`
 calls each /fullsend session makes at a stage boundary.
 
 Usage: fullsend-stages.py [--days 14] [--root ~/.claude/projects]

@@ -185,6 +185,8 @@ is needed.
 - `pipeline-wait.py`, used by `/fullsend`, waits in the background until the GitLab pipeline
   or GitHub runs of a commit settle, and exits with the outcome and the failed jobs, so the
   session spends nothing while CI runs. Its tests are in `scripts/tests/`.
+- `review-bot-wait.py`, used by `/fullsend`, waits in the background until the review bot
+  from `local/work.json` has finished its pass on an MR. Its tests are in `scripts/tests/`.
 - `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks
   (see [Conductor](#conductor)), plus a usage report from opencode's sessions. It reads model and wall time from the opencode session API.
 
@@ -195,7 +197,9 @@ Employer-specific values stay out of this public repo. `local/` is gitignored, a
 
 - `work.json`: repo root, GitLab group, git author, Jira URL and project, Slack IDs, timezone,
   and the platform directory and team that `/fullsend` picks reviewers from and `/teamdigest`
-  reads team repos and members from.
+  reads team repos and members from. `review_bot` names the bot `/fullsend` requests on its
+  MRs, and its `trigger_comment`: without one, `/fullsend` skips the bot.
+  `default_endpoints` sets a repo's default `/fullsend` endpoint by its URL path.
   The scripts load it through `scripts/work_config.py`, and `LLMFILES_WORK_CONFIG` overrides
   its path. Commands read it directly.
 - `glab-lens-bindings.md`: org-specific lens bindings for the GitLab review commands.

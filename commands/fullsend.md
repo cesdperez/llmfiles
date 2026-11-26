@@ -1,5 +1,5 @@
 ---
-description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified draft MR with a green pipeline (work repos) or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
+description: Take a task from a Jira ticket, Slack thread, or plain words all the way to a reviewed, browser-verified MR with a green pipeline, its review threads answered and marked ready (work repos), or a local branch (personal repos). Say "open a PR", "ship to main" or "ship to prod" to go further.
 argument-hint: <jira key|jira url|slack url|task text>... [open a PR|ship to main|ship to prod] [fix leftovers] [unattended] [in a new worktree]
 allowed-tools: Agent, SendMessage, Skill, Workflow, Read, Grep, Glob, Bash, Edit, Write, AskUserQuestion, TaskStop, ToolSearch
 ---
@@ -24,7 +24,8 @@ stage's tool call goes in the same message.
 `$ARGUMENTS` holds the task source and, optionally, the endpoint:
 
 - **Endpoint** (default per repo kind, below): `branch` stops at reviewed, verified
-  commits on a local branch. `mr` stops at a draft MR with a green pipeline. The phrase
+  commits on a local branch. `mr` stops at an MR with a green pipeline, its threads
+  answered and marked ready. The phrase
   "open a PR" or "open an MR" sets `mr`. The phrase "ship to main" sets `main`, which also
   merges once the pipeline is green. The phrase "ship to prod" sets `prod`, which also
   deploys to production and checks it is healthy. Only these exact phrases count: a task
@@ -71,11 +72,15 @@ Classify each involved repo by its `origin` URL. A repo is **work** when the URL
 starts with `gitlab_group/` from `work.json`. Every other repo is **personal**, including
 one with no remote.
 
+`default_endpoints` in `work.json` maps a repo's URL path, without `.git` (such as
+`acme/web/storefront`), to the endpoint it defaults to instead. An endpoint phrase in the
+arguments still wins. A repo with no entry keeps the default below.
+
 - Work repos default to endpoint `mr` and use every Jira and reviewer step.
 - Personal repos default to endpoint `branch`: the user checks the branch and merges it.
   Skip Jira and reviewers. Open a PR only when the endpoint is `mr` from an explicit
-  phrase. "ship to main" without "open a PR" merges the branch into its base locally, then
-  pushes the base if it tracks a remote.
+  phrase or a `default_endpoints` entry. "ship to main" without "open a PR" merges the
+  branch into its base locally, then pushes the base if it tracks a remote.
 
 ## Several sources
 
@@ -133,7 +138,7 @@ block.
 At each stage boundary, publish the stage to this worktree's Orca card:
 
 ```bash
-orca worktree set --worktree current --comment "<n>/7 <stage>" --workspace-status <status> --json
+orca worktree set --worktree current --comment "<n>/8 <stage>" --workspace-status <status> --json
 ```
 
 Use `--worktree current`, never `active`: `active` is whichever card the user has open.
@@ -151,8 +156,8 @@ sqlite3 -readonly "$HOME/Library/Application Support/orca/profiles/local-default
 
 If columns labelled Implement, Review, Verify, MR and Green all exist (any case), use one
 column per stage: Implement for stages 0 to 2, then the column named after stages 3 to 6,
-and `completed` when the endpoint is reached. Stages 3 and 4 run together, so publish
-`3/7 review and verify` in Review, then `4/7 verify` in Verify once the review has
+Green again for stage 7, and `completed` when the endpoint is reached. Stages 3 and 4 run
+together, so publish `3/8 review and verify` in Review, then `4/8 verify` in Verify once the review has
 reported. The fix round and its rerun stay in Verify. Pass the id, not the label: ids of
 columns made in the app need not match their label. Otherwise use the defaults:
 `in-progress` for stages 0 to 4, `in-review` from stage 5, `completed` at the endpoint.
@@ -252,7 +257,7 @@ card `--unread` and give one concise instruction.
   [the machine lock](#the-machine-lock). Without a test suite, the verify stage carries
   the proof.
 - The intake `worker` implements, continued with SendMessage, and later fixes from review
-  and verify go to it too. Publish `2/7 implement` in the message that sends it the
+  and verify go to it too. Publish `2/8 implement` in the message that sends it the
   implement brief, or the card shows intake for the whole implementation. Only a change of
   one or two files whose exact edit was known at intake stays in this session.
 - Independent parts get a `worker` each, with `isolation: "worktree"`. Its brief tells it to
@@ -330,7 +335,7 @@ Prove the acceptance criteria in the running app, not only in tests. Delegate th
 
 ### 5. MR
 
-Skip this stage and stage 6 at endpoint `branch`.
+Skip stages 5 to 7 at endpoint `branch`.
 
 Finish the draft MR stage 2 opened in each repo: push the fixes from stage 4, then set
 the reviewers and the description, which reflects the final diff.
@@ -375,22 +380,72 @@ reports without waiting on the pipeline. A failure that is not caused by the cha
 job, infra) gets one retry, then goes in the report. Stop after three fix attempts per
 pipeline.
 
-Endpoint `main`: mark the MR ready, merge it once the pipeline is green, and confirm the
-main pipeline passes. With MRs in several repos, merge in dependency order (provider before
-consumer) and wait for each main pipeline before the next merge. Endpoint `prod`: then run
-the deploy jobs through staging and prod, check health with the tools the repo uses
-(dashboards, smoke tests), and move Jira to Done.
+### 7. Land
 
-### 7. Handoff
+The MR admin a reviewer would otherwise ask for. Which steps run depends on the endpoint:
+
+| Step | `mr` | `main`, `prod` |
+|---|---|---|
+| Review bot, threads, ready | yes | yes |
+| Merge, Jira Done | no | yes |
+
+A personal repo that ships to main without a PR has no MR, so only its local merge runs.
+
+- **Review bot.** `review_bot` in `work.json` names the bot's GitLab `username`, the
+  `trigger_comment` that asks it for a review, and the `busy_marker` its notes hold while
+  it still reviews. Without a `trigger_comment`, or on a GitHub remote, skip this step.
+  Request the review with the comment, not by adding the bot as a reviewer: as a reviewer
+  it skips draft MRs, and marking the MR ready later starts a second pass. Request it in
+  the message that starts the stage 6 wait, so the bot and the pipeline run together:
+
+  ```bash
+  date -u +%FT%TZ && glab mr note create <iid> -m "<trigger_comment>"
+  ```
+
+  Then wait in the background, as for the pipeline, with
+  `python3 ~/llmfiles/scripts/review-bot-wait.py -C <checkout> --mr <iid> --bot <username> --since <printed time> --busy-marker "<busy_marker>"`.
+  A failed request, or exit 3 (no finished pass in 45 minutes), means going on without the
+  bot and saying so in the handoff's Open line.
+- **Threads.** Once the bot has finished and the pipeline is green, list the unresolved
+  threads (`glab mr note list <iid> --state unresolved`, review threads on GitHub). Send
+  them to the implementing worker in one SendMessage. It fixes what holds, commits, pushes,
+  and reports per thread: the fixing commit, or why it does not hold. Reply in each thread
+  with that, following **Writing MR Text** and `references/mr-comments.md` in `glab-cli`,
+  then resolve it. A person's thread that was not fixed stays open, since they decide
+  whether the reason holds. A fix push gets its own green pipeline: run the stage 6 wait on
+  the new HEAD. Answer the threads in one round. Threads that arrive later belong to the
+  human review.
+- **Ready.** `glab mr update <iid> --ready --yes`, or `gh pr ready` on GitHub.
+- **Merge** (`main`, `prod`). Merge once the pipeline is green, with the squash flag
+  `glab-cli` gives for the project. Then `git fetch origin` and confirm the base's
+  pipeline with `pipeline-wait.py --sha origin/<base> --ref <base>`. With MRs in several
+  repos, merge in dependency order (provider before consumer) and wait for each base
+  pipeline before the next merge. A personal repo without a PR merges locally, as [Repo kind](#repo-kind) says.
+  Endpoint `prod`: then run the deploy jobs through staging and prod, and check health
+  with the tools the repo uses (dashboards, smoke tests).
+- **Jira** (`main`, `prod`). Move the ticket to Done once the base pipeline passes at
+  `main`, or once production is healthy at `prod`.
+
+### 8. Handoff
 
 Clean up only what this run made and what is safe to lose:
 
 - Stop the servers you started, unless intake asked to leave one running.
 - Remove a sibling worktree only when its branch has no uncommitted or unpushed changes.
-- Delete a local branch only if this run created it and it is merged. At endpoint
-  `branch`, keep it: it is the deliverable.
+- A branch is merged when its MR state is `merged`, or, for a local merge with no MR, when
+  its tip is an ancestor of `origin/<base>`. Ancestry alone misses a squash merge.
+- Delete a local branch only if this run created it and it is merged, with `git branch -D`:
+  `-d` refuses a squash-merged branch. At endpoint `branch`, keep it: it is the deliverable.
 - Delete the ledger and `fullsend-qa/` once the endpoint is reached. A blocked run keeps
   them, so it can resume.
+- At endpoint `main` or `prod`, this run's own worktree can go once its branch is merged,
+  when it is a linked worktree, not the repo's main checkout, with nothing uncommitted.
+  Inside Orca, leave it for `/orcacleanup` and say so in the report's Open line: Orca
+  drops a card's chat with its worktree, and the chat holds the report. Outside Orca,
+  remove it as the last action, in the message that holds the report:
+  `git -C <main checkout> worktree remove <path>`, then
+  `git -C <main checkout> branch -D <branch>`. In worker mode, leave it to the
+  coordinator, as `orca-fleet.md` says.
 
 Then report in plain English:
 
