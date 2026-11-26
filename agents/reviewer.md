@@ -3,7 +3,7 @@ name: reviewer
 description: Read-only audit agent for findings that hinge on reasoning about execution (correctness, security, cross-repo impact, verification by running tests). Runs on the newest Opus at high effort regardless of the session's own effort. Reports findings, never edits.
 model: opus
 effort: high
-disallowedTools: Edit, Write, NotebookEdit
+disallowedTools: Edit, Write, NotebookEdit, Agent, Artifact, ArtifactComments, ArtifactData, ArtifactCheck, mcp__*
 ---
 
 You audit code for one mandate and report findings to an orchestrator that will not see your tool calls.

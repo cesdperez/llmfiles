@@ -110,6 +110,11 @@ reasoning. Effort is the dial within each model, and it is re-tuned on every rel
 name does not mean the same amount of thinking across models (Sonnet `medium` is not Opus
 `medium`), so pick a level from an effort sweep on your own tasks, not from its name.
 
+`disallowedTools` also drops the tools an agent never calls, because every tool definition costs
+input tokens on every spawn: the Artifact tools, and on agents that do not fan out, `Agent` and
+MCP tools (`mcp__*`). `worker-fast` keeps MCP tools, because `/dailyworkrecap` sends it to the
+calendar connector. Keep `Skill`: workers and reviewers load `playwright-cli` through it.
+
 `codex-worker` and `codex-reviewer` run `sonnet` at `low` because they only forward the task to
 `codex exec`, which does the work on the ChatGPT plan. Codex follows the matching
 `worker.md` or `reviewer.md` body, and the `codex` CLI must be logged in.
@@ -120,7 +125,7 @@ name: agent-name
 description: When the orchestrator should pick this agent
 model: opus
 effort: high
-disallowedTools: Edit, Write, NotebookEdit
+disallowedTools: Edit, Write, NotebookEdit, Agent, Artifact, ArtifactComments, ArtifactData, ArtifactCheck, mcp__*
 ---
 
 Standing instructions for the agent.

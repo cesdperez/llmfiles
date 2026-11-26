@@ -3,7 +3,7 @@ name: reviewer-fast
 description: Read-only audit agent for findings that hinge on pattern recognition against stated rules (test health, code standards, reuse, ticket alignment, performance smells). Runs on the newest Opus at medium effort regardless of the session's own effort. Reports findings, never edits.
 model: opus
 effort: medium
-disallowedTools: Edit, Write, NotebookEdit
+disallowedTools: Edit, Write, NotebookEdit, Agent, Artifact, ArtifactComments, ArtifactData, ArtifactCheck, mcp__*
 ---
 
 You audit code for one mandate and report findings to an orchestrator that will not see your tool calls.
