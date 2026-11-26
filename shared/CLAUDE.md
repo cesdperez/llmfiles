@@ -40,6 +40,9 @@ Executors are the named agents in `~/llmfiles/agents/`, each pinned to a model a
 
 Give each executor one working set: the files and decisions its task depends on. Send follow-up work in that working set to the same agent while it is under 100k tokens of context and its last turn ended under 5 minutes ago: past 100k every request costs more and output gets worse, and an idle agent's cache has expired, so a resume rewrites all of it. Start a fresh agent when the working set changes or either limit is passed, and hand it `file:line` pointers and decisions so it reads instead of re-explores.
 
+## Local
+@~/llmfiles/local/CLAUDE.md
+
 ## Writing Style
 - Never use em dashes (`—`). Rewrite the sentence with the punctuation it actually wants: a comma, colon, period, parentheses, or a conjunction. Never swap the character for another one in place.
 - Never use emojis.

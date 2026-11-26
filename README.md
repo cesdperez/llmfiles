@@ -213,6 +213,7 @@ is needed.
 Employer-specific values stay out of this public repo. `local/` is gitignored, and
 `local.example/` holds a template for each file:
 
+- `CLAUDE.md`: org-specific global instructions, imported by `shared/CLAUDE.md`.
 - `work.json`: repo root, GitLab group, git author, Jira URL and project, Slack IDs, timezone,
   and the platform directory and team that `/fullsend` picks reviewers from and `/teamdigest`
   reads team repos and members from. `review_bot` names the bot `/fullsend` requests on its
