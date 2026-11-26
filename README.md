@@ -199,6 +199,8 @@ is needed.
   session spends nothing while CI runs. Its tests are in `scripts/tests/`.
 - `review-bot-wait.py`, used by `/fullsend`, waits in the background until the review bot
   from `local/work.json` has finished its pass on an MR. Its tests are in `scripts/tests/`.
+- `routines.py`, the launchd jobs in [Scheduled routines](#scheduled-routines): it installs
+  and removes their plists and runs each job. Its tests are in `scripts/tests/`.
 - `builder-evals.py`, the ledger of the opencode conductor's builder runs and finished tasks
   (see [Conductor](#conductor)), plus a usage report from opencode's sessions. It reads model and wall time from the opencode session API.
 
@@ -217,6 +219,8 @@ Employer-specific values stay out of this public repo. `local/` is gitignored, a
 - `glab-lens-bindings.md`: org-specific lens bindings for the GitLab review commands.
 - `dailyworkrecap-style.md`: the sample post and team-specific gotchas for `/dailyworkrecap`.
 - `meta-hub-verify.md`: how `/fullsend` runs the hub's shared local stack on a worktree.
+- `routines.json`: the schedule, model and spend cap of each
+  [scheduled routine](#scheduled-routines).
 - `orcacleanup.json`: the Compose projects, paths and branch globs `/orcacleanup` never touches.
 - `tunesetup/ledger.md`: the fields of `local/tunesetup/ledger.jsonl`, the tuning ledger.
   `/tunesetup` and `/whichmodels` read it for why each setup change was made, the metric it
@@ -243,6 +247,54 @@ any finding:
   YAML, required keys, skill and agent names that match their file, model aliases and effort
   levels, Codex agent TOML, opencode agents and config, example JSON, and every `~/llmfiles/`
   path and relative Markdown link pointing at a file that exists.
+
+### Scheduled routines
+
+`scripts/routines.py` runs three launchd jobs on macOS. Each job runs a command with
+`claude -p`, never asks a question, and appends to `~/Library/Logs/llmfiles-routines/<job>.log`.
+
+| Job | When | What it runs |
+|---|---|---|
+| `nightly` | 03:00 daily | Fetches every repo Orca knows and every git repo under `repo_root`, and fast-forwards the default branch, then runs `/orcacleanup`. |
+| `morning` | 08:30 Mon-Fri | `/dailyworkrecap`, saved as `~/Library/Logs/llmfiles-routines/dailyworkrecap-<date>.md` when the run exits cleanly with output. It posts nothing. |
+| `glabsummary` | 09:00 Mon-Fri, off by default | `/glabsummary`, which posts review comments, so it stays off until switched on. |
+
+Every job runs with `--permission-prompts none`. Two also pass a `--disallowedTools` deny list,
+which binds the subagents a command spawns too:
+
+- `morning` denies typed `glab`, `twg`, `gh` and `curl` commands, the Slack send, schedule,
+  create, update and add tools, the SharePoint copy, create, move, rename, update and upload
+  tools, Claude Docs, Claude Data and the Artifact tools. Its script still calls `glab api`
+  from Python, which Bash rules do not see. Any other signed-in connector with write tools is
+  held back only by the prompt.
+- `glabsummary` denies `glab mr approve`, `glab mr merge`, `glab mr revoke` and
+  `glab api -X DELETE` or `--method DELETE`. The patterns match the start of the command, so a
+  note deletion written with the flags in another order is not blocked.
+
+The nightly update only fast-forwards. It skips a repo, and logs why, when the default branch
+has diverged from origin, is checked out with uncommitted changes or in another worktree, is
+mid-rebase, or when a git query fails, such as `origin/HEAD` pointing at a renamed branch. When
+the checkout is on another branch, it moves the default branch's ref without touching the
+working tree. A repo whose `.git` is a file counts when it points at a separate git dir. Linked
+worktrees are skipped, because their main repo covers the default branch.
+
+The jobs run `~/llmfiles`, so they pick up a change only once it is on that checkout. `install`
+bakes the current `PATH` into the plists, because launchd starts jobs without a shell profile, so
+rerun it after moving a CLI. `~/llmfiles/local/routines.json` overrides the times, models and
+the `--max-budget-usd` cap per job. `LLMFILES_ROUTINES_CONFIG` points at another file, and
+`install` writes it into the plists. A Mac asleep at the scheduled time runs the job when it wakes.
+
+```bash
+python3 ~/llmfiles/scripts/routines.py install                               # nightly and morning
+python3 ~/llmfiles/scripts/routines.py install nightly morning glabsummary   # also switch glabsummary on
+python3 ~/llmfiles/scripts/routines.py uninstall
+launchctl kickstart gui/$(id -u)/com.llmfiles.routines.morning               # run a loaded job now
+```
+
+`install` writes every job's plist to `~/Library/LaunchAgents/com.llmfiles.routines.<job>.plist`,
+loads the jobs it names and marks the rest disabled with `launchctl disable`, so launchd also
+skips them at login. Run `install` again with a different list to switch jobs on or off.
+`install` and `uninstall` exit non-zero when a job did not reach the state asked for.
 
 ### Claude Code hooks (`claude-hooks/`)
 

@@ -1,0 +1,5 @@
+{
+  "nightly": { "hour": 3, "minute": 0, "model": "sonnet", "max_budget_usd": 3 },
+  "morning": { "hour": 8, "minute": 30, "weekdays": [1, 2, 3, 4, 5], "max_budget_usd": 10 },
+  "glabsummary": { "hour": 9, "minute": 0, "weekdays": [1, 2, 3, 4, 5], "max_budget_usd": 20 }
+}
