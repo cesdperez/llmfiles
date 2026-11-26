@@ -24,6 +24,7 @@ llmfiles/
 ├── commands/
 │   └── <command-name>.md
 ├── claude-hooks/
+│   ├── batch-reads-reminder.py
 │   └── subagent-context-budget.py
 ├── hooks/
 │   ├── pre-commit
@@ -236,10 +237,16 @@ any finding:
 
 `subagent-context-budget.py` is a `PostToolUse` hook. When a subagent's context passes 100k
 tokens, it tells that subagent once to finish its step and write a handoff to its notes file
-or report. When the main
-session passes 120k, it tells it once to hand the remaining reading and editing to agents.
-Neither can see its own token count, so the delegation rule in `shared/CLAUDE.md` needs this to
-hold. `SUBAGENT_CONTEXT_WARN_TOKENS` and `MAIN_CONTEXT_WARN_TOKENS` override the limits.
+or report. When the main session passes 120k, it tells it once to hand the remaining reading
+and editing to agents. Neither can see its own token count, so the delegation rule in
+`shared/CLAUDE.md` needs this to hold. `SUBAGENT_CONTEXT_WARN_TOKENS` and
+`MAIN_CONTEXT_WARN_TOKENS` override the limits.
+
+`batch-reads-reminder.py` is a `PostToolUse` hook. After three requests in a row from a
+subagent that each make one read or search (Read, Grep, Glob, or a reading shell command
+such as `cat`, `sed -n` or `grep`), it reminds that subagent to send independent reads in
+one message. It reminds again every third such request, and never blocks a call. Its tests
+are in `scripts/tests/`.
 
 ### Global instructions (`shared/CLAUDE.md`)
 
@@ -306,12 +313,14 @@ git -C ~/llmfiles config core.hooksPath hooks
 ```
 
 Claude Code hooks are referenced by absolute path from the `hooks` block of
-`~/.claude/settings.json`. Append the entry to an existing `PostToolUse` array rather than
-replacing it:
+`~/.claude/settings.json`. Append the entries to an existing `PostToolUse` array rather than
+replacing it. Register a hook only once `~/llmfiles` holds its file: live sessions reload
+the settings, and a missing script reports an error on every matching tool call.
 
 ```json
 "PostToolUse": [
-  { "matcher": "*", "hooks": [{ "type": "command", "command": "python3 ~/llmfiles/claude-hooks/subagent-context-budget.py", "timeout": 5 }] }
+  { "matcher": "*", "hooks": [{ "type": "command", "command": "python3 ~/llmfiles/claude-hooks/subagent-context-budget.py", "timeout": 5 }] },
+  { "matcher": "Read|Grep|Glob|Bash", "hooks": [{ "type": "command", "command": "python3 ~/llmfiles/claude-hooks/batch-reads-reminder.py", "timeout": 5 }] }
 ]
 ```
 
@@ -460,8 +469,8 @@ Adaptation boundaries:
 - A subagent cannot start its own subagents (`subagent_depth` defaults to 1), so every fan-out
   runs from the main session.
 - GitLab comments are signed `_Comment made by opencode <model> (<effort>)_`.
-- `claude-hooks/subagent-context-budget.py` is not covered. A plugin could port it, since the
-  server reports token counts per session.
+- The `claude-hooks/` hooks are not covered. A plugin could port them, since the server
+  reports token counts and tool calls per session.
 - `/dailyworkrecap` reads Claude transcripts only. opencode sessions are not collected.
 
 #### Conductor

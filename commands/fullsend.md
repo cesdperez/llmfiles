@@ -115,7 +115,7 @@ ledger, and it is never committed. The plan and notes of stage 2 live in the hom
 as `.fullsend/plan.md` and `.fullsend/notes.md`, because workers, isolated ones included,
 may be refused writes inside the git directory. Setup excludes `.fullsend/` from git.
 
-Record: source, its acceptance criteria, endpoint, intake questions with their answers,
+Record: source, its acceptance criteria, the file map, endpoint, intake questions with their answers,
 repos with branch and base, current stage, blocked stages and why, review findings left
 unfixed, QA results, MR links.
 Update it at each stage boundary.
@@ -204,17 +204,21 @@ worktrees at once starve each other, and tests that pass alone then fail. One lo
 ### 0. Intake
 
 Read the source fully: the ticket with its links and comments, or the whole Slack thread.
-Send the codebase exploration to a `worker` (or `Explore` when only locations are needed):
-it returns the repos involved, the files to change, the approach, and the open questions it
-found. Collect every open question (ambiguous scope, feature flags to create, test accounts,
-which environment to verify on, whether to leave a server running to try it) and ask them in
-one batch, each with a recommended default. AskUserQuestion holds four questions per call,
-so use as few calls as fit. If nothing is unclear, ask nothing. In worker mode, ask through
-the coordinator. If asking is not possible (headless, delegated or unattended run), take the
-defaults and record them in the ledger.
-
 Write each source's acceptance criteria to the ledger: the ticket's own, or ones derived
-from the task text when it has none. Stages 3 and 4 read them from there.
+from the task text when it has none. Stages 2 to 4 read them from there.
+
+Send the codebase exploration to `Explore` with the criteria. It returns the repos
+involved, the approach, the open questions it found, and a file map: for each criterion,
+the paths with line ranges to read or change. Write the map to the ledger, so the stage 2
+workers start from pointers instead of searching. Explore cannot write files, so this
+session writes it.
+
+Collect every open question (ambiguous scope, feature flags to create, test accounts,
+which environment to verify on, whether to leave a server running to try it) and ask them
+in one batch, each with a recommended default. AskUserQuestion holds four questions per
+call, so use as few calls as fit. If nothing is unclear, ask nothing. In worker mode, ask
+through the coordinator. If asking is not possible (headless, delegated or unattended run),
+take the defaults and record them in the ledger.
 
 Without a Jira key and with a work repo involved, ask whether to create a ticket (call the
 Skill tool with "jira-writing" to write it). With no ticket, skip every Jira step, and use a short task slug
@@ -259,10 +263,11 @@ card `--unread` and give one concise instruction.
   instructions say it is cheap, or when the change is cross-cutting, and under
   [the machine lock](#the-machine-lock). Without a test suite, the verify stage carries
   the proof.
-- **Plan first.** A `worker` writes `.fullsend/plan.md`: the ordered steps, the files each
-  changes and the check that shows it done. It starts `.fullsend/notes.md` and then works
-  the steps in order. After each step it appends to the notes what it changed, the
-  decisions it made, the traps it hit and the `file:line` pointers the next step needs.
+- **Plan first.** A `worker` reads the ledger's file map and writes `.fullsend/plan.md`:
+  the ordered steps, the files each changes and the check that shows it done. It starts
+  `.fullsend/notes.md` and then works the steps in order. After each step it appends to
+  the notes what it changed, the decisions it made, the traps it hit and the `file:line`
+  pointers the next step needs.
   Publish `2/8 implement` in the message that sends this brief, or the card shows intake
   for the whole implementation.
 - **Step workers.** A worker stops after the step on which its context passes 100k
