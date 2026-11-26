@@ -5,10 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from transcript_fixtures import load_script
+from transcript_fixtures import NOW, assistant, git_repo, load_script, slash, tool_use, write_jsonl
+
+import transcripts as tr
 
 ledger = load_script("tuning-ledger.py")
 SCRIPT = Path(__file__).resolve().parent.parent / "tuning-ledger.py"
+DAY_MIN = 24 * 60
 
 
 def entry(**overrides):
@@ -132,27 +135,75 @@ class Measuring(unittest.TestCase):
         self.assertEqual(ledger.judge(entry(), 0.9), ("against", None))
         self.assertEqual(ledger.judge(entry(baseline=0, expected="down"), 0), ("flat", "inconclusive"))
 
-    def test_measure_settles_open_script_entries_and_skips_hand_counts(self):
-        with tempfile.TemporaryDirectory() as d:
-            path = Path(d) / "ledger.jsonl"
-            ledger.add(path, entry(id="a"))
-            ledger.add(path, entry(id="hand", metric="decisions flagged", hand_counted=True, baseline=4, expected="down"))
-            ledger.add(path, entry(id="gone", metric="usage:tools/nope"))
-            results = ledger.measure(path, self.outputs, "2026-12-09")
-            saved = {e["id"]: e for e in ledger.load(path)}
-        self.assertEqual({r["id"]: r["moved"] for r in results}, {"a": "as_expected", "hand": "hand_count", "gone": "no_value"})
-        self.assertEqual((saved["a"]["measured"], saved["a"]["measured_on"], saved["a"]["verdict"]), (1.4, "2026-12-09", "kept"))
-        self.assertIsNone(saved["hand"]["measured"])
 
-    def test_measure_settles_only_the_entries_of_the_given_date(self):
-        with tempfile.TemporaryDirectory() as d:
-            path = Path(d) / "ledger.jsonl"
-            ledger.add(path, entry(id="old", date="2026-11-18"))
-            ledger.add(path, entry(id="new"))
-            results = ledger.measure(path, self.outputs, "2026-12-09", since="2026-11-25")
-            saved = {e["id"]: e for e in ledger.load(path)}
-        self.assertEqual([r["id"] for r in results], ["new"])
-        self.assertIsNone(saved["old"]["verdict"])
+class MeasuringBySetup(unittest.TestCase):
+    """Sessions that started on a setup holding the change against those that started before it."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        d = Path(self.tmp.name)
+        self.path, self.root = d / "ledger.jsonl", d / "projects"
+        (_, self.change), _ = git_repo(d / "llmfiles", [40, 10])
+        self.revs = tr.SetupRevs(str(d / "llmfiles"))
+        write_jsonl(self.root / "-p" / "before.jsonl", [
+            slash("fullsend", 15 * DAY_MIN), assistant("m1", 15 * DAY_MIN - 1, content=[tool_use("t1", "Read")])])
+        write_jsonl(self.root / "-p" / "after.jsonl", [
+            slash("fullsend", 2 * DAY_MIN),
+            assistant("m2", 2 * DAY_MIN - 1, content=[tool_use("t2", "Read"), tool_use("t3", "Read")])])
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def measure(self, *entries):
+        for e in entries:
+            ledger.add(self.path, e)
+        results = ledger.measure(self.path, "2026-06-15", 28, str(self.root), self.revs, now=NOW)
+        return {r["id"]: r for r in results}, {e["id"]: e for e in ledger.load(self.path)}
+
+    def test_sessions_on_a_setup_with_the_commit_are_compared_with_those_before_it(self):
+        results, saved = self.measure(entry(id="a", date="2026-06-05", where=[self.change[:7]], baseline=9))
+        self.assertEqual({k: results["a"][k] for k in ("split", "before", "measured", "moved")},
+                         {"split": "commit", "before": 1.0, "measured": 2.0, "moved": "as_expected"})
+        self.assertEqual((saved["a"]["measured_before"], saved["a"]["measured"], saved["a"]["verdict"]), (1.0, 2.0, "kept"))
+
+    def test_a_where_that_is_no_commit_splits_by_the_entry_date(self):
+        results, _ = self.measure(entry(id="a", date="2026-06-05", where=["~/.claude/settings.json:effortLevel"]))
+        self.assertEqual((results["a"]["split"], results["a"]["before"], results["a"]["measured"]), ("date", 1.0, 2.0))
+
+    def test_a_change_older_than_the_period_is_compared_with_its_baseline(self):
+        (old, _), _ = git_repo(Path(self.tmp.name) / "old", [40, 30])
+        self.revs = tr.SetupRevs(str(Path(self.tmp.name) / "old"))
+        results, _ = self.measure(entry(id="a", date="2026-05-16", where=[old], baseline=2.5))
+        self.assertEqual((results["a"]["before"], results["a"]["measured"], results["a"]["moved"]), (None, 1.5, "against"))
+
+    def test_a_period_total_is_scaled_to_the_days_main_held_each_side_setup(self):
+        d = Path(self.tmp.name)
+        (_, c1, c2), _ = git_repo(d / "three", [40, 20, 10])
+        self.revs = tr.SetupRevs(str(d / "three"))
+        write_jsonl(self.root / "-p" / "middle.jsonl", [slash("fullsend", 25 * DAY_MIN), assistant("m0", 25 * DAY_MIN - 1)])
+        e = entry(id="a", date="2026-06-05", where=[c1, c2], metric="usage:headline/main_sessions",
+                  baseline=1, baseline_days=7, expected="down")
+        results, _ = self.measure(e)
+        self.assertEqual((results["a"]["before"], results["a"]["measured"]), (0.875, 0.7))
+
+    def test_a_side_with_no_sessions_has_no_value(self):
+        (self.root / "-p" / "before.jsonl").unlink()
+        results, saved = self.measure(entry(id="a", date="2026-06-05", where=[self.change], baseline=9))
+        self.assertEqual((results["a"]["before"], results["a"]["measured"], saved["a"]["measured_before"]), (None, 2.0, None))
+        (self.root / "-p" / "after.jsonl").unlink()
+        results, _ = self.measure(entry(id="b", date="2026-06-05", where=[self.change], baseline=9))
+        self.assertEqual(results["b"]["moved"], "no_value")
+
+    def test_the_shas_in_where_split_by_commit_beside_a_settings_key(self):
+        results, _ = self.measure(entry(id="a", date="2026-06-05", where=[self.change, "~/.claude/settings.json:effortLevel"]))
+        self.assertEqual((results["a"]["split"], results["a"]["before"], results["a"]["measured"]), ("commit", 1.0, 2.0))
+
+    def test_hand_counts_and_missing_metrics_are_left_open(self):
+        results, saved = self.measure(
+            entry(id="hand", date="2026-06-05", metric="decisions flagged", hand_counted=True, baseline=4, expected="down"),
+            entry(id="gone", date="2026-06-05", metric="usage:tools/nope"))
+        self.assertEqual({k: r["moved"] for k, r in results.items()}, {"hand": "hand_count", "gone": "no_value"})
+        self.assertIsNone(saved["gone"]["verdict"])
 
 
 class Pending(unittest.TestCase):

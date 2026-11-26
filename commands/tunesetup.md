@@ -36,14 +36,7 @@ If `usage.json` has `unpriced_requests`, load the `claude-api` skill, add each m
 
 `usage.json` holds `headline`, the flat metrics the next run compares, plus cost by model, command, agent type and context size, cache misses by idle gap, compactions, tool mix and result sizes, and main-session idle time while subagents run. `stages.json` holds minutes per `/fullsend` stage. `cost_state_check` compares the script's cost with Claude Code's own on the `sessions` whose totals are complete: a gap over 5% means the prices or the deduplication are off, so say so before using the dollar figures.
 
-Then settle the open entries from step 1, one date at a time. A settled entry leaves the open list for good, so its figures must cover only the days after its date. For each date among them, run the three scripts again with `--days` set to the days since that date, `friction` without `--command`, into `~/llmfiles/local/tunesetup/D/since-<date>/`, then:
-
-```bash
-R=~/llmfiles/local/tunesetup/D/since-<date>
-L measure --since <date> --usage $R/usage.json --stages $R/stages.json --friction $R/friction.json
-```
-
-It reads each entry's metric, scales a period total to its `baseline_days`, and writes `measured`, `moved` and `verdict`. An entry with `hand_counted` goes to the friction worker, which counts it again the way its `note` says; record the count with `L set` as the ledger format describes. A `moved` of `against` leaves the verdict to me.
+Each session in the three outputs carries `setup_rev`, the commit `main` of `~/llmfiles` pointed at when it started. Then settle the open entries from step 1 with `L measure --days 28`. It reads the transcripts once, and per entry compares the sessions whose `setup_rev` holds every sha in its `where` that resolves with the sessions whose `setup_rev` holds none of them. When no sha resolves or `main` never held them all, it splits by the entry's date instead, and the result says `split: date`. With no session before the change in the period, it compares with the entry's `baseline`. Each side's days are the time in the period that `main` spent on a setup of that side, and it scales a period total to `baseline_days` over those days, and writes `measured`, `measured_before`, `moved` and `verdict`. An entry with `hand_counted` goes to the friction worker, which counts it again the way its `note` says; record the count with `L set` as the ledger format describes. A `moved` of `against` leaves the verdict to me.
 
 ## 3. Friction and outside evidence
 

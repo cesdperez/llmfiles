@@ -178,14 +178,17 @@ is needed.
   from its Orca stage marks. `session-friction.py` extracts human corrections, tool errors,
   subagent briefs and reports, review findings, and pushback and rework in what the human typed
   per session, and names secrets it finds by
-  session and kind only. Their tests are in `scripts/tests/`.
+  session and kind only. Every session in their output carries `setup_rev`, the commit `main` of
+  `~/llmfiles` pointed at when it started, read from the branch's reflog. Their tests are in
+  `scripts/tests/`.
 - `review-diff.py`, used by `/locallensedreview`, writes the change since the merge base with
   a ref, uncommitted and untracked work included, and its anchor map of added lines. A command
   body cannot hold the awk it replaces, because slash-command substitution rewrites `$0`.
   Its tests are in `scripts/tests/`.
 - `tuning-ledger.py`, used by `/tunesetup` and `/whichmodels`, validates and appends entries
   in the tuning ledger, lists the proposals with their candidate commits and the entries due a
-  verdict, and fills an entry's measured value and verdict from the three scripts' output.
+  verdict, and fills an entry's measured value and verdict by running the three scripts over the
+  sessions before and after the change's commits.
   Its tests are in `scripts/tests/`.
 - `pipeline-wait.py`, used by `/fullsend`, waits in the background until the GitLab pipeline
   or GitHub runs of a commit settle, and exits with the outcome and the failed jobs, so the

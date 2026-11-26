@@ -9,7 +9,7 @@
 | `source` | `tunesetup`, `whichmodels` or `manual` |
 | `change` | the change in one line |
 | `files` | repo paths the change touches; `pending` matches commits on them |
-| `where` | commit shas, or a settings key such as `~/.claude/settings.json:effortLevel` |
+| `where` | commit shas, or a settings key such as `~/.claude/settings.json:effortLevel`; `measure` compares the sessions whose setup holds every sha that resolves with those whose setup holds none, and splits by `date` when no sha resolves or `main` never held them all |
 | `why` | the evidence behind the change |
 | `metric` | `usage:`, `stages:` or `friction:` plus a `/` path into that script's JSON, or a plain name when hand-counted; null when no metric fits, with the reason in `note` |
 | `baseline` | the metric's value before the change |
@@ -19,7 +19,7 @@
 | `reversed_by` | the evidence that would undo the decision |
 | `note` | why a proposal was rejected, why no metric fits, or how a hand count is made |
 | `status` | `proposed`, `applied`, `rejected` or `reverted` |
-| `measured`, `measured_on` | the value a later run read, and that run's date |
+| `measured`, `measured_before`, `measured_on` | the value a later run read over the sessions after the change, the value over those before it (null when the period held none, so `baseline` was the comparison), and that run's date |
 | `moved` | `as_expected`, `flat` (under 5%) or `against` |
 | `verdict` | `kept`, `reverted` or `inconclusive`; null while a move against the expected direction waits for a decision |
 

@@ -2,7 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from transcript_fixtures import NOW, assistant, iso, load_script, slash, subagent, tool_result, tool_use, user, write_jsonl
+from transcript_fixtures import (NOW, StubRevs, assistant, iso, load_script, slash, subagent, tool_result, tool_use, user,
+                                 write_jsonl)
 
 usage = load_script("claude-usage.py")
 KNOWN = {"fullsend", "fleet"}
@@ -14,8 +15,8 @@ def cost_state(total, started_minutes_ago):
     return {"type": "cost-state", "totalCostUSD": total, "startTime": int((NOW - started_minutes_ago * 60) * 1000)}
 
 
-def analyze(root, days=7):
-    return usage.analyze(str(root), days, now=NOW, known=KNOWN)
+def analyze(root, days=7, revs=None):
+    return usage.analyze(str(root), days, now=NOW, known=KNOWN, revs=revs or StubRevs())
 
 
 class Deduplication(unittest.TestCase):
@@ -101,6 +102,12 @@ class SessionAttribution(unittest.TestCase):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 30), assistant("m1", 29)])
         self.assertIn("(none)", analyze(self.root)["commands"])
 
+    def test_each_session_names_the_setup_it_started_on_even_before_the_window(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 30), assistant("m1", 29)])
+        write_jsonl(self.root / PROJECT / "s2.jsonl", [user("hi", 60 * 24 * 10), user("again", 20), assistant("m2", 19)])
+        out = usage.analyze(str(self.root), 7, now=NOW, known=KNOWN, revs=StubRevs(60))
+        self.assertEqual({s["session"]: s["setup_rev"] for s in out["top_sessions"]}, {"s1": "late", "s2": "early"})
+
     def primary_of(self, *first_rows):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [*first_rows, assistant("m1", 20)])
         return list(analyze(self.root)["commands"])
@@ -122,6 +129,11 @@ class SessionAttribution(unittest.TestCase):
         prompt = [{"type": "text", "text": "<system-reminder>ctx</system-reminder>"},
                   {"type": "text", "text": "Read `~/llmfiles/opencode/fullconduct.md`, then fix x"}]
         self.assertEqual(self.primary_of(user(prompt, 30)), ["fullconduct"])
+
+    def test_a_session_starts_at_its_first_record_of_any_type(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [
+            {"type": "queue-operation", "timestamp": iso(90)}, slash("fullsend", 30), assistant("m1", 29)])
+        self.assertEqual(analyze(self.root, revs=StubRevs(60))["top_sessions"][0]["setup_rev"], "early")
 
     def test_a_session_resumed_into_the_period_keeps_the_command_its_first_prompt_implies(self):
         self.assertEqual(self.primary_of(user("Read `~/llmfiles/opencode/fullconduct.md`, then fix x", 8 * 24 * 60),

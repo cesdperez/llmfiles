@@ -275,7 +275,7 @@ class ErrorTally:
         }
 
 
-def session_row(path, root, cutoff, known, clip_n):
+def session_row(path, root, cutoff, known, clip_n, revs):
     """A main session's extract, its subagents' extracts, and the errors and secrets across them."""
     main = MainExtract(known, clip_n)
     findings = [read_file(path, cutoff, main)]
@@ -290,20 +290,36 @@ def session_row(path, root, cutoff, known, clip_n):
     secrets = sum((f.secrets for f in findings), Counter())
     row = {"session": session, "project": tr.project_label(project), "date": date_of(main.first_ts),
            "commands": main.head.commands, "command": main.head.command(),
-           **main.result(), "tool_errors": len(errors), "agents": agents}
-    return row, errors, secrets
+           "setup_rev": revs.at(main.head.start), **main.result(), "tool_errors": len(errors), "agents": agents}
+    return row, errors, secrets, main.head.start
 
 
-def analyze(root, days, wanted=None, clip_n=300, now=None, known=None):
+def collect(root, days, wanted=None, clip_n=300, now=None, known=None, revs=None):
+    """The extracts of the period's sessions whose command is wanted, read once for one or more reports."""
     known = tr.repo_commands() if known is None else known
     wanted = set(wanted or known | {c for _, c in tr.IMPLIED_COMMANDS} | {tr.ORCA_WORKER})
     cutoff = tr.cutoff_for(days, now)
-    sessions, secrets, tally = [], [], ErrorTally()
+    revs = tr.SetupRevs() if revs is None else revs
+    rows = []
     for path, kind in tr.transcript_files(root, cutoff):
         if kind != "main":
             continue
-        row, errors, found = session_row(path, root, cutoff, known, clip_n)
-        if row["command"].removesuffix("[fleet-worker]") not in wanted or not row["date"]:
+        row, errors, found, start = session_row(path, root, cutoff, known, clip_n, revs)
+        if row["command"].removesuffix("[fleet-worker]") in wanted and row["date"]:
+            rows.append((row, errors, found, start))
+    return {"days": days, "rows": rows}
+
+
+def analyze(root, days, wanted=None, clip_n=300, now=None, known=None, revs=None):
+    return report(collect(root, days, wanted, clip_n, now, known, revs))
+
+
+def report(scanned, keep=None):
+    """The extracts and tallies over the sessions whose (start, setup_rev) keep accepts, or all of them."""
+    days = scanned["days"]
+    sessions, secrets, tally = [], [], ErrorTally()
+    for row, errors, found, start in scanned["rows"]:
+        if keep and not keep(start, row["setup_rev"]):
             continue
         tally.add(row["session"], row["command"], errors)
         secrets += [{"session": row["session"], "date": row["date"], "kind": k, "count": n} for k, n in found.items()]

@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from transcript_fixtures import NOW, assistant, load_script, slash, tool_use, user, write_jsonl
+from transcript_fixtures import NOW, StubRevs, assistant, load_script, slash, tool_use, user, write_jsonl
 
 stages = load_script("fullsend-stages.py")
 PROJECT = "-work-repo"
@@ -22,7 +22,7 @@ class StageTimings(unittest.TestCase):
         self.tmp.cleanup()
 
     def run_stages(self):
-        return stages.analyze(str(self.root), 7, now=NOW)
+        return stages.analyze(str(self.root), 7, now=NOW, revs=StubRevs())
 
     def test_minutes_per_stage_run_from_its_mark_to_the_next(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [
@@ -38,6 +38,11 @@ class StageTimings(unittest.TestCase):
         self.assertEqual(out["runs"][0]["stages"], {"0 intake": 10, "1 setup": 10, "2 implement": 40, "3 review": 10})
         self.assertEqual(out["runs"][0]["total_min"], 70)
         self.assertEqual(out["stages"]["2 implement"]["median"], 40)
+
+    def test_a_run_names_the_setup_it_started_on(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 100)] + [
+            mark(f"m{n}", 100 - 10 * n, n, f"stage{n}") for n in range(4)])
+        self.assertEqual(stages.analyze(str(self.root), 7, now=NOW, revs=StubRevs(80))["runs"][0]["setup_rev"], "early")
 
     def test_session_that_never_ran_fullsend_is_skipped(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [

@@ -27,9 +27,10 @@ MAX_STAGE_MIN = 600
 
 
 def marks_in(path, cutoff):
-    marks, last, fullsend = [], None, False
+    marks, start, last, fullsend = [], None, None, False
     for d in tr.records(path):
         ts = tr.parse_ts(d.get("timestamp"))
+        start = start or ts
         if ts is None or ts < cutoff:
             continue
         last = ts
@@ -41,11 +42,11 @@ def marks_in(path, cutoff):
                 m = MARK_RE.search((b.get("input") or {}).get("command", ""))
                 if m:
                     marks.append((ts, int(m.group(1)), m.group(2).strip().lower()))
-    return (marks if fullsend else []), last
+    return (marks if fullsend else []), start, last
 
 
-def run_of(path, root, cutoff):
-    marks, last = marks_in(path, cutoff)
+def run_of(path, root, cutoff, revs):
+    marks, start, last = marks_in(path, cutoff)
     first = {}
     for ts, n, name in marks:
         first.setdefault(n, (ts, n, name))
@@ -53,13 +54,13 @@ def run_of(path, root, cutoff):
         return None
     order = sorted(first.values())
     stages, names = {}, {}
-    for (start, n, name), (end, *_) in zip(order, order[1:] + [(last,)], strict=True):
+    for (stage_start, n, name), (end, *_) in zip(order, order[1:] + [(last,)], strict=True):
         names[n] = name
-        minutes = (end - start) / 60
+        minutes = (end - stage_start) / 60
         if minutes <= MAX_STAGE_MIN:
             stages[n] = round(minutes, 1)
     project, session = tr.session_of(path, root)
-    return {"project": tr.project_label(project), "session": session,
+    return {"project": tr.project_label(project), "session": session, "start": start, "setup_rev": revs.at(start),
             "total_min": round((last - order[0][0]) / 60, 1), "stages": stages, "names": names}
 
 
@@ -69,9 +70,21 @@ def summary(values):
             "p90": v[int(len(v) * .9)], "total": round(sum(v), 1)}
 
 
-def analyze(root, days, now=None):
+def collect(root, days, now=None, revs=None):
     cutoff = tr.cutoff_for(days, now)
-    runs = [r for p, kind in tr.transcript_files(root, cutoff) if kind == "main" and (r := run_of(p, root, cutoff))]
+    revs = tr.SetupRevs() if revs is None else revs
+    runs = [r for p, kind in tr.transcript_files(root, cutoff) if kind == "main" and (r := run_of(p, root, cutoff, revs))]
+    return {"days": days, "runs": runs}
+
+
+def analyze(root, days, now=None, revs=None):
+    return report(collect(root, days, now, revs))
+
+
+def report(scanned, keep=None):
+    """Stage minutes over the runs whose (start, setup_rev) keep accepts, or all of them."""
+    days = scanned["days"]
+    runs = [dict(r) for r in scanned["runs"] if not keep or keep(r["start"], r["setup_rev"])]
     names = {}
     for r in runs:
         for n, name in r.pop("names").items():
@@ -79,6 +92,7 @@ def analyze(root, days, now=None):
     label = {n: f"{n} {c.most_common(1)[0][0]}".strip() for n, c in names.items()}
     per_stage = {}
     for r in runs:
+        del r["start"]
         r["stages"] = {label[n]: minutes for n, minutes in sorted(r["stages"].items())}
         for name, minutes in r["stages"].items():
             per_stage.setdefault(name, []).append(minutes)

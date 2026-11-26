@@ -173,6 +173,8 @@ def scan(path, kind, root, cutoff, msgs, known):
     """Stream one transcript, appending each usage record to msgs[message id]."""
     t = new_transcript(path, kind, root, known)
     for pos, d in enumerate(tr.records(path)):
+        if kind == "main":
+            t["head"].feed(d)
         typ = d.get("type")
         if typ == "attachment":
             at = d.get("attachment") or {}
@@ -192,8 +194,6 @@ def scan(path, kind, root, cutoff, msgs, known):
             t["file_first_ts"] = ts
         if typ == "assistant" and (d.get("message") or {}).get("usage"):
             t["last_usage_pos"] = pos
-        if kind == "main":
-            t["head"].feed(d)
         if ts is None or ts < cutoff:
             continue
         t["first_ts"] = ts if t["first_ts"] is None else min(t["first_ts"], ts)
@@ -278,11 +278,31 @@ def dedupe(msgs, T):
     return reqs, cross_file
 
 
-def analyze(root, days, now=None, known=None):
+def collect(root, days, now=None, known=None, revs=None):
+    """Every transcript of the period scanned once, for one or more reports."""
     known = tr.repo_commands() if known is None else known
     cutoff = tr.cutoff_for(days, now)
     msgs = defaultdict(list)
     T = {path: scan(path, kind, root, cutoff, msgs, known) for path, kind in tr.transcript_files(root, cutoff)}
+    revs = tr.SetupRevs() if revs is None else revs
+    for p, t in T.items():
+        main = T.get(tr.main_path_of(p, root), t) if t["kind"] == "sub" else t
+        t["start"] = main["head"].start
+        t["setup_rev"] = revs.at(t["start"])
+    return {"root": root, "days": days, "cutoff": cutoff, "known": known, "T": T, "msgs": msgs}
+
+
+def analyze(root, days, now=None, known=None, revs=None):
+    return report(collect(root, days, now, known, revs))
+
+
+def report(scanned, keep=None):
+    """The report over the sessions whose (start, setup_rev) keep accepts, or all of them."""
+    root, days, cutoff, known = scanned["root"], scanned["days"], scanned["cutoff"], scanned["known"]
+    T, msgs = scanned["T"], scanned["msgs"]
+    if keep:
+        T = {p: t for p, t in T.items() if keep(t["start"], t["setup_rev"])}
+        msgs = {k: kept for k, recs in msgs.items() if (kept := [r for r in recs if r["path"] in T])}
     reqs, cross_file = dedupe(msgs, T)
     subs_of, orphans = defaultdict(list), 0
     for p, t in T.items():
@@ -454,7 +474,7 @@ def session_rows(ctx):
             "cr": sum(r["cr"] for r in all_rs), "cw": sum(r["cw5"] + r["cw1"] for r in all_rs),
             "first_user": (t["first_user"] or "")[:160], "entry": t["entry"],
             "cost_state": final_cost_state(t, [T[s] for s in subs], ctx["cutoff"]),
-            "first_ts": t["first_ts"], "requests": len(rs),
+            "first_ts": t["first_ts"], "requests": len(rs), "setup_rev": t["setup_rev"],
             "cost_over_200k": sum(r["cost"] or 0 for r in rs if r["ctx"] > 200_000),
         })
     rows.sort(key=lambda s: -s["cost"])
@@ -482,7 +502,7 @@ def commands_section(ctx, sessions):
         for r in rs:
             skill_cost[r["skill"] or "(none)"] += r["cost"] or 0
     keys = ("project", "session", "primary", "commands", "cost", "main_cost", "sub_cost", "n_subs", "dur_min",
-            "peak_ctx", "compactions", "requests")
+            "peak_ctx", "compactions", "requests", "setup_rev")
     return {
         "n_main_sessions": len(sessions),
         "commands": commands,
@@ -494,7 +514,7 @@ def commands_section(ctx, sessions):
         "no_command_sessions": {
             "by_entry": dict(Counter(s["entry"] for s in none)),
             "under_1usd": sum(1 for s in none if s["cost"] < 1),
-            "top": [{k: s[k] for k in ("project", "cost", "dur_min", "n_subs", "first_user")} for s in none[:12]],
+            "top": [{k: s[k] for k in ("project", "cost", "dur_min", "n_subs", "first_user", "setup_rev")} for s in none[:12]],
         },
     }
 
@@ -541,7 +561,7 @@ def cache_section(ctx, sessions):
         "cache_misses_by_kind": {k: dict(v) for k, v in miss_by_kind.items()},
         "ttl_1h_premium_paid": sum(r["cw1"] * (PRICES[r["model"]][4] - PRICES[r["model"]][3]) / 1e6
                                    for r in all_rs if r["model"] in PRICES),
-        "write_heavy_sessions": [{k: s[k] for k in ("project", "primary", "cost", "cr", "cw", "dur_min")}
+        "write_heavy_sessions": [{k: s[k] for k in ("project", "primary", "cost", "cr", "cw", "dur_min", "setup_rev")}
                                  for s in heavy[:10]],
     }
 
@@ -662,7 +682,8 @@ def parallelism_section(ctx, sessions):
                 busy.append((u["ts"], ts))
         fg = [T[s] for s in subs if T[s]["meta"].get("requestShape") == "foreground"]
         rows.append({
-            "project": tr.project_label(t["project"]), "primary": primary.get(p), "n_subs": len(subs),
+            "project": tr.project_label(t["project"]), "primary": primary.get(p), "setup_rev": t["setup_rev"],
+            "n_subs": len(subs),
             "peak": peak, "sub_union_min": union_len(spans) / 60, "main_idle_min": uncovered_len(spans, busy) / 60,
             "fg_subs": len(fg), "fg_min": sum(x["last_ts"] - x["first_ts"] for x in fg) / 60,
             "session_min": (t["last_ts"] - t["first_ts"]) / 60,

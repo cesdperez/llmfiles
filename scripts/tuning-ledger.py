@@ -7,21 +7,29 @@ Usage: tuning-ledger.py [--ledger PATH] validate
        tuning-ledger.py add '<entry json>'          (id defaults to <date>-<n>)
        tuning-ledger.py list [--status S] [--source S] [--open] [--today D]
        tuning-ledger.py pending [--repo ~/llmfiles] [--branch main]
-       tuning-ledger.py measure [--usage F] [--stages F] [--friction F] [--since D] [--today D]
+       tuning-ledger.py measure [--days 28] [--root ~/.claude/projects] [--today D]
        tuning-ledger.py set <id> key=value key+=item ...  (value parsed as JSON when it parses;
                                                      += appends to a list such as where)
 """
 
 import argparse
+import importlib.util
+import itertools
 import json
 import os
 import re
 import subprocess
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import transcripts as tr  # noqa: E402
 
 DEFAULT_LEDGER = os.path.expanduser("~/llmfiles/local/tunesetup/ledger.jsonl")
 OUTPUTS = ("usage", "stages", "friction")
+SCRIPTS = {"usage": "claude-usage.py", "stages": "fullsend-stages.py", "friction": "session-friction.py"}
+MEASURE_DAYS = 28
+DAY = 86400
 ENUMS = {
     "source": ("tunesetup", "whichmodels", "manual"),
     "status": ("proposed", "applied", "rejected", "reverted"),
@@ -31,7 +39,7 @@ ENUMS = {
 }
 REQUIRED = ("id", "date", "source", "change", "files", "where", "why", "metric", "status")
 DEFAULTS = {"baseline": None, "baseline_days": None, "hand_counted": False, "expected": None,
-            "reversed_by": None, "note": None, "measured": None, "measured_on": None,
+            "reversed_by": None, "note": None, "measured": None, "measured_before": None, "measured_on": None,
             "moved": None, "verdict": None}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 MIN_DAYS = 7
@@ -53,7 +61,7 @@ def validate_entry(e):
     for k in ("files", "where"):
         if not isinstance(e.get(k, []), list):
             errors.append(f"{k} must be a list")
-    for k in ("baseline", "baseline_days", "measured"):
+    for k in ("baseline", "baseline_days", "measured", "measured_before"):
         if e[k] is not None and not is_number(e[k]):
             errors.append(f"{k} must be a number")
     metric = e.get("metric")
@@ -184,25 +192,83 @@ def judge(e, measured):
     return "against", None
 
 
-def measure(path, outputs, today, since=None):
-    """Fills measured, moved and verdict on each open script entry, or only those dated `since`,
-    whose outputs must cover just the days after it. A move against the expected direction
-    leaves the verdict to the person, who reverts or keeps it."""
+def load_script(name):
+    spec = importlib.util.spec_from_file_location(name.replace("-", "_")[:-3], os.path.join(os.path.dirname(__file__), name))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def split_for(e, revs):
+    """How to tell an entry's sessions apart: by whether the setup they started on holds every
+    sha in where that resolves, or by the entry's date when none resolves or main never held
+    them all. Returns (kind, the moment main first held the change, keep-after, keep-before)."""
+    commits = [c for c in (revs.resolve(w) for w in e["where"]) if c]
+    switch = revs.first_containing(commits) if commits else None
+    if switch is not None:
+        def holds(rev, test):
+            return rev is not None and test(revs.contains(rev, c) for c in commits)
+        return ("commit", switch, lambda start, rev: holds(rev, all),
+                lambda start, rev: not holds(rev, any))
+    switch = datetime.fromisoformat(e["date"]).timestamp()
+    return ("date", switch, lambda start, rev: start is not None and start >= switch,
+            lambda start, rev: start is not None and start < switch)
+
+
+def side_days(revs, keep, switch, cutoff, now):
+    """Days within [cutoff, now] that main spent on setups keep accepts."""
+    inside = (ts for ts in [*(ts for ts, _ in revs.timeline), switch] if cutoff < ts < now)
+    points = sorted({cutoff, now, *inside})
+    return sum(b - a for a, b in itertools.pairwise(points) if keep(a, revs.at(a))) / DAY
+
+
+def side_value(e, scans, keep, days):
+    """The metric over the sessions keep accepts, or None when it accepts none."""
+    name = e["metric"].partition(":")[0]
+    if days <= 0 or name not in scans:
+        return None
+    accepted = []
+
+    def counted(start, rev):
+        accepted.append(keep(start, rev))
+        return accepted[-1]
+
+    scanned = scans[name](counted)
+    return measured_value(e, {name: {**scanned, "days": days}}) if any(accepted) else None
+
+
+def measure(path, today, days=MEASURE_DAYS, root=tr.DEFAULT_ROOT, revs=None, now=None):
+    """Fills measured, measured_before, moved and verdict on each open script entry. The period's
+    sessions that started on a setup holding the change are compared with those that started
+    before it, or with the baseline when none did. A move against the expected direction leaves
+    the verdict to the person, who reverts or keeps it."""
+    entries = open_entries(load(path), today)
+    revs = tr.SetupRevs() if revs is None else revs
+    now = now or datetime.now().timestamp()
+    cutoff = tr.cutoff_for(days, now)
+    needed = {e["metric"].partition(":")[0] for e in entries if not e.get("hand_counted")} & set(OUTPUTS)
+    scans = {}
+    for name in needed:
+        module = load_script(SCRIPTS[name])
+        scanned = module.collect(root, days, now=now, revs=revs)
+        scans[name] = lambda keep, m=module, sc=scanned: m.report(sc, keep)
     results = []
-    for e in open_entries(load(path), today):
-        if since and e["date"] != since:
-            continue
+    for e in entries:
         if e.get("hand_counted"):
             results.append({"id": e["id"], "metric": e["metric"], "moved": "hand_count"})
             continue
-        value = measured_value(e, outputs)
+        split, switch, after, before = split_for(e, revs)
+        value = side_value(e, scans, after, side_days(revs, after, switch, cutoff, now))
         if value is None:
-            results.append({"id": e["id"], "metric": e["metric"], "moved": "no_value"})
+            results.append({"id": e["id"], "metric": e["metric"], "split": split, "moved": "no_value"})
             continue
-        moved, verdict = judge(e, value)
-        update(path, e["id"], {"measured": value, "measured_on": today, "moved": moved, "verdict": verdict})
-        results.append({"id": e["id"], "metric": e["metric"], "baseline": e["baseline"], "measured": value,
-                        "expected": e["expected"], "moved": moved, "verdict": verdict})
+        prior = side_value(e, scans, before, side_days(revs, before, switch, cutoff, now))
+        moved, verdict = judge({**e, "baseline": e["baseline"] if prior is None else prior}, value)
+        update(path, e["id"], {"measured": value, "measured_before": prior, "measured_on": today,
+                               "moved": moved, "verdict": verdict})
+        results.append({"id": e["id"], "metric": e["metric"], "split": split, "baseline": e["baseline"],
+                        "before": prior, "measured": value, "expected": e["expected"], "moved": moved,
+                        "verdict": verdict})
     return results
 
 
@@ -251,16 +317,6 @@ def emit(data):
     print()
 
 
-def read_outputs(a):
-    outputs = {}
-    for name in OUTPUTS:
-        p = getattr(a, name)
-        if p:
-            with open(p) as f:
-                outputs[name] = json.load(f)
-    return outputs
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--ledger", default=DEFAULT_LEDGER)
@@ -277,9 +333,8 @@ def main():
     p.add_argument("--repo", default=os.path.expanduser("~/llmfiles"))
     p.add_argument("--branch", default="main")
     p = sub.add_parser("measure")
-    for name in OUTPUTS:
-        p.add_argument(f"--{name}")
-    p.add_argument("--since", help="settle only the open entries dated this day")
+    p.add_argument("--days", type=float, default=MEASURE_DAYS, help="the period read on both sides of each change")
+    p.add_argument("--root", default=tr.DEFAULT_ROOT)
     p.add_argument("--today", default=date.today().isoformat())
     p = sub.add_parser("set")
     p.add_argument("id")
@@ -299,7 +354,7 @@ def main():
         elif a.cmd == "pending":
             emit(pending(load(a.ledger), a.repo, a.branch))
         elif a.cmd == "measure":
-            emit(measure(a.ledger, read_outputs(a), a.today, a.since))
+            emit(measure(a.ledger, a.today, a.days, a.root))
         elif a.cmd == "set":
             print(json.dumps(update(a.ledger, a.id, *parse_fields(a.fields))))
     except (ValueError, KeyError) as exc:

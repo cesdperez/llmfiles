@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,3 +63,29 @@ def subagent(root, project, session, agent_id, agent_type, rows, description="ta
     base = root / project / session / "subagents" / f"agent-{agent_id}"
     write_jsonl(base.with_suffix(".jsonl"), rows)
     base.with_suffix(".meta.json").write_text(json.dumps({"agentType": agent_type, "description": description}))
+
+
+def git_repo(path, days_ago):
+    """A repo whose main gained one commit at each of the given days before NOW, as full shas."""
+    def git(*args, when=NOW):
+        stamp = datetime.fromtimestamp(when, timezone.utc).isoformat()
+        env = {"GIT_AUTHOR_DATE": stamp, "GIT_COMMITTER_DATE": stamp, "HOME": str(path), "PATH": os.environ["PATH"]}
+        return subprocess.run(["git", "-C", str(path), *args], check=True, capture_output=True, text=True, env=env).stdout
+
+    path.mkdir(parents=True, exist_ok=True)
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "t")
+    for n, days in enumerate(days_ago):
+        git("commit", "-q", "--allow-empty", "-m", f"c{n}", when=NOW - days * 86400)
+    return git("log", "--reverse", "--format=%H").split(), git
+
+
+class StubRevs:
+    """Names the setup a session started on: `early` before the given minutes ago, else `late`."""
+
+    def __init__(self, switch_minutes_ago=60):
+        self.switch = NOW - switch_minutes_ago * 60
+
+    def at(self, ts):
+        return None if ts is None else "late" if ts >= self.switch else "early"

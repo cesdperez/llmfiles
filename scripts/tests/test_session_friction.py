@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from transcript_fixtures import (NOW, assistant, load_script, slash, subagent, tool_result, tool_use, user,
+from transcript_fixtures import (NOW, StubRevs, assistant, load_script, slash, subagent, tool_result, tool_use, user,
                                  write_jsonl)
 
 friction = load_script("session-friction.py")
@@ -35,6 +35,7 @@ class Extracts(unittest.TestCase):
         self.tmp.cleanup()
 
     def analyze(self, **kw):
+        kw.setdefault("revs", StubRevs())
         return friction.analyze(str(self.root), 7, now=NOW, known=KNOWN, **kw)
 
     def only_session(self, **kw):
@@ -168,6 +169,11 @@ class Extracts(unittest.TestCase):
             user("Read `~/llmfiles/opencode/fullconduct.md`, then fix x", old), user("go on", 30)])
         self.assertEqual(self.only_session()["command"], "fullconduct")
 
+    def test_a_session_names_the_setup_it_started_on(self):
+        write_jsonl(self.root / PROJECT / "s1.jsonl", [slash("fullsend", 90), user("go on", 30)])
+        s = friction.analyze(str(self.root), 7, now=NOW, known=KNOWN, revs=StubRevs(60))["sessions"][0]
+        self.assertEqual(s["setup_rev"], "early")
+
     def test_session_without_a_known_command_is_out_of_scope(self):
         write_jsonl(self.root / PROJECT / "s1.jsonl", [user("hi", 60), user("again", 50)])
         self.assertEqual(self.analyze()["sessions"], [])
@@ -192,8 +198,9 @@ class Secrets(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def analyze(self):
-        return friction.analyze(str(self.root), 7, now=NOW, known=KNOWN)
+    def analyze(self, **kw):
+        kw.setdefault("revs", StubRevs())
+        return friction.analyze(str(self.root), 7, now=NOW, known=KNOWN, **kw)
 
     def kinds(self, out):
         return {s["kind"]: s["count"] for s in out["secrets"]}

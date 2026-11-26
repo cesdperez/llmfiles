@@ -5,15 +5,19 @@ A projects root holds `<project>/<session>.jsonl` for main sessions and
 the sibling `.meta.json`. Transcripts run to gigabytes a week, so they are read line by line.
 """
 
+import bisect
 import glob
 import json
 import os
 import re
+import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
 
 DEFAULT_ROOT = os.path.expanduser("~/.claude/projects")
+SETUP_REPO = os.path.expanduser("~/llmfiles")
+REFLOG_DATE_RE = re.compile(r"@\{([^}]+)\}")
 REPO = Path(__file__).resolve().parent.parent
 COMMAND_RE = re.compile(r"<command-name>/?([\w:-]+)</command-name>")
 DISPATCH_MARKERS = ("You are a dispatched worker", "Dispatch ID", "Dispatch id")
@@ -214,13 +218,16 @@ def outside_checkpoints(blocks):
 
 class SessionHead:
     """How a session began, read from every record of its file, so a session resumed into the
-    period keeps its command: the commands it ran, what a person first typed, and whether an Orca
-    coordinator dispatched it."""
+    period keeps its command: when it started, the commands it ran, what a person first typed, and
+    whether an Orca coordinator dispatched it."""
 
     def __init__(self, known=frozenset()):
         self.known, self.commands, self.first_prompt, self.dispatched = known, [], None, False
+        self.start = None
 
     def feed(self, record):
+        if self.start is None:
+            self.start = parse_ts(record.get("timestamp"))
         self.commands += commands_in(record, self.known)
         if record.get("type") == "user":
             self.dispatched = self.dispatched or is_dispatched(text_of((record.get("message") or {}).get("content")))
@@ -229,3 +236,63 @@ class SessionHead:
     def command(self):
         return primary_command(self.commands, self.first_prompt, self.dispatched)
 
+
+class SetupRevs:
+    """Which commit main of the installed setup repo pointed at over time, so each session can
+    name the setup it started on. Shas are full, for ancestry checks."""
+
+    def __init__(self, repo=SETUP_REPO, branch="main"):
+        self.repo, self.branch = repo, branch
+        self.timeline = self._timeline()
+        self._times = [ts for ts, _ in self.timeline]
+        self._mainline = set(self._git("rev-list", branch).split())
+        self._descendants, self._ancestry = {}, {}
+
+    def _git(self, *args):
+        result = subprocess.run(["git", "-C", self.repo, *args], capture_output=True, text=True)
+        return result.stdout if result.returncode == 0 else ""
+
+    def _timeline(self):
+        moves = []
+        reflog = self._git("reflog", "show", "--date=iso-strict", "--format=%H %gd", f"refs/heads/{self.branch}")
+        for line in reversed(reflog.splitlines()):
+            sha, _, selector = line.partition(" ")
+            m = REFLOG_DATE_RE.search(selector)
+            if m and parse_ts(m.group(1)) is not None:
+                moves.append((parse_ts(m.group(1)), sha))
+        oldest = min((ts for ts, _ in moves), default=float("inf"))
+        # Before the reflog starts, a commit's date stands in for when main reached it.
+        for line in reversed(self._git("log", "--first-parent", self.branch, "--format=%H %cI").splitlines()):
+            sha, _, stamp = line.partition(" ")
+            ts = parse_ts(stamp)
+            if ts is not None and ts < oldest:
+                moves.append((ts, sha))
+        # Moves in the same second keep the order git recorded them in, not sha order.
+        return sorted(moves, key=lambda m: m[0])
+
+    def at(self, ts):
+        """The commit main pointed at at that moment, or None before its history."""
+        if ts is None:
+            return None
+        i = bisect.bisect_right(self._times, ts) - 1
+        return self.timeline[i][1] if i >= 0 else None
+
+    def resolve(self, ref):
+        """The full sha of a commit ref, or None for anything else, such as a settings key."""
+        return self._git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").strip() or None
+
+    def contains(self, rev, commit):
+        """Whether rev has commit in its history."""
+        if rev in self._mainline:
+            if commit not in self._descendants:
+                path = self._git("rev-list", "--ancestry-path", f"{commit}..{self.branch}").split()
+                self._descendants[commit] = set(path) | ({commit} if commit in self._mainline else set())
+            return rev in self._descendants[commit]
+        if (rev, commit) not in self._ancestry:
+            ok = subprocess.run(["git", "-C", self.repo, "merge-base", "--is-ancestor", commit, rev], capture_output=True)
+            self._ancestry[(rev, commit)] = ok.returncode == 0
+        return self._ancestry[(rev, commit)]
+
+    def first_containing(self, commits):
+        """When main first held all the commits, or None if it never did."""
+        return next((ts for ts, sha in self.timeline if all(self.contains(sha, c) for c in commits)), None)
