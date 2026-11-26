@@ -71,9 +71,13 @@ Good: "Sliding 60s (`WebSessionRefreshRate`) becomes absolute 5 min, and that se
 
 Always include these flags when creating MRs:
 - `--remove-source-branch` - Delete branch when merged
-- `--squash-before-merge` - Squash commits when merged
 - `--yes` - Skip confirmation prompts
 - `--assignee @me` - Assign to the current user
+
+Squash follows the project's `squash_option` (`glab api projects/<id> | jq .squash_option`):
+pass `--squash-before-merge` only where it is `default_on` or `always`. Never squash in
+tosti: GitLab writes the squash commit itself, the pre-push hook never verified it, and
+the `signoff` job on main fails.
 
 **MR Title Format**: Conventional Commits, with the Jira code as the scope:
 `type(PROJ-123): description`, e.g. `fix(PROJ-209): correct OTLP receiver hostname`.
@@ -100,14 +104,12 @@ glab mr create \
     --description "<description>" \
     --assignee @me \
     --remove-source-branch \
-    --squash-before-merge \
     --yes
 
 # Auto-fill from commits
 glab mr create --fill \
     --assignee @me \
     --remove-source-branch \
-    --squash-before-merge \
     --yes
 ```
 
@@ -122,7 +124,6 @@ glab mr list --reviewer=@me               # I'm reviewing
 glab mr checkout <mr_id>                  # Checkout branch locally
 glab mr checkout <mr_id> --worktree ../<repo>-mr-<mr_id>  # Separate worktree, current checkout untouched
 glab mr merge <mr_id>                     # Merge MR
-glab mr merge <mr_id> --squash            # Squash and merge
 glab ci status                            # Current pipeline status
 ```
 
@@ -145,7 +146,7 @@ Pass `--auto-merge=false` to merge immediately.
 
 1. **Forgetting `--yes` in scripts** - Without it, commands prompt for confirmation
 2. **Not pushing before MR** - Use `--fill` which auto-pushes (unless `--push=false`), or push manually first
-3. **Squash flag timing** - `--squash-before-merge` is on create/update, `--squash` is on merge
+3. **Squash flags** - `--squash-before-merge` (create/update) and `--squash` (merge) both squash; use them only where the project squashes
 4. **Assignee modification** - Use `+` to add, `-` to remove, or plain to replace all
 5. **JSON parsing** - Use `--output json` not `--json`
 6. **GitHub CLI flag confusion** - Use `--description` for MR body, not `--body` (which is gh's syntax)

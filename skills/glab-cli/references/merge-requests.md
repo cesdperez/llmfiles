@@ -11,7 +11,6 @@ glab mr create --draft \
     --title "feat(PROJ-123): add user authentication" \
     --assignee @me \
     --remove-source-branch \
-    --squash-before-merge \
     --yes
 
 # With reviewers and labels
@@ -22,7 +21,6 @@ glab mr create \
     --reviewer username1,username2 \
     --label feature,needs-review \
     --remove-source-branch \
-    --squash-before-merge \
     --yes
 ```
 
@@ -98,6 +96,6 @@ glab mr rebase <mr_id>                    # Rebase against target
 | `--draft` | Mark as draft/WIP |
 | `-r, --ready` | Mark as ready |
 | `--remove-source-branch` | Delete branch on merge |
-| `--squash-before-merge` | Squash commits |
+| `--squash-before-merge` | Squash commits, only where the project squashes (see SKILL.md) |
 | `-R, --repo` | Target different repo |
 | `-F, --output` | Output format (text/json) |
