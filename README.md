@@ -146,6 +146,10 @@ is needed.
 
 - `daily-work-recap.py`, one day of git commits, merge requests, GitLab review activity and
   matching Claude Code transcripts, used by `/dailyworkrecap`.
+- `jira-sync.py`, used by `/jirasync`: an epic's child tickets from `twg` with status and
+  assignee, the GitLab MRs merged to main that name each key, and the tickets whose Jira state
+  disagrees with that. It reads JSON from stdout only, because `twg` and `glab` write warnings
+  to stderr. Its tests are in `scripts/tests/`.
 - `glab-review-queue.py`, assigned GitLab merge requests with approval state, diffs,
   pipelines, and unresolved threads, used by `/glabsummary`.
 - `merge-digest.py`, the draft Slack message for `/teamdigest` and `/repodigest`: what a team
