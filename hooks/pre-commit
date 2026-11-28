@@ -3,9 +3,9 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-missing=$(for tool in yamllint shellcheck ruff; do command -v "$tool" >/dev/null || echo "$tool"; done)
+missing=$(for tool in yamllint shellcheck ruff ruby; do command -v "$tool" >/dev/null || echo "$tool"; done)
 if [ -n "$missing" ]; then
-  echo "Missing linters, install with: brew install $(echo "$missing" | tr '\n' ' ')" >&2
+  echo "Missing tools, install with: brew install $(echo "$missing" | tr '\n' ' ')" >&2
   exit 1
 fi
 

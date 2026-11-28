@@ -21,6 +21,21 @@ OPENCODE_BUILTIN_AGENTS = {"build", "plan", "general", "explore"}
 # Only the conductor allows these again, so build, plan and general never pick one.
 CONDUCTOR_ONLY_SUBAGENTS = ("builder-*", "reviewer-flash", "worker-flash", "explore-flash")
 BUILDER_CONTRACT = "~/llmfiles/opencode/builder-contract.md"
+# Claude Code ignores an unknown name in `disallowedTools`, so a misspelling silently keeps the tool.
+# Built-ins from https://code.claude.com/docs/en/tools-reference plus team tools and older names.
+KNOWN_TOOLS = {
+    "Agent", "Task", "Artifact", "ArtifactComments", "ArtifactData", "ArtifactCheck",
+    "AskUserQuestion", "Bash", "BashOutput", "KillShell", "CronCreate", "CronDelete", "CronList",
+    "DesignSync", "Edit", "MultiEdit", "EndConversation", "EnterPlanMode", "ExitPlanMode", "EnterWorktree",
+    "ExitWorktree", "Glob", "Grep", "LS", "ListAgents", "ListMcpResourcesTool", "ListPlugins", "ListSkills",
+    "LSP", "Monitor", "NotebookEdit", "NotebookRead", "PowerShell", "propose_skills", "PushNotification",
+    "Read", "ReadMcpResourceTool", "RemoteTrigger", "REPL", "ReportFindings", "ScheduleWakeup",
+    "SearchPlugins", "SearchSkills", "SendFeedback", "SendMessage", "SendUserFile", "ShareOnboardingGuide",
+    "Skill", "SlashCommand", "SubagentHandback", "SuggestPluginInstall", "SuggestSkills",
+    "TaskCreate", "TaskGet", "TaskList", "TaskOutput", "TaskStop", "TaskUpdate", "TeamCreate",
+    "TeamDelete", "TodoRead", "TodoWrite", "ToolSearch", "WaitForMcpServers", "WebFetch", "WebSearch",
+    "Workflow", "Write",
+}
 SKILL_DESCRIPTION_LIMIT = 1024
 FRONTMATTER_YAMLLINT = "{extends: default, rules: {line-length: disable, document-start: disable}}"
 
@@ -39,7 +54,7 @@ def fail(path, message):
     errors.append(f"{path.relative_to(ROOT)}: {message}")
 
 
-def frontmatter(path):
+def frontmatter(path, *, agent=False):
     lines = path.read_text().splitlines()
     if not lines or lines[0] != "---" or "---" not in lines[1:]:
         fail(path, "missing YAML frontmatter")
@@ -51,7 +66,28 @@ def frontmatter(path):
     )
     for issue in lint.stdout.splitlines():
         fail(path, f"frontmatter {issue.removeprefix('stdin:')}")
+    if agent:
+        return agent_keys(path, text)
     return top_level_keys(text)
+
+
+def agent_keys(path, text):
+    script = "begin; puts JSON.generate(YAML.safe_load(STDIN.read)); rescue => e; abort e.message; end"
+    try:
+        parsed = subprocess.run(
+            ["ruby", "-ryaml", "-rjson", "-e", script], input=text, capture_output=True, text=True,
+        )
+    except FileNotFoundError:
+        fail(path, "agent frontmatter needs `ruby` on PATH to parse")
+        return None
+    if parsed.returncode:
+        reason = (parsed.stderr.strip().splitlines() or ["ruby exited non-zero"])[-1]
+        fail(path, f"agent frontmatter does not parse: {reason}")
+        return None
+    if not isinstance(keys := json.loads(parsed.stdout), dict):
+        fail(path, "agent frontmatter must be a YAML mapping")
+        return None
+    return keys
 
 
 def top_level_keys(text):
@@ -86,16 +122,31 @@ def check_skills():
 
 def check_agents():
     for path in tracked("agents/*.md"):
-        keys = frontmatter(path)
+        keys = frontmatter(path, agent=True)
         if keys is None:
             continue
         require(path, keys, "name", "description", "model", "effort")
         if keys.get("name") and keys["name"] != path.stem:
             fail(path, f"name `{keys['name']}` must match the file name `{path.stem}`")
-        if keys.get("model") and keys["model"] not in MODELS:
+        if keys.get("model") and str(keys["model"]) not in MODELS:
             fail(path, f"model `{keys['model']}` is not an alias: {sorted(MODELS)}")
-        if keys.get("effort") and keys["effort"] not in EFFORTS:
+        if keys.get("effort") and str(keys["effort"]) not in EFFORTS:
             fail(path, f"effort `{keys['effort']}` is not one of {sorted(EFFORTS)}")
+        check_tool_names(path, keys.get("disallowedTools", ""))
+
+
+def check_tool_names(path, tools):
+    if tools is None:
+        tools = []
+    if isinstance(tools, str):
+        tools = tools.split(",") if tools else []
+    if not isinstance(tools, list) or not all(isinstance(t, str) for t in tools):
+        fail(path, "disallowedTools must be a comma-separated string or a list of tool names")
+        return
+    for tool in tools:
+        name = tool.partition("(")[0].strip()
+        if name and name not in KNOWN_TOOLS and not name.startswith("mcp__"):
+            fail(path, f"disallowedTools names `{name}`, which is not a Claude Code tool")
 
 
 def check_commands():

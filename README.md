@@ -249,7 +249,7 @@ any finding:
 - `shellcheck` on the shell scripts.
 - `ruff check`, configured in `ruff.toml`.
 - `check-repo.py`, for what the agent CLIs load but no linter sees: frontmatter that parses as
-  YAML, required keys, skill and agent names that match their file, model aliases and effort
+  YAML, required keys, Claude agent `disallowedTools` names, skill and agent names that match their file, model aliases and effort
   levels, Codex agent TOML, opencode agents and config, example JSON, and every `~/llmfiles/`
   path and relative Markdown link pointing at a file that exists.
 
@@ -344,8 +344,8 @@ Clone to `~/llmfiles`. Commands, adapters, and settings reference files by that 
 git clone git@github.com:cesdperez/llmfiles.git ~/llmfiles
 ```
 
-Prerequisites: `python3` (3.11 or later) for the scripts and hooks, `yamllint`, `shellcheck` and
-`ruff` for the git hook (`brew install yamllint shellcheck ruff`), `jq` for the GitLab and
+Prerequisites: `python3` (3.11 or later) for the scripts and hooks, Ruby (included with macOS),
+`yamllint`, `shellcheck` and `ruff` for the git hook (`brew install yamllint shellcheck ruff`), `jq` for the GitLab and
 Orca commands, and an authenticated `glab` for the GitLab commands. The GitLab and recap commands also need
 `local/work.json` (see [Local org settings](#local-org-settings-local)), and the review
 commands expect the GitLab group cloned under its `repo_root`. Other CLIs with companion skills are
