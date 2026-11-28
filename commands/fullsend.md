@@ -241,6 +241,11 @@ card `--unread` and give one concise instruction.
   branch (`git symbolic-ref --short refs/remotes/origin/HEAD`). With no remote, use the
   local default branch. For endpoint `mr` or later, record in the ledger that the MR stage
   will be blocked.
+- Read each repo's contribution guidelines, if any: `CONTRIBUTING*` at the root, in
+  `docs/` or `.github/`, and MR or PR templates in `.gitlab/merge_request_templates/` or
+  `.github/`. Record in the ledger what they require. Where they set branch names,
+  commit format, changelog entries, sign-off or description layout, they win over
+  `glab-cli`.
 - Branch from the base, using the branch naming rule in `glab-cli` (call the Skill tool
   with "glab-cli"; the later stages use it too). Use the same branch
   name in every repo. Record the base per repo in the ledger: stage 3 diffs against it.
@@ -380,8 +385,9 @@ the reviewers and the description, which reflects the final diff.
     jq -r --arg t "$(jq -r .team_id ~/llmfiles/local/work.json)" \
       '.teams[] | select(.id == $t) | .members[] | select(.gitlab) | .gitlab'
   ```
-- Description: call the Skill tool with "plainenglish", then follow **Writing MR Text** in
-  `glab-cli`. Link the
+- Description, for an MR or a GitHub PR: call the Skill tool with "plainenglish", then
+  follow **Writing MR Text** in `glab-cli` and the repo template and guidelines from the
+  ledger. Link the
   ticket and the sibling MRs. Add one line saying what was verified and where, for example
   "Verified locally: signup and resend flows, desktop and mobile." Write only what is true
   of the final diff. Never cite the ledger, plans, or notes.
