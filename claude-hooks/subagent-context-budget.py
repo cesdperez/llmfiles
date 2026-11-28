@@ -11,10 +11,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import transcript_tail  # noqa: E402
+
 WARN_TOKENS = int(os.environ.get("SUBAGENT_CONTEXT_WARN_TOKENS", "100000"))
 # Higher than the subagent limit: the main session cannot restart from a notes file, so it hands off later, still short of a 200k window.
 MAIN_WARN_TOKENS = int(os.environ.get("MAIN_CONTEXT_WARN_TOKENS", "120000"))
-TAIL_BYTES = 512 * 1024
 MARKER_DIR = Path(tempfile.gettempdir()) / "claude-subagent-context-budget"
 
 
@@ -29,22 +31,15 @@ MAIN_ADVICE = (
 
 
 def transcript_path(event):
-    main = Path(event["transcript_path"]).expanduser()
-    agent_id = event.get("agent_id")
-    if not agent_id:
-        return main
-    return main.parent / main.stem / "subagents" / f"agent-{agent_id}.jsonl"
+    if not event.get("agent_id"):
+        return Path(event["transcript_path"]).expanduser()
+    return transcript_tail.subagent_transcript(event)
 
 
 def context_tokens(transcript):
-    with transcript.open("rb") as f:
-        f.seek(max(0, transcript.stat().st_size - TAIL_BYTES))
-        lines = f.read().decode("utf-8", "replace").splitlines()
-    for line in reversed(lines):
-        try:
-            usage = json.loads(line).get("message", {}).get("usage")
-        except (json.JSONDecodeError, AttributeError):
-            continue
+    for entry in reversed(list(transcript_tail.tail_entries(transcript))):
+        message = entry.get("message")
+        usage = message.get("usage") if isinstance(message, dict) else None
         if not usage:
             continue
         tokens = (
@@ -58,8 +53,7 @@ def context_tokens(transcript):
     return 0
 
 
-def main():
-    event = json.load(sys.stdin)
+def run(event):
     if not event.get("transcript_path"):
         return
     agent_id = event.get("agent_id")
@@ -69,7 +63,7 @@ def main():
         return
 
     transcript = transcript_path(event)
-    if not transcript.exists():
+    if transcript is None or not transcript.exists():
         return
     tokens = context_tokens(transcript)
     if tokens < (WARN_TOKENS if agent_id else MAIN_WARN_TOKENS):
@@ -90,7 +84,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        run(json.load(sys.stdin))
     except Exception:
         # A broken budget check must never block the tool call.
         pass

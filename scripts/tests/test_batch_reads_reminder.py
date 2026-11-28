@@ -100,6 +100,13 @@ class BatchReadsReminder(unittest.TestCase):
         rows = [request(f"m{i}", read(str(i))) for i in range(3)]
         self.assertIsNotNone(self.run_hook(rows, subdir="workflows/wf_1"))
 
+    def test_a_tail_cut_mid_line_skips_that_line_and_reads_the_rest(self):
+        rows = [request("m0", read("x" * 2000))] + [request(f"m{i}", read(str(i))) for i in range(1, 4)]
+        tail = hook.transcript_tail
+        self.addCleanup(setattr, tail, "TAIL_BYTES", tail.TAIL_BYTES)
+        tail.TAIL_BYTES = 1500
+        self.assertIsNotNone(self.run_hook(rows))
+
     def test_requests_without_a_message_id_count_separately(self):
         rows = [request(None, read(str(i))) for i in range(3)]
         self.assertIsNotNone(self.run_hook(rows))

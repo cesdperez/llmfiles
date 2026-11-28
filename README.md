@@ -25,7 +25,8 @@ llmfiles/
 │   └── <command-name>.md
 ├── claude-hooks/
 │   ├── batch-reads-reminder.py
-│   └── subagent-context-budget.py
+│   ├── subagent-context-budget.py
+│   └── transcript_tail.py
 ├── hooks/
 │   ├── pre-commit
 │   └── check-repo.py
@@ -313,7 +314,10 @@ and editing to agents. Neither can see its own token count, so the delegation ru
 `batch-reads-reminder.py` is a `PostToolUse` hook. After three requests in a row from a
 subagent that each make one read or search (Read, Grep, Glob, or a reading shell command
 such as `cat`, `sed -n` or `grep`), it reminds that subagent to send independent reads in
-one message. It reminds again every third such request, and never blocks a call. Its tests
+one message. It reminds again every third such request, and never blocks a call.
+
+Both hooks find a subagent's transcript, including one under `subagents/workflows/`, and read
+its tail through `transcript_tail.py`, which they import from their own directory. Their tests
 are in `scripts/tests/`.
 
 ### Global instructions (`shared/CLAUDE.md`)

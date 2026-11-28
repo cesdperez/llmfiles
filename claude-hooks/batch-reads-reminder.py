@@ -6,13 +6,16 @@ It only adds context and never blocks a call.
 """
 
 import json
+import os
 import shlex
 import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import transcript_tail  # noqa: E402
+
 STREAK = 3
-TAIL_BYTES = 512 * 1024
 MARKER_DIR = Path(tempfile.gettempdir()) / "claude-batch-reads-reminder"
 READ_TOOLS = {"Read", "Grep", "Glob"}
 READ_COMMANDS = {"cat", "head", "tail", "sed", "grep", "rg", "find", "ls", "wc", "nl", "awk", "tree", "jq"}
@@ -24,27 +27,6 @@ REMINDER = (
     f"Your last {STREAK} requests each made a single read or search. Send the reads and searches "
     "that do not depend on each other together in one message, and read only the line ranges you need."
 )
-
-
-def transcript_path(event):
-    main = Path(event["transcript_path"]).expanduser()
-    subagents = main.parent / main.stem / "subagents"
-    name = f"agent-{event['agent_id']}.jsonl"
-    direct = subagents / name
-    if direct.exists():
-        return direct
-    return next(subagents.glob(f"workflows/*/{name}"), None)
-
-
-def tail_entries(transcript):
-    with transcript.open("rb") as f:
-        f.seek(max(0, transcript.stat().st_size - TAIL_BYTES))
-        lines = f.read().decode("utf-8", "replace").splitlines()
-    for line in lines:
-        try:
-            yield json.loads(line)
-        except json.JSONDecodeError:
-            continue
 
 
 def tool_calls_per_request(entries):
@@ -136,10 +118,10 @@ def trailing_streak(requests):
 def run(event):
     if not event.get("transcript_path") or not event.get("agent_id"):
         return
-    transcript = transcript_path(event)
+    transcript = transcript_tail.subagent_transcript(event)
     if transcript is None:
         return
-    streak = trailing_streak(tool_calls_per_request(tail_entries(transcript)))
+    streak = trailing_streak(tool_calls_per_request(transcript_tail.tail_entries(transcript)))
     marker = MARKER_DIR / f"{event.get('session_id', '')}-{event['agent_id']}"
     # The tail can cut a long streak short, so the last reminded request, not a count, decides when to repeat.
     last_reminded = marker.read_text() if marker.exists() else None
