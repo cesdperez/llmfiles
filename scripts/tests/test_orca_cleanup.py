@@ -215,6 +215,18 @@ class StaleLock(unittest.TestCase):
             (Path(tmp) / "owner").write_text("feat")
             self.assertFalse(oc.lock_is_stale(Path(tmp)))
 
+    def test_fresh_owner_whose_run_process_is_gone_is_stale(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "owner").write_text("feat:999999:1")
+            (Path(tmp) / "pid").write_text("999999")
+            self.assertTrue(oc.lock_is_stale(Path(tmp)))
+
+    def test_fresh_owner_whose_run_process_lives_is_held(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "owner").write_text("feat")
+            (Path(tmp) / "pid").write_text(str(os.getpid()))
+            self.assertFalse(oc.lock_is_stale(Path(tmp)))
+
 
 if __name__ == "__main__":
     unittest.main()

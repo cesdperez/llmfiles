@@ -182,20 +182,27 @@ worktrees at once starve each other, and tests that pass alone then fail. One lo
 - One command: `~/llmfiles/scripts/qa-lock.sh run <branch> -- <command>`. It waits for the
   lock, keeps it fresh, releases it also on failure, and exits with the command's code. A
   wait can outlast the Bash timeout, so run it in the background when the lock is held.
+  When `<branch>` already holds the lock, `run` starts at once under that hold and leaves
+  it held.
 - An agent runs heavy commands only under a token this session took for it, so no agent
   waits for the lock. An agent that needs one mid-task reports the command back.
 - This session takes the lock for an agent: run `~/llmfiles/scripts/qa-lock.sh take
   <branch>` in the background with a 2-hour timeout, started again when the timeout stops
   it, and send the agent its brief with the token it prints. The agent runs its heavy
-  commands directly, never through `run`, which would wait on its own lock. It runs
+  commands directly or through `run` with the same branch. It runs
   `~/llmfiles/scripts/qa-lock.sh touch "$token"` at least every 30 minutes and
-  `~/llmfiles/scripts/qa-lock.sh release "$token"` when its heavy work ends.
+  `~/llmfiles/scripts/qa-lock.sh release "$token"` when its heavy work ends. A `take` for
+  the branch that holds the lock prints its token again, so a lost token is recovered
+  that way.
 - The token is the holder, because release removes the lock only for its own token. So
-  this session also releases it when the agent reports or is stopped, which does nothing
-  when the agent already did. Before releasing for a stopped agent, stop what it started,
-  such as the stage 4 stack.
-- A lock whose owner was not touched for over an hour is from a crashed run; the script
-  clears it while waiting.
+  this session also releases it when the agent reports or is stopped. A release of a free
+  lock exits 0. Before releasing for a stopped agent, stop what it started, such as the
+  stage 4 stack.
+- `release` and `touch` exit 1 when another token holds the lock. The token passed was
+  cut or mistyped, or another run took the lock after this one was released. Run
+  `~/llmfiles/scripts/qa-lock.sh status` to see the holder before acting again.
+- A `run` whose process is gone is cleared at once. A span whose owner was not touched
+  for over an hour is from a crashed agent. The script clears both while waiting.
 - Count a flaky test's failures only under the lock. A failure under another run's load
   says nothing about the test.
 

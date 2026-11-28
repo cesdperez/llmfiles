@@ -122,7 +122,18 @@ def branch_verdict(facts):
 def lock_is_stale(lock):
     owner = lock / "owner"
     stamp = owner if owner.exists() else lock
-    return time.time() - stamp.stat().st_mtime > LOCK_STALE_S
+    return run_process_gone(lock / "pid") or time.time() - stamp.stat().st_mtime > LOCK_STALE_S
+
+
+# Only a qa-lock.sh `run` records its pid. A `take` span has none and relies on its touches.
+def run_process_gone(pid_file):
+    try:
+        os.kill(int(pid_file.read_text()), 0)
+    except ProcessLookupError:
+        return True
+    except (OSError, ValueError):
+        return False
+    return False
 
 
 def run(cmd, cwd=None, timeout=120):
@@ -233,7 +244,7 @@ class Cleanup:
 
     def stale_lock(self):
         if QA_LOCK.exists() and lock_is_stale(QA_LOCK):
-            self.act("lock", str(QA_LOCK), "owner untouched for over an hour, from a crashed run",
+            self.act("lock", str(QA_LOCK), "its run process is gone or its owner was untouched for over an hour",
                      cmd=["rm", "-rf", str(QA_LOCK)])
 
     def reclaimable_workers(self, workers):
