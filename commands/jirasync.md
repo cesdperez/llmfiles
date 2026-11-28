@@ -36,6 +36,9 @@ any comment. With "dry run" in `$ARGUMENTS`, list the changes below and make non
 
 - **`merged_not_done`**: move to Done when an MR names the key in its title or source branch.
   A key found only in a description is a mention, not proof, so flag that ticket instead.
+  A ticket whose `status` is In Progress may have more MRs to come, so list those and ask me
+  once to confirm which move to Done; in a dry run, list them without asking. Other statuses
+  move directly.
   Discover the transitions first. When the Done transition needs a field such as Resolution,
   ask me for the value once for all such tickets rather than picking one.
 - **`assign_to_me`**: assign the ticket to me. These are tickets where I authored a merged MR
@@ -57,6 +60,9 @@ Done: <KEY> <summary>, <MR ref>
 Assigned: <KEY> <summary>
 Flag: <KEY> <summary>, <why>
 ```
+
+An In Progress ticket I declined, or one held for confirmation in a dry run, is a flag whose
+`<why>` says it is In Progress and was not moved.
 
 Then draft a release recap from the merged MRs, for a Slack post or release note: a one-line
 headline of what the epic delivered, then one bullet per ticket with merged work, written as
