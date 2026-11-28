@@ -75,9 +75,7 @@ Always include these flags when creating MRs:
 - `--assignee @me` - Assign to the current user
 
 Squash follows the project's `squash_option` (`glab api projects/<id> | jq .squash_option`):
-pass `--squash-before-merge` only where it is `default_on` or `always`. Never squash in
-tosti: GitLab writes the squash commit itself, the pre-push hook never verified it, and
-the `signoff` job on main fails.
+pass `--squash-before-merge` only where it is `default_on` or `always`.
 
 **MR Title Format**: Conventional Commits, with the Jira code as the scope:
 `type(PROJ-123): description`, e.g. `fix(PROJ-209): correct OTLP receiver hostname`.
