@@ -7,6 +7,19 @@ description: Interact with the intervals.icu training platform API. Use when fet
 
 REST API for the intervals.icu training platform. Manage activities, workouts, calendar events, athlete profile, and fitness metrics.
 
+## Reports (try first)
+
+For these read questions, run the script instead of writing curl. One call, compact TSV output, env vars loaded by the script:
+
+```bash
+S=~/llmfiles/skills/intervals-icu/scripts/icu.sh
+$S session [DAYS_BACK=14] [DAYS_AHEAD=14]   # today's wellness (CTL/ATL/TSB, RHR, HRV, sleep) + activities + planned events
+$S totals OLDEST NEWEST                     # count, km, moving hours, load per sport type plus TOTAL (inclusive dates)
+$S plan-vs-actual [DAYS_BACK=14] [ACT_ID]   # latest activity paired to a planned event (else latest run): actual, laps, planned, steps
+```
+
+Use curl as below for anything else: streams, writes, other endpoints.
+
 ## Auth & Base URL
 
 ```
